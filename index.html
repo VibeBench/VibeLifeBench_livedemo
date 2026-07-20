@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Noto+Sans+SC:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./css/styles.css?v=20260720-50" />
+    <link rel="stylesheet" href="./css/styles.css?v=20260720-52" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
@@ -133,9 +133,17 @@
 
     <aside class="console" id="consolePanel" aria-label="Demo Console">
       <h3>演示控制台</h3>
+      <div class="console-onboard" id="consoleOnboard" hidden>
+        <div class="console-onboard-title">两步开始自动演示</div>
+        <ol>
+          <li>选择提供商，填写 <strong>API Key</strong>（推荐 DeepSeek）</li>
+          <li>点下方「保存并连接」，回到手机里再点 <strong>开始自动演示</strong></li>
+        </ol>
+        <p class="console-onboard-note">Key 只保存在本机浏览器，不会上传到本站。</p>
+      </div>
       <p class="hint">
-        任意 <strong>OpenAI 兼容</strong> Chat Completions 端点均可。Key 只存本机
-        localStorage。浏览器直连常被 CORS 拦截时：本机 <code>./start.sh</code>，Base 填
+        任意 <strong>OpenAI 兼容</strong> Chat Completions 端点均可。浏览器直连常被 CORS
+        拦截时：本机 <code>./start.sh</code>，Base 填
         <code>http://127.0.0.1:8787</code>（代理可按提供商转发）。
       </p>
       <label class="field">
@@ -182,6 +190,6 @@
 
     <div class="toast" id="toast" hidden></div>
 
-    <script type="module" src="./js/app.js?v=20260720-50"></script>
+    <script type="module" src="./js/app.js?v=20260720-52"></script>
   </body>
 </html>

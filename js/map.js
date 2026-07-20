@@ -1,6 +1,7 @@
 /**
  * Map: Leaflet + Esri topo (north-up).
- * - Fog-of-war itinerary (only revealed days)
+ * - Fog-of-war place pins (only revealed days)
+ * - Drive plan: solid = already driven, dashed = planned ahead
  * - Live day state: green animated route + activity emoji
  * - Pre-trip phases: home only → +计划抵达(机票已订) → +航班虚线(已到机场)
  */
@@ -9,16 +10,16 @@ import {
   NORTH_SPINE,
   MT_COOK_SPUR,
   WANAKA_SPUR,
-  TRANSFER_LEG,
-  TRANSFER_CORRIDOR,
-  TRANSFER_DAY1,
   TRANSFER_DAY2,
-  TRANSFER_HUB,
+  DATE_DRIVE_LEGS,
   resolveTodayDriveIds,
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260720-47";
+} from "./routing.js?v=20260720-52";
+
+/** Cook Strait ferry calendar day (case itinerary). */
+const FERRY_DATE = "2026-10-19";
 
 const DEFAULT_PLACE_GEO = {
   pl_chc_airport: "christchurch",
@@ -63,11 +64,11 @@ export function ensureMapContainer(panelEl) {
           <div class="map-banner" id="mapBanner" hidden></div>
         </div>
         <div class="map-legend" id="mapLegend">
-          <span><i class="lg-route"></i>已揭晓主线</span>
+          <span><i class="lg-done"></i>已走</span>
+          <span><i class="lg-route"></i>规划未走</span>
           <span><i class="lg-live"></i>当前路段</span>
           <span data-leg="flight"><i class="lg-flight"></i>确认后航线</span>
           <span><i class="lg-ferry"></i>渡轮</span>
-          <span><i class="lg-spur"></i>支线</span>
           <span><i class="lg-close"></i>封闭/暂缓</span>
         </div>
       </div>`;
@@ -254,10 +255,6 @@ function revealedPlaceIds(engine, planDate) {
   return ids;
 }
 
-function filterSpine(ids, revealedIds) {
-  return ids.filter((id) => revealedIds.has(id));
-}
-
 function classifyActivity(action, { isHome = false } = {}) {
   const a = String(action || "").trim();
   // Before any playback / no action yet — never claim "行程中"
@@ -369,20 +366,32 @@ function paintLeafletBase(ctx) {
       );
   }
 
-  const ferryUnlocked = ctx.revealedIds?.has("pl_picton") || ctx.revealedIds?.has("pl_wellington");
-  if (ferryUnlocked && ctx.transitStops.length >= 2) {
-    const ferry = ctx.transitStops.filter((s) => s.lat != null).map((s) => [s.lat, s.lng]);
+  // Ferry: show once NZ trip has started; dashed until the crossing day is done.
+  const ferryStops = (ctx.transitStops || []).filter((s) => s.lat != null);
+  const tripStarted = Boolean(ctx.revealedIds?.size);
+  if (tripStarted && ferryStops.length >= 2) {
+    const ferry = ferryStops.map((s) => [s.lat, s.lng]);
     const suspended = ctx.activeTransit.length > 0;
     const onFerry = ctx.activity?.kind === "ferry";
+    const ferryDone = Boolean(ctx.planDate && ctx.planDate > FERRY_DATE);
+    const plannedOnly = !ferryDone && !onFerry;
     window.L.polyline(ferry, {
-      color: suspended ? "#e11d48" : onFerry ? "#16a34a" : "#0369a1",
-      weight: suspended ? 5 : onFerry ? 6 : 3.5,
-      dashArray: "10 7",
-      opacity: 0.95,
-      className: onFerry ? "route-live-line" : "",
+      color: suspended ? "#e11d48" : onFerry ? "#16a34a" : ferryDone ? "#0369a1" : "#38bdf8",
+      weight: suspended ? 5 : onFerry ? 6 : ferryDone ? 4 : 3,
+      dashArray: ferryDone && !suspended ? "2 10" : "10 7",
+      opacity: plannedOnly ? 0.55 : 0.95,
+      className: onFerry ? "route-live-line" : plannedOnly ? "route-planned-line" : "",
     })
       .addTo(leafletLayer)
-      .bindTooltip(suspended ? "渡轮中断" : onFerry ? "渡轮航行中" : "Interislander 渡轮");
+      .bindTooltip(
+        suspended
+          ? "渡轮中断"
+          : onFerry
+            ? "渡轮航行中"
+            : ferryDone
+              ? "库克海峡渡轮（已走）"
+              : "规划·库克海峡渡轮（未走）"
+      );
   }
 
   // Live activity already draws a status pill at "here" — skip stacked place tooltip/pin.
@@ -501,111 +510,177 @@ async function paintLeafletRoutes(ctx) {
     return;
   }
 
-  const southIds = filterSpine(SOUTH_SPINE, revealed);
-  const northIds = filterSpine(NORTH_SPINE, revealed);
+  const planDate = ctx.planDate || null;
   const sh80Closed = isRoadClosed(ctx, MT_COOK_SPUR.road_id);
-  // Draw Mt Cook spur when unlocked, or early as "deferred" while SH80 is closed.
-  const showMtCookSpur =
-    (revealed.has(MT_COOK_SPUR.from) && revealed.has(MT_COOK_SPUR.to)) ||
-    (sh80Closed && revealed.has(MT_COOK_SPUR.from));
-  const wanakaIds =
-    revealed.has(WANAKA_SPUR.from) && revealed.has(WANAKA_SPUR.to)
-      ? [WANAKA_SPUR.from, WANAKA_SPUR.to]
-      : [];
-  // Transfer corridor via mid-island overnight (never one Milford→Picton mega-day)
-  const transferIds =
-    revealed.has(TRANSFER_LEG.from) && revealed.has(TRANSFER_LEG.to)
-      ? revealed.has(TRANSFER_HUB)
-        ? [...TRANSFER_CORRIDOR]
-        : [TRANSFER_LEG.from, TRANSFER_LEG.to]
-      : revealed.has(TRANSFER_LEG.from) && revealed.has(TRANSFER_HUB)
-        ? [...TRANSFER_DAY1]
-        : revealed.has(TRANSFER_HUB) && revealed.has(TRANSFER_LEG.to)
-          ? [...TRANSFER_DAY2]
-          : [];
+  const legs = itineraryDriveLegs();
 
-  const tempSouth = spineStraight(ctx, southIds);
-  if (tempSouth.length >= 2) {
-    window.L.polyline(tempSouth, {
+  // Lightweight straight preview while OSRM/precomputed paths resolve
+  const previewIds = legs.flatMap((l) => l.ids).filter((id, i, arr) => arr.indexOf(id) === i);
+  const preview = spineStraight(
+    ctx,
+    previewIds.filter((id) => revealed.has(id) || !planDate || legDateForPlace(id) >= planDate)
+  );
+  if (preview.length >= 2) {
+    window.L.polyline(preview, {
       color: "#94a3b8",
       weight: 2,
-      opacity: 0.25,
+      opacity: 0.2,
       dashArray: "4 6",
     }).addTo(routeLayer);
   }
 
-  const [south, north, mtCook, wanaka, transfer] = await Promise.all([
-    southIds.length >= 2 ? buildDrivingPath(ctx, southIds) : Promise.resolve([]),
-    northIds.length >= 2 ? buildDrivingPath(ctx, northIds) : Promise.resolve([]),
-    showMtCookSpur
-      ? buildDrivingPath(ctx, [MT_COOK_SPUR.from, MT_COOK_SPUR.to])
-      : Promise.resolve([]),
-    wanakaIds.length >= 2 ? buildDrivingPath(ctx, wanakaIds) : Promise.resolve([]),
-    transferIds.length >= 2 ? buildDrivingPath(ctx, transferIds) : Promise.resolve([]),
-  ]);
+  const built = await Promise.all(
+    legs.map(async (leg) => ({
+      ...leg,
+      path: leg.ids.length >= 2 ? await buildDrivingPath(ctx, leg.ids) : [],
+    }))
+  );
   if (token !== drawToken || !routeLayer) return;
 
   routeLayer.clearLayers();
 
-  if (south.length >= 2) {
-    const rerouteHint = sh80Closed && southIds.includes("pl_queenstown");
-    window.L.polyline(south, {
-      color: "#1e3a8a",
-      weight: 5,
-      opacity: 0.85,
+  for (const leg of built) {
+    if (leg.path.length < 2) continue;
+    const traveled = Boolean(planDate && leg.date < planDate);
+    // Mt Cook spur: show early as deferred dashed when SH80 closed (even before its day)
+    const isMtCook = leg.kind === "mt_cook";
+    if (isMtCook && !traveled && sh80Closed && !revealed.has(MT_COOK_SPUR.from)) {
+      continue;
+    }
+    if (isMtCook && !traveled && sh80Closed && revealed.has(MT_COOK_SPUR.from)) {
+      window.L.polyline(leg.path, {
+        color: "#e11d48",
+        weight: 5,
+        opacity: 0.9,
+        dashArray: "10 8",
+        className: "route-planned-line",
+      })
+        .addTo(routeLayer)
+        .bindTooltip("原计划·库克山支线（SH80 落石封闭·暂缓/等开放）");
+      continue;
+    }
+
+    const style = styleForDriveLeg(leg, traveled, sh80Closed);
+    window.L.polyline(leg.path, {
+      color: style.color,
+      weight: style.weight,
+      opacity: style.opacity,
+      dashArray: style.dashArray,
+      className: traveled ? "" : "route-planned-line",
     })
       .addTo(routeLayer)
-      .bindTooltip(
-        rerouteHint
-          ? "南岛主线（改线：不经 SH80，蒂卡波→皇后镇）"
-          : "南岛自驾主线（已揭晓）"
-      );
-  }
-  if (mtCook.length >= 2) {
-    window.L.polyline(mtCook, {
-      color: sh80Closed ? "#e11d48" : "#0f766e",
-      weight: sh80Closed ? 5 : 3.5,
-      opacity: sh80Closed ? 0.9 : 0.85,
-      dashArray: sh80Closed ? "10 8" : "1 8",
-    })
-      .addTo(routeLayer)
-      .bindTooltip(
-        sh80Closed
-          ? "原计划·库克山支线（SH80 落石封闭·暂缓/等开放）"
-          : "库克山支线 SH80（往返蒂卡波）"
-      );
-  }
-  if (transfer.length >= 2) {
-    window.L.polyline(transfer, {
-      color: "#64748b",
-      weight: 3.5,
-      opacity: 0.75,
-      dashArray: "8 6",
-    })
-      .addTo(routeLayer)
-      .bindTooltip("南岛北上转场（经中部过夜，分两天）");
-  }
-  if (wanaka.length >= 2) {
-    window.L.polyline(wanaka, {
-      color: "#7c3aed",
-      weight: 3.5,
-      opacity: 0.85,
-      dashArray: "1 8",
-    })
-      .addTo(routeLayer)
-      .bindTooltip("瓦纳卡支线");
-  }
-  if (north.length >= 2) {
-    window.L.polyline(north, {
-      color: "#1e3a8a",
-      weight: 5,
-      opacity: 0.85,
-    })
-      .addTo(routeLayer)
-      .bindTooltip("北岛自驾主线（已揭晓）");
+      .bindTooltip(style.tooltip);
   }
 
   await paintLiveActivity(ctx, token);
+}
+
+/** Full campervan drive plan as dated legs (solid = done, dashed = planned ahead). */
+function itineraryDriveLegs() {
+  return Object.entries(DATE_DRIVE_LEGS)
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([date, ids]) => {
+      const list = [...ids];
+      return { date, ids: list, kind: driveLegKind(list), label: driveLegLabel(date, list) };
+    });
+}
+
+function driveLegKind(ids) {
+  if (ids.includes("pl_mt_cook") && ids.includes("pl_tekapo") && ids.length === 2) return "mt_cook";
+  if (ids.includes("pl_wanaka")) return "wanaka";
+  if (
+    (ids.includes("pl_milford") && ids.includes("pl_tekapo")) ||
+    (ids.includes("pl_tekapo") && ids.includes("pl_picton"))
+  ) {
+    return "transfer";
+  }
+  if (ids.some((id) => NORTH_SPINE.includes(id))) return "north";
+  return "south";
+}
+
+function driveLegLabel(date, ids) {
+  const names = {
+    pl_chc_airport: "基督城",
+    pl_tekapo: "蒂卡波",
+    pl_mt_cook: "库克山",
+    pl_wanaka: "瓦纳卡",
+    pl_queenstown: "皇后镇",
+    pl_milford: "峡湾",
+    pl_picton: "皮克顿",
+    pl_wellington: "惠灵顿",
+    pl_taupo: "陶波",
+    pl_rotorua: "罗托鲁阿",
+    pl_akl_airport: "奥克兰",
+  };
+  const route = ids.map((id) => names[id] || id).join("→");
+  return `${date.slice(5)} ${route}`;
+}
+
+function legDateForPlace(placeId) {
+  for (const [date, ids] of Object.entries(DATE_DRIVE_LEGS)) {
+    if (ids.includes(placeId)) return date;
+  }
+  return "9999-99-99";
+}
+
+function styleForDriveLeg(leg, traveled, sh80Closed) {
+  const baseTip = leg.label || "";
+  if (leg.kind === "mt_cook" && sh80Closed && !traveled) {
+    return {
+      color: "#e11d48",
+      weight: 5,
+      opacity: 0.9,
+      dashArray: "10 8",
+      tooltip: "原计划·库克山支线（SH80 封闭）",
+    };
+  }
+  if (traveled) {
+    if (leg.kind === "mt_cook") {
+      return { color: "#0f766e", weight: 4, opacity: 0.9, dashArray: null, tooltip: `已走 · ${baseTip}` };
+    }
+    if (leg.kind === "wanaka") {
+      return { color: "#6d28d9", weight: 4, opacity: 0.88, dashArray: null, tooltip: `已走 · ${baseTip}` };
+    }
+    if (leg.kind === "transfer") {
+      return { color: "#334155", weight: 4, opacity: 0.88, dashArray: null, tooltip: `已走 · ${baseTip}` };
+    }
+    return { color: "#1e3a8a", weight: 5, opacity: 0.9, dashArray: null, tooltip: `已走 · ${baseTip}` };
+  }
+  // Planned but not yet driven — dashed
+  if (leg.kind === "mt_cook") {
+    return {
+      color: "#0f766e",
+      weight: 3.5,
+      opacity: 0.65,
+      dashArray: "9 10",
+      tooltip: `规划未走 · ${baseTip}`,
+    };
+  }
+  if (leg.kind === "wanaka") {
+    return {
+      color: "#7c3aed",
+      weight: 3.5,
+      opacity: 0.6,
+      dashArray: "9 10",
+      tooltip: `规划未走 · ${baseTip}`,
+    };
+  }
+  if (leg.kind === "transfer") {
+    return {
+      color: "#64748b",
+      weight: 3.5,
+      opacity: 0.6,
+      dashArray: "9 10",
+      tooltip: `规划未走 · ${baseTip}`,
+    };
+  }
+  return {
+    color: "#3b82f6",
+    weight: 4,
+    opacity: 0.55,
+    dashArray: "9 11",
+    tooltip: `规划未走 · ${baseTip}`,
+  };
 }
 
 function paintHomeFlightArc(ctx) {

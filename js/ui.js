@@ -1,7 +1,7 @@
 /**
  * Dashboard + phone chat rendering
  */
-import { renderLeafletMap, destroyMap } from "./map.js?v=20260720-47";
+import { renderLeafletMap, destroyMap } from "./map.js?v=20260720-52";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -853,6 +853,61 @@ export class UI {
   clearChat() {
     this.els.chatMessages.innerHTML = "";
     this._chatStickToBottom = true;
+  }
+
+  /**
+   * First-entry guide in the phone chat: configure model → start auto-demo.
+   * handlers: { onConfigure, onStartDemo, onDismiss }
+   */
+  showWelcomeGuide({ configured = false, providerLabel = "", model = "" } = {}, handlers = {}) {
+    const host = this.els.chatMessages;
+    if (!host) return null;
+    host.querySelector(".welcome-guide")?.remove();
+
+    const wrap = document.createElement("div");
+    wrap.className = "bubble welcome-guide";
+    const statusLine = configured
+      ? `<div class="welcome-status ok">已连接 · ${escapeHtml(providerLabel || "LLM")} · ${escapeHtml(
+          model || ""
+        )}</div>`
+      : `<div class="welcome-status warn">尚未配置 API Key — Agent 还不能回复</div>`;
+
+    wrap.innerHTML = `
+      <div class="welcome-title">开始 VibeLifeBench 演示</div>
+      <ol class="welcome-steps">
+        <li class="${configured ? "done" : "active"}">
+          <span class="ws-num">1</span>
+          <span>填写模型信息（提供商 + API Key）</span>
+        </li>
+        <li class="${configured ? "active" : ""}">
+          <span class="ws-num">2</span>
+          <span>开启自动播放，Agent 随行程事件互动</span>
+        </li>
+      </ol>
+      ${statusLine}
+      <div class="welcome-actions">
+        <button type="button" class="welcome-btn ${configured ? "ghost" : "primary"}" data-welcome="configure">
+          ${configured ? "更改模型" : "配置模型"}
+        </button>
+        <button type="button" class="welcome-btn ${configured ? "primary" : "ghost"}" data-welcome="start" ${
+          configured ? "" : "disabled"
+        }>
+          开始自动演示
+        </button>
+      </div>
+      <div class="welcome-foot">也可点顶部「演示控制台 / 自动播放」；手机底栏 ⚙️ 同样打开设置</div>`;
+
+    wrap.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-welcome]");
+      if (!btn || btn.disabled) return;
+      const act = btn.dataset.welcome;
+      if (act === "configure") handlers.onConfigure?.();
+      if (act === "start") handlers.onStartDemo?.();
+    });
+
+    host.appendChild(wrap);
+    this._scrollChatToBottom({ force: true });
+    return wrap;
   }
 
   appendChat({ role, text, from, streaming = false, time = null }) {

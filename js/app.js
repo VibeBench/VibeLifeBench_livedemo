@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260720-50";
-import { DemoEngine } from "./engine.js?v=20260720-50";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260720-52";
+import { DemoEngine } from "./engine.js?v=20260720-52";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260720-50";
+} from "./agent.js?v=20260720-52";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260720-50";
+import { UI } from "./ui.js?v=20260720-52";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -91,6 +91,7 @@ async function main() {
     caseData = await loadDefaultCase("./data");
     bootCase(caseData);
     ui.toast("已加载 newzealand_drive_30d_fix");
+    maybeAutoOpenConsole();
   } catch (e) {
     console.error(e);
     ui.toast("默认数据加载失败：" + e.message);
@@ -105,13 +106,77 @@ function bootCase(data) {
   ui.clearChat();
   ui.resetLedgerAlerts();
   ui.setPhoneTab("chat");
-  ui.appendChat({
-    role: "system",
-    text: "环境已就绪。开启自动播放，Agent 将随事件持续互动并生成 trajectory。",
-  });
   ui.setQuickChips(["查看营地详情", "明天天气怎么样", "预算还剩多少", "现在路况安全吗"]);
   refreshDashboard();
   ensureAgent();
+  showEntryGuide();
+}
+
+function hasApiKeyConfigured() {
+  const provider = settings.provider || DEFAULT_PROVIDER;
+  if (provider === "ollama") return true;
+  return Boolean((settings.apiKey || "").trim());
+}
+
+function showEntryGuide() {
+  const provider = settings.provider || DEFAULT_PROVIDER;
+  // Don't construct agent just to probe — key presence is enough for the CTA state.
+  const configured = hasApiKeyConfigured();
+  ui.showWelcomeGuide(
+    {
+      configured,
+      providerLabel: PROVIDERS[provider]?.label || provider,
+      model: settings.model || DEFAULT_MODEL,
+    },
+    {
+      onConfigure: () => {
+        openConsole(true);
+        document.querySelector("#apiKey")?.focus();
+      },
+      onStartDemo: () => {
+        if (!hasApiKeyConfigured() || !ensureAgent()) {
+          ui.toast("请先配置 API Key");
+          openConsole(true);
+          return;
+        }
+        ui.setPhoneTab("chat");
+        startAutoplay();
+        pulseAutoplayButton();
+        ui.toast("自动演示已开始");
+      },
+    }
+  );
+}
+
+/** First visit without a key: open the console once so the path is obvious. */
+function maybeAutoOpenConsole() {
+  if (hasApiKeyConfigured()) return;
+  try {
+    if (localStorage.getItem("vibelifebench_console_autopen")) return;
+    localStorage.setItem("vibelifebench_console_autopen", "1");
+  } catch {
+    /* ignore */
+  }
+  setTimeout(() => openConsole(true), 450);
+}
+
+function pulseAutoplayButton() {
+  const btn = document.querySelector("#btnAutoplay");
+  if (!btn) return;
+  btn.classList.remove("guide-pulse");
+  void btn.offsetWidth;
+  btn.classList.add("guide-pulse");
+  setTimeout(() => btn.classList.remove("guide-pulse"), 4000);
+}
+
+function syncConsoleOnboard() {
+  const el = document.querySelector("#consoleOnboard");
+  if (!el) return;
+  el.hidden = hasApiKeyConfigured();
+  const saveBtn = document.querySelector("#btnSaveSettings");
+  if (saveBtn) {
+    saveBtn.textContent = hasApiKeyConfigured() ? "保存并连接" : "保存并连接 → 下一步";
+  }
 }
 
 /** Clear chat / agent memory / trajectory and rewind env playback to stage 0. */
@@ -147,12 +212,9 @@ function clearAndRewind({ confirm: needConfirm = true } = {}) {
   ui.clearChat();
   ui.resetLedgerAlerts();
   ui.setPhoneTab("chat");
-  ui.appendChat({
-    role: "system",
-    text: "已清空并回溯到起点。事件流、状态与对话均已重置，可重新开始演示。",
-  });
   ui.setQuickChips(["查看营地详情", "明天天气怎么样", "预算还剩多少", "现在路况安全吗"]);
   refreshDashboard();
+  showEntryGuide();
   ui.toast("已清空回溯到起点");
 }
 
@@ -447,9 +509,17 @@ function bindChrome() {
   document.querySelector("#btnCloseConsole").addEventListener("click", () => openConsole(false));
   document.querySelector("#btnSaveSettings").addEventListener("click", () => {
     saveSettingsFromForm();
-    ensureAgent();
-    ui.toast("设置已保存（仅存本机 localStorage）");
+    const a = ensureAgent();
+    syncConsoleOnboard();
+    if (!a) {
+      ui.toast("请填写 API Key 后再保存");
+      document.querySelector("#apiKey")?.focus();
+      return;
+    }
     openConsole(false);
+    showEntryGuide();
+    pulseAutoplayButton();
+    ui.toast("已连接 · 点「开始自动演示」或顶部自动播放");
   });
   document.querySelector("#btnExport").addEventListener("click", () => {
     if (!trajectory) return;
@@ -523,6 +593,10 @@ function openConsole(show) {
   const panel = document.querySelector("#consolePanel");
   if (typeof show === "boolean") panel.classList.toggle("open", show);
   else panel.classList.toggle("open");
+  if (panel.classList.contains("open")) {
+    applySettingsToForm();
+    syncConsoleOnboard();
+  }
 }
 
 function loadSettings() {
