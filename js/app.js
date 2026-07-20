@@ -1,0 +1,454 @@
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260720-43";
+import { DemoEngine } from "./engine.js?v=20260720-44";
+import { TravelAgent, DEFAULT_MODEL, DEFAULT_BASE } from "./agent.js?v=20260720-29";
+import { Trajectory } from "./trajectory.js?v=20260720-27";
+import { UI } from "./ui.js?v=20260720-47";
+
+const ui = new UI();
+let caseData = null;
+let engine = null;
+let agent = null;
+let trajectory = null;
+
+let autoplay = false;
+let busy = false;
+let autoplayTimer = null;
+
+const settings = loadSettings();
+
+async function main() {
+  bindChrome();
+  applySettingsToForm();
+  try {
+    caseData = await loadDefaultCase("./data");
+    bootCase(caseData);
+    ui.toast("已加载 newzealand_drive_30d_fix");
+  } catch (e) {
+    console.error(e);
+    ui.toast("默认数据加载失败：" + e.message);
+  }
+}
+
+function bootCase(data) {
+  caseData = data;
+  engine = new DemoEngine(data);
+  trajectory = new Trajectory(data.meta.case_id);
+  ui.setMeta(data.meta);
+  ui.clearChat();
+  ui.resetLedgerAlerts();
+  ui.setPhoneTab("chat");
+  ui.appendChat({
+    role: "system",
+    text: "环境已就绪。开启自动播放，Agent 将随事件持续互动并生成 trajectory。",
+  });
+  ui.setQuickChips(["查看营地详情", "明天天气怎么样", "预算还剩多少", "现在路况安全吗"]);
+  refreshDashboard();
+  ensureAgent();
+}
+
+/** Clear chat / agent memory / trajectory and rewind env playback to stage 0. */
+function clearAndRewind({ confirm: needConfirm = true } = {}) {
+  if (!caseData) return;
+  const hasProgress =
+    (engine && engine.cursor >= 0) ||
+    (trajectory && trajectory.steps.length > 0) ||
+    (ui.els.chatMessages?.children?.length > 1);
+  if (needConfirm && hasProgress) {
+    const ok = window.confirm("清空对话、Agent 记忆与 trajectory，并回溯到行程起点？");
+    if (!ok) return;
+  }
+  stopAutoplay();
+  busy = false;
+  setBusyUI(false);
+  ui._streamBubble = null;
+
+  // Fresh engine + trajectory
+  engine = new DemoEngine(caseData);
+  trajectory = new Trajectory(caseData.meta.case_id);
+
+  // Reset agent conversation (keep API settings)
+  if (agent) {
+    agent.engine = engine;
+    agent.resetConversation(caseData.workspace, caseData.meta);
+    trajectory.setModel(settings.model || DEFAULT_MODEL);
+  } else {
+    ensureAgent();
+  }
+
+  ui.resetMap();
+  ui.clearChat();
+  ui.resetLedgerAlerts();
+  ui.setPhoneTab("chat");
+  ui.appendChat({
+    role: "system",
+    text: "已清空并回溯到起点。事件流、状态与对话均已重置，可重新开始演示。",
+  });
+  ui.setQuickChips(["查看营地详情", "明天天气怎么样", "预算还剩多少", "现在路况安全吗"]);
+  refreshDashboard();
+  ui.toast("已清空回溯到起点");
+}
+
+function ensureAgent() {
+  const key = settings.apiKey || document.querySelector("#apiKey")?.value?.trim();
+  if (!key) {
+    agent = null;
+    ui.setAgentStatus("Offline · 需配置 API Key", false);
+    return null;
+  }
+  const model = settings.model || DEFAULT_MODEL;
+  const baseUrl = settings.baseUrl || DEFAULT_BASE;
+  trajectory?.setModel(model);
+  agent = new TravelAgent({
+    apiKey: key,
+    baseUrl,
+    model,
+    engine,
+    workspace: caseData.workspace,
+    meta: caseData.meta,
+    thinking: true,
+    onStream: (payload) => {
+      if (ui._streamBubble) ui.updateAgentTurn(ui._streamBubble, payload);
+    },
+    onTool: ({ name, args }) => {
+      console.debug("tool", name, args);
+      if (/book|cancel|create|send|post|update|write|insert|reserve/i.test(name || "")) {
+        const tab = /notion|page|block/i.test(name) ? "notes" : "trip";
+        ui.notifyStateChange({
+          icon: tab === "notes" ? "📝" : "🔧",
+          text: `工具已写入 · ${name}`,
+          tab,
+        });
+      }
+    },
+  });
+  ui.setAgentStatus("Online · " + model, true);
+  return agent;
+}
+
+function refreshDashboard() {
+  if (!engine) return;
+  const liveDate = engine.latestDate();
+  const focus = engine.uiFocus;
+  let viewDate = liveDate;
+  if (focus?.kind === "day" || focus?.kind === "prep") {
+    viewDate = focus.date;
+  } else if (focus?.kind === "pre") {
+    const prepReached = (engine.meta.prep_days || []).filter((d) => !liveDate || d.date <= liveDate);
+    viewDate = prepReached[prepReached.length - 1]?.date || liveDate;
+  }
+  const reached = engine.reachedDate();
+
+  ui.renderDayRibbon(engine.meta.trip_days || [], viewDate, {
+    prepDays: engine.meta.prep_days || [],
+    reachedDate: reached,
+    liveDate,
+  });
+
+  const view = engine.mapView();
+  const flags = engine.progressFlags();
+  ui.renderStatus(view.state, view.env, {
+    budgetDisclosed: flags.budgetDisclosed,
+    budgetSettled: flags.budgetSettled,
+    flightDisclosed: flags.flightDisclosed,
+    flags,
+  });
+
+  const ledger = engine.ledgerView();
+  const expandDate = viewDate || liveDate || undefined;
+  ui.renderTripLedger(ledger, { expandDate });
+  ui.renderNotionLedger(ledger);
+  ui.syncLedgerAlerts(ledger);
+
+  let list;
+  if (viewDate) {
+    const revealed = engine.eventsForDate(viewDate).filter((e) => engine.revealed.includes(e));
+    list = revealed.length ? revealed : engine.revealed.slice(-10);
+  } else {
+    list = engine.revealed.slice(-10);
+  }
+  ui.renderEventStream(list, engine.meta);
+  ui.syncEnvEmails(view.env?.emails || engine.env?.emails, engine.simNow?.());
+  ui.renderMap(engine);
+  ui.renderFooter(engine);
+}
+
+async function stepOnce() {
+  if (!engine || busy) return;
+  if (engine.progress.done) {
+    ui.toast("全部事件已播放完毕");
+    stopAutoplay();
+    return;
+  }
+
+  busy = true;
+  setBusyUI(true);
+  try {
+    const result = engine.step();
+    if (!result) return;
+    const { event, agentText, feedToAgent, mutationResult } = result;
+    trajectory.pushEnvEvent(event, { mutationResult, feedToAgent });
+
+    const t = event.time || null;
+    // Phone: surface user / notifications / heartbeats / routines
+    if (event.kind === "user_message") {
+      ui.appendChat({ role: "user", text: event.body, from: event.from, time: t });
+    } else if (event.kind === "app_notification" || event.kind === "world") {
+      ui.appendChat({ role: "system", text: truncate(event.body, 220), time: t });
+      ui.notifyEnvEvent(event);
+    } else if (event.kind === "notification") {
+      ui.appendChat({ role: "system", text: `🫀 心跳 · ${truncate(event.body, 180)}`, time: t });
+      ui.notifyEnvEvent(event);
+    } else if (event.kind === "weather") {
+      const w = event.user_state?.weather || truncate(event.body, 120);
+      const bad = event.user_state?.weather_impact === "disruptive";
+      ui.appendChat({
+        role: "system",
+        text: `${bad ? "🌧️" : "🌦️"} 天气 · ${w}`,
+        time: t,
+      });
+      ui.notifyEnvEvent(event);
+    } else if (event.kind === "routine") {
+      const action = event.user_state?.demo_action || "日常节点";
+      ui.appendChat({
+        role: "system",
+        text: `🚗 ${action}${event.user_state?.location ? ` · ${event.user_state.location}` : ""}`,
+        time: t,
+      });
+      ui.notifyEnvEvent(event);
+    } else if (event.kind === "mutation") {
+      ui.appendChat({
+        role: "system",
+        text: `⚙️ 静默变更已生效（${event.id}）— Agent 需主动查工具才能发现`,
+        time: t,
+      });
+      // No phone toast — mutations stay silent by design
+    }
+
+    refreshDashboard();
+
+    if (feedToAgent && agentText) {
+      const a = ensureAgent();
+      if (!a) {
+        ui.appendChat({
+          role: "agent",
+          text: "（未配置 DeepSeek API Key — 打开演示控制台填入后可继续生成回复）",
+          time: t,
+        });
+      } else {
+        ui._streamBubble = ui.beginAgentTurn({ time: t });
+        try {
+          const turn = await a.handleEnvEvent(agentText);
+          ui.finishAgentTurn(ui._streamBubble, {
+            thinking: turn.thinking,
+            content: turn.content || "（空回复）",
+          });
+          trajectory.pushAgentTurn({
+            eventId: event.id,
+            input: agentText,
+            output: turn.content,
+            thinking: turn.thinking,
+            toolCalls: turn.toolCalls,
+            usage: turn.usage,
+          });
+        } catch (err) {
+          console.error(err);
+          ui.finishAgentTurn(ui._streamBubble, { error: err.message });
+          stopAutoplay();
+        } finally {
+          ui._streamBubble = null;
+        }
+      }
+    }
+
+    // Auto-scroll day ribbon to current
+    refreshDashboard();
+  } finally {
+    busy = false;
+    setBusyUI(false);
+  }
+}
+
+async function sendUserChat(text) {
+  text = (text || "").trim();
+  if (!text || busy) return;
+  const a = ensureAgent();
+  if (!a) {
+    ui.toast("请先在演示控制台配置 DeepSeek API Key");
+    openConsole(true);
+    return;
+  }
+  busy = true;
+  setBusyUI(true);
+  const simTime = engine?.simNow?.() || null;
+  ui.appendChat({ role: "user", text, from: "wang_li", time: simTime });
+  trajectory.pushUserChat({ text, from: "live_user" });
+  document.querySelector("#chatInput").value = "";
+  ui._streamBubble = ui.beginAgentTurn({ time: simTime });
+  try {
+    const turn = await a.handleUserChat(text);
+    ui.finishAgentTurn(ui._streamBubble, {
+      thinking: turn.thinking,
+      content: turn.content || "（空回复）",
+    });
+    trajectory.pushAgentTurn({
+      eventId: null,
+      input: text,
+      output: turn.content,
+      thinking: turn.thinking,
+      toolCalls: turn.toolCalls,
+      usage: turn.usage,
+    });
+  } catch (err) {
+    ui.finishAgentTurn(ui._streamBubble, { error: err.message });
+  } finally {
+    ui._streamBubble = null;
+    busy = false;
+    setBusyUI(false);
+  }
+}
+
+function startAutoplay() {
+  autoplay = true;
+  document.querySelector("#btnAutoplay").classList.add("active");
+  document.querySelector("#btnAutoplay").textContent = "自动播放中";
+  tickAutoplay();
+}
+
+function stopAutoplay() {
+  autoplay = false;
+  clearTimeout(autoplayTimer);
+  document.querySelector("#btnAutoplay").classList.remove("active");
+  document.querySelector("#btnAutoplay").textContent = "自动播放";
+}
+
+async function tickAutoplay() {
+  if (!autoplay) return;
+  await stepOnce();
+  if (autoplay && !engine.progress.done) {
+    const delay = Number(settings.autoplayMs) || 1200;
+    autoplayTimer = setTimeout(tickAutoplay, delay);
+  } else {
+    stopAutoplay();
+  }
+}
+
+function setBusyUI(on) {
+  document.body.classList.toggle("is-busy", on);
+}
+
+function bindChrome() {
+  document.querySelector("#btnAutoplay").addEventListener("click", () => {
+    if (autoplay) stopAutoplay();
+    else startAutoplay();
+  });
+  document.querySelector("#btnConsole").addEventListener("click", () => openConsole());
+  document.querySelector("#btnCloseConsole").addEventListener("click", () => openConsole(false));
+  document.querySelector("#btnSaveSettings").addEventListener("click", () => {
+    saveSettingsFromForm();
+    ensureAgent();
+    ui.toast("设置已保存（仅存本机 localStorage）");
+    openConsole(false);
+  });
+  document.querySelector("#btnExport").addEventListener("click", () => {
+    if (!trajectory) return;
+    trajectory.download();
+    ui.toast("Trajectory 已导出");
+  });
+  document.querySelector("#btnRewind").addEventListener("click", () => clearAndRewind());
+  document.querySelector("#btnReset").addEventListener("click", () => clearAndRewind());
+  document.querySelector("#caseFile").addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = await loadCaseFromFile(file);
+      // Keep env/workspace from default if upload is bare event.yaml
+      if (!data.env?.weather?.daily_weather?.length && caseData?.env) {
+        data.env = structuredClone(caseData.env);
+      }
+      if (!Object.keys(data.workspace || {}).length && caseData?.workspace) {
+        data.workspace = caseData.workspace;
+      }
+      data.flat = data.flat; // already normalized
+      bootCase(data);
+      ui.toast("已加载：" + file.name);
+    } catch (err) {
+      ui.toast("加载失败：" + err.message);
+    }
+  });
+
+  document.querySelector("#dayRibbon").addEventListener("click", (e) => {
+    const chip = e.target.closest(".day-chip");
+    if (!chip || chip.disabled || chip.classList.contains("locked")) return;
+    if (chip.dataset.phase === "prep") {
+      if (!engine.focusPrepDay(chip.dataset.date)) {
+        ui.toast("该行前日期尚未到达");
+        return;
+      }
+      refreshDashboard();
+      return;
+    }
+    if (chip.dataset.phase === "pre") {
+      if (!engine.focusPreTrip()) {
+        ui.toast("行前阶段尚未开始");
+        return;
+      }
+      refreshDashboard();
+      return;
+    }
+    const dayNum = Number(chip.dataset.day);
+    if (!engine.focusDay(dayNum)) {
+      ui.toast("尚未进展到这一天");
+      return;
+    }
+    refreshDashboard();
+  });
+
+  document.querySelector("#chatForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    sendUserChat(document.querySelector("#chatInput").value);
+  });
+  document.querySelector("#quickChips").addEventListener("click", (e) => {
+    const chip = e.target.closest("[data-chip]");
+    if (chip) sendUserChat(chip.dataset.chip);
+  });
+
+  document.querySelector("#btnHelp").addEventListener("click", () => {
+    sendUserChat("我们需要帮助，请根据当前行程状态主动检查有没有风险。");
+  });
+}
+
+function openConsole(show) {
+  const panel = document.querySelector("#consolePanel");
+  if (typeof show === "boolean") panel.classList.toggle("open", show);
+  else panel.classList.toggle("open");
+}
+
+function loadSettings() {
+  try {
+    return JSON.parse(localStorage.getItem("vibelifebench_demo_settings") || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function applySettingsToForm() {
+  document.querySelector("#apiKey").value = settings.apiKey || "";
+  document.querySelector("#apiBase").value = settings.baseUrl || DEFAULT_BASE;
+  document.querySelector("#apiModel").value = settings.model || DEFAULT_MODEL;
+  document.querySelector("#autoplayMs").value = settings.autoplayMs || 1200;
+}
+
+function saveSettingsFromForm() {
+  settings.apiKey = document.querySelector("#apiKey").value.trim();
+  settings.baseUrl = document.querySelector("#apiBase").value.trim() || DEFAULT_BASE;
+  settings.model = document.querySelector("#apiModel").value.trim() || DEFAULT_MODEL;
+  settings.autoplayMs = Number(document.querySelector("#autoplayMs").value) || 1200;
+  localStorage.setItem("vibelifebench_demo_settings", JSON.stringify(settings));
+}
+
+function truncate(s, n) {
+  const t = String(s || "").replace(/\s+/g, " ").trim();
+  return t.length > n ? t.slice(0, n - 1) + "…" : t;
+}
+
+main();

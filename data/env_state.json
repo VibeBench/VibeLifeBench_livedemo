@@ -1,0 +1,2320 @@
+{
+  "weather": {
+    "locations": [
+      {
+        "geo_key": "shanghai_home",
+        "city": "Shanghai",
+        "country": "CN",
+        "lat": 31.2304,
+        "lng": 121.4737,
+        "timezone": "Asia/Shanghai",
+        "climate_profile_id": "cn_autumn",
+        "kind": "home"
+      },
+      {
+        "geo_key": "christchurch",
+        "city": "Christchurch",
+        "country": "NZ",
+        "lat": -43.5321,
+        "lng": 172.6362,
+        "timezone": "Pacific/Auckland",
+        "climate_profile_id": "nz_spring",
+        "kind": "city"
+      },
+      {
+        "geo_key": "tekapo",
+        "city": "Lake Tekapo",
+        "country": "NZ",
+        "lat": -44.0045,
+        "lng": 170.4825,
+        "timezone": "Pacific/Auckland",
+        "climate_profile_id": "nz_spring",
+        "kind": "town"
+      },
+      {
+        "geo_key": "mt_cook",
+        "city": "Aoraki/Mount Cook",
+        "country": "NZ",
+        "lat": -43.595,
+        "lng": 170.1418,
+        "timezone": "Pacific/Auckland",
+        "climate_profile_id": "nz_spring",
+        "kind": "natural"
+      },
+      {
+        "geo_key": "queenstown",
+        "city": "Queenstown",
+        "country": "NZ",
+        "lat": -45.0312,
+        "lng": 168.6626,
+        "timezone": "Pacific/Auckland",
+        "climate_profile_id": "nz_spring",
+        "kind": "city"
+      },
+      {
+        "geo_key": "te_anau",
+        "city": "Te Anau",
+        "country": "NZ",
+        "lat": -45.4144,
+        "lng": 167.718,
+        "timezone": "Pacific/Auckland",
+        "climate_profile_id": "nz_spring",
+        "kind": "town"
+      },
+      {
+        "geo_key": "manapouri",
+        "city": "Manapouri",
+        "country": "NZ",
+        "lat": -45.57,
+        "lng": 167.61,
+        "timezone": "Pacific/Auckland",
+        "climate_profile_id": "nz_spring",
+        "kind": "town"
+      },
+      {
+        "geo_key": "milford",
+        "city": "Milford Sound",
+        "country": "NZ",
+        "lat": -44.6714,
+        "lng": 167.9259,
+        "timezone": "Pacific/Auckland",
+        "climate_profile_id": "nz_spring",
+        "kind": "natural"
+      },
+      {
+        "geo_key": "picton",
+        "city": "Picton",
+        "country": "NZ",
+        "lat": -41.2833,
+        "lng": 174.0017,
+        "timezone": "Pacific/Auckland",
+        "climate_profile_id": "nz_spring",
+        "kind": "town"
+      },
+      {
+        "geo_key": "wellington",
+        "city": "Wellington",
+        "country": "NZ",
+        "lat": -41.2865,
+        "lng": 174.7762,
+        "timezone": "Pacific/Auckland",
+        "climate_profile_id": "nz_spring",
+        "kind": "city"
+      },
+      {
+        "geo_key": "taupo",
+        "city": "Taupo",
+        "country": "NZ",
+        "lat": -38.6857,
+        "lng": 176.0702,
+        "timezone": "Pacific/Auckland",
+        "climate_profile_id": "nz_spring",
+        "kind": "town"
+      },
+      {
+        "geo_key": "rotorua",
+        "city": "Rotorua",
+        "country": "NZ",
+        "lat": -38.1368,
+        "lng": 176.2497,
+        "timezone": "Pacific/Auckland",
+        "climate_profile_id": "nz_spring",
+        "kind": "city"
+      },
+      {
+        "geo_key": "auckland",
+        "city": "Auckland",
+        "country": "NZ",
+        "lat": -36.8509,
+        "lng": 174.7645,
+        "timezone": "Pacific/Auckland",
+        "climate_profile_id": "nz_spring",
+        "kind": "city"
+      }
+    ],
+    "daily_weather": [
+      {
+        "geo_key": "shanghai_home",
+        "date": "2026-09-25",
+        "tmin": 15,
+        "tmax": 23,
+        "condition": "sunny",
+        "precip_mm": 0,
+        "precip_prob": 0.05,
+        "wind_kmh": 10
+      },
+      {
+        "geo_key": "shanghai_home",
+        "date": "2026-09-26",
+        "tmin": 16,
+        "tmax": 24,
+        "condition": "sunny",
+        "precip_mm": 0,
+        "precip_prob": 0.05,
+        "wind_kmh": 12
+      },
+      {
+        "geo_key": "shanghai_home",
+        "date": "2026-09-28",
+        "tmin": 15,
+        "tmax": 22,
+        "condition": "partly_cloudy",
+        "precip_mm": 0,
+        "precip_prob": 0.1,
+        "wind_kmh": 12
+      },
+      {
+        "geo_key": "shanghai_home",
+        "date": "2026-09-30",
+        "tmin": 14,
+        "tmax": 21,
+        "condition": "partly_cloudy",
+        "precip_mm": 1,
+        "precip_prob": 0.15,
+        "wind_kmh": 14
+      },
+      {
+        "geo_key": "shanghai_home",
+        "date": "2026-10-02",
+        "tmin": 14,
+        "tmax": 22,
+        "condition": "sunny",
+        "precip_mm": 0,
+        "precip_prob": 0.1,
+        "wind_kmh": 10
+      },
+      {
+        "geo_key": "shanghai_home",
+        "date": "2026-10-04",
+        "tmin": 13,
+        "tmax": 21,
+        "condition": "partly_cloudy",
+        "precip_mm": 1,
+        "precip_prob": 0.15,
+        "wind_kmh": 13
+      },
+      {
+        "geo_key": "shanghai_home",
+        "date": "2026-10-06",
+        "tmin": 13,
+        "tmax": 20,
+        "condition": "cloudy",
+        "precip_mm": 2,
+        "precip_prob": 0.2,
+        "wind_kmh": 15
+      },
+      {
+        "geo_key": "shanghai_home",
+        "date": "2026-10-10",
+        "tmin": 12,
+        "tmax": 20,
+        "condition": "partly_cloudy",
+        "precip_mm": 0,
+        "precip_prob": 0.1,
+        "wind_kmh": 12
+      },
+      {
+        "geo_key": "christchurch",
+        "date": "2026-10-10",
+        "tmin": 5,
+        "tmax": 15,
+        "condition": "sunny",
+        "precip_mm": 0,
+        "precip_prob": 0.1,
+        "wind_kmh": 15
+      },
+      {
+        "geo_key": "christchurch",
+        "date": "2026-10-11",
+        "tmin": 6,
+        "tmax": 16,
+        "condition": "partly_cloudy",
+        "precip_mm": 1,
+        "precip_prob": 0.2,
+        "wind_kmh": 12
+      },
+      {
+        "geo_key": "tekapo",
+        "date": "2026-10-12",
+        "tmin": 3,
+        "tmax": 14,
+        "condition": "sunny",
+        "precip_mm": 0,
+        "precip_prob": 0.1,
+        "wind_kmh": 12
+      },
+      {
+        "geo_key": "tekapo",
+        "date": "2026-10-13",
+        "tmin": 3,
+        "tmax": 14,
+        "condition": "sunny",
+        "precip_mm": 0,
+        "precip_prob": 0.1,
+        "wind_kmh": 10
+      },
+      {
+        "geo_key": "tekapo",
+        "date": "2026-10-17",
+        "tmin": 4,
+        "tmax": 15,
+        "condition": "partly_cloudy",
+        "precip_mm": 1,
+        "precip_prob": 0.15,
+        "wind_kmh": 14
+      },
+      {
+        "geo_key": "tekapo",
+        "date": "2026-10-18",
+        "tmin": 4,
+        "tmax": 14,
+        "condition": "partly_cloudy",
+        "precip_mm": 1,
+        "precip_prob": 0.2,
+        "wind_kmh": 16
+      },
+      {
+        "geo_key": "mt_cook",
+        "date": "2026-10-13",
+        "tmin": 2,
+        "tmax": 13,
+        "condition": "sunny",
+        "precip_mm": 0,
+        "precip_prob": 0.1,
+        "wind_kmh": 12
+      },
+      {
+        "geo_key": "queenstown",
+        "date": "2026-10-14",
+        "tmin": 4,
+        "tmax": 12,
+        "condition": "cloudy",
+        "precip_mm": 5,
+        "precip_prob": 0.4,
+        "wind_kmh": 18
+      },
+      {
+        "geo_key": "queenstown",
+        "date": "2026-10-17",
+        "tmin": 5,
+        "tmax": 14,
+        "condition": "partly_cloudy",
+        "precip_mm": 2,
+        "precip_prob": 0.25,
+        "wind_kmh": 16
+      },
+      {
+        "geo_key": "te_anau",
+        "date": "2026-10-15",
+        "tmin": 5,
+        "tmax": 11,
+        "condition": "rain",
+        "precip_mm": 25,
+        "precip_prob": 0.7,
+        "wind_kmh": 25
+      },
+      {
+        "geo_key": "manapouri",
+        "date": "2026-10-16",
+        "tmin": 5,
+        "tmax": 11,
+        "condition": "overcast",
+        "precip_mm": 8,
+        "precip_prob": 0.55,
+        "wind_kmh": 22
+      },
+      {
+        "geo_key": "milford",
+        "date": "2026-10-15",
+        "tmin": 6,
+        "tmax": 10,
+        "condition": "heavy_rain",
+        "precip_mm": 180,
+        "precip_prob": 0.95,
+        "wind_kmh": 40
+      },
+      {
+        "geo_key": "milford",
+        "date": "2026-10-16",
+        "tmin": 5,
+        "tmax": 9,
+        "condition": "heavy_rain",
+        "precip_mm": 120,
+        "precip_prob": 0.9,
+        "wind_kmh": 35
+      },
+      {
+        "geo_key": "milford",
+        "date": "2026-10-17",
+        "tmin": 4,
+        "tmax": 12,
+        "condition": "cloudy",
+        "precip_mm": 10,
+        "precip_prob": 0.3,
+        "wind_kmh": 15
+      },
+      {
+        "geo_key": "picton",
+        "date": "2026-10-18",
+        "tmin": 7,
+        "tmax": 15,
+        "condition": "partly_cloudy",
+        "precip_mm": 2,
+        "precip_prob": 0.25,
+        "wind_kmh": 20
+      },
+      {
+        "geo_key": "picton",
+        "date": "2026-10-19",
+        "tmin": 8,
+        "tmax": 14,
+        "condition": "windy",
+        "precip_mm": 3,
+        "precip_prob": 0.4,
+        "wind_kmh": 32
+      },
+      {
+        "geo_key": "wellington",
+        "date": "2026-10-19",
+        "tmin": 8,
+        "tmax": 15,
+        "condition": "windy",
+        "precip_mm": 3,
+        "precip_prob": 0.35,
+        "wind_kmh": 30
+      },
+      {
+        "geo_key": "wellington",
+        "date": "2026-10-20",
+        "tmin": 9,
+        "tmax": 16,
+        "condition": "partly_cloudy",
+        "precip_mm": 1,
+        "precip_prob": 0.2,
+        "wind_kmh": 22
+      },
+      {
+        "geo_key": "taupo",
+        "date": "2026-10-20",
+        "tmin": 9,
+        "tmax": 17,
+        "condition": "partly_cloudy",
+        "precip_mm": 1,
+        "precip_prob": 0.2,
+        "wind_kmh": 15
+      },
+      {
+        "geo_key": "rotorua",
+        "date": "2026-10-21",
+        "tmin": 9,
+        "tmax": 19,
+        "condition": "sunny",
+        "precip_mm": 0,
+        "precip_prob": 0.1,
+        "wind_kmh": 11
+      },
+      {
+        "geo_key": "auckland",
+        "date": "2026-10-22",
+        "tmin": 11,
+        "tmax": 19,
+        "condition": "partly_cloudy",
+        "precip_mm": 1,
+        "precip_prob": 0.2,
+        "wind_kmh": 14
+      },
+      {
+        "geo_key": "auckland",
+        "date": "2026-10-23",
+        "tmin": 12,
+        "tmax": 20,
+        "condition": "sunny",
+        "precip_mm": 0,
+        "precip_prob": 0.05,
+        "wind_kmh": 10
+      },
+      {
+        "geo_key": "auckland",
+        "date": "2026-10-24",
+        "tmin": 10,
+        "tmax": 18,
+        "condition": "partly_cloudy",
+        "precip_mm": 2,
+        "precip_prob": 0.2,
+        "wind_kmh": 15
+      },
+      {
+        "geo_key": "shanghai_home",
+        "date": "2026-10-25",
+        "tmin": 12,
+        "tmax": 19,
+        "condition": "partly_cloudy",
+        "precip_mm": 1,
+        "precip_prob": 0.15,
+        "wind_kmh": 12
+      },
+      {
+        "geo_key": "shanghai_home",
+        "date": "2026-10-26",
+        "tmin": 11,
+        "tmax": 18,
+        "condition": "cloudy",
+        "precip_mm": 2,
+        "precip_prob": 0.2,
+        "wind_kmh": 14
+      },
+      {
+        "geo_key": "shanghai_home",
+        "date": "2026-10-27",
+        "tmin": 11,
+        "tmax": 18,
+        "condition": "partly_cloudy",
+        "precip_mm": 1,
+        "precip_prob": 0.15,
+        "wind_kmh": 12
+      },
+      {
+        "geo_key": "shanghai_home",
+        "date": "2026-10-28",
+        "tmin": 12,
+        "tmax": 19,
+        "condition": "sunny",
+        "precip_mm": 0,
+        "precip_prob": 0.1,
+        "wind_kmh": 10
+      }
+    ]
+  },
+  "maps": {
+    "places": [
+      {
+        "place_id": "pl_chc_airport",
+        "name": "Christchurch Airport",
+        "category": "airport",
+        "lat": -43.4894,
+        "lng": 172.5322,
+        "country": "NZ",
+        "city": "Christchurch",
+        "rating": 4.0,
+        "price_level": 2,
+        "hours_json": null,
+        "phone": null,
+        "website": null,
+        "formatted": "Christchurch"
+      },
+      {
+        "place_id": "pl_tekapo",
+        "name": "Lake Tekapo",
+        "category": "natural",
+        "lat": -44.0045,
+        "lng": 170.4825,
+        "country": "NZ",
+        "city": "Lake Tekapo",
+        "rating": 4.8,
+        "price_level": 1,
+        "hours_json": null,
+        "phone": null,
+        "website": null,
+        "formatted": "Lake Tekapo"
+      },
+      {
+        "place_id": "pl_mt_cook",
+        "name": "Aoraki Mount Cook",
+        "category": "natural",
+        "lat": -43.595,
+        "lng": 170.1418,
+        "country": "NZ",
+        "city": "Mt Cook",
+        "rating": 4.9,
+        "price_level": 1,
+        "hours_json": null,
+        "phone": null,
+        "website": null,
+        "formatted": "Aoraki/Mt Cook NP"
+      },
+      {
+        "place_id": "pl_queenstown",
+        "name": "Queenstown CBD",
+        "category": "town_center",
+        "lat": -45.0312,
+        "lng": 168.6626,
+        "country": "NZ",
+        "city": "Queenstown",
+        "rating": 4.6,
+        "price_level": 2,
+        "hours_json": null,
+        "phone": null,
+        "website": null,
+        "formatted": "Queenstown"
+      },
+      {
+        "place_id": "pl_milford",
+        "name": "Milford Sound",
+        "category": "natural",
+        "lat": -44.6714,
+        "lng": 167.9259,
+        "country": "NZ",
+        "city": "Milford Sound",
+        "rating": 4.9,
+        "price_level": 2,
+        "hours_json": null,
+        "phone": null,
+        "website": null,
+        "formatted": "Milford Sound"
+      },
+      {
+        "place_id": "pl_wanaka",
+        "name": "Wanaka",
+        "category": "town_center",
+        "lat": -44.698,
+        "lng": 169.132,
+        "country": "NZ",
+        "city": "Wanaka",
+        "rating": 4.7,
+        "price_level": 2,
+        "hours_json": null,
+        "phone": null,
+        "website": null,
+        "formatted": "Wanaka"
+      },
+      {
+        "place_id": "pl_picton",
+        "name": "Picton Ferry Terminal",
+        "category": "ferry_terminal",
+        "lat": -41.2833,
+        "lng": 174.0017,
+        "country": "NZ",
+        "city": "Picton",
+        "rating": 4.0,
+        "price_level": 2,
+        "hours_json": null,
+        "phone": null,
+        "website": null,
+        "formatted": "Picton"
+      },
+      {
+        "place_id": "pl_wellington",
+        "name": "Wellington CBD",
+        "category": "city_center",
+        "lat": -41.2865,
+        "lng": 174.7762,
+        "country": "NZ",
+        "city": "Wellington",
+        "rating": 4.5,
+        "price_level": 2,
+        "hours_json": null,
+        "phone": null,
+        "website": null,
+        "formatted": "Wellington"
+      },
+      {
+        "place_id": "pl_taupo",
+        "name": "Lake Taupo",
+        "category": "natural",
+        "lat": -38.6857,
+        "lng": 176.0702,
+        "country": "NZ",
+        "city": "Taupo",
+        "rating": 4.6,
+        "price_level": 1,
+        "hours_json": null,
+        "phone": null,
+        "website": null,
+        "formatted": "Taupo"
+      },
+      {
+        "place_id": "pl_rotorua",
+        "name": "Rotorua Geothermal",
+        "category": "natural",
+        "lat": -38.1368,
+        "lng": 176.2497,
+        "country": "NZ",
+        "city": "Rotorua",
+        "rating": 4.5,
+        "price_level": 2,
+        "hours_json": null,
+        "phone": null,
+        "website": null,
+        "formatted": "Rotorua"
+      },
+      {
+        "place_id": "pl_rotorua_hangi",
+        "name": "Te Puia Hāngī Dinner",
+        "category": "restaurant",
+        "lat": -38.162,
+        "lng": 176.253,
+        "country": "NZ",
+        "city": "Rotorua",
+        "rating": 4.4,
+        "price_level": 3,
+        "hours_json": null,
+        "phone": null,
+        "website": null,
+        "formatted": "Rotorua"
+      },
+      {
+        "place_id": "pl_rotorua_lakeside_grill",
+        "name": "Lakeside Light Grill (low-salt options)",
+        "category": "restaurant",
+        "lat": -38.138,
+        "lng": 176.256,
+        "country": "NZ",
+        "city": "Rotorua",
+        "rating": 4.3,
+        "price_level": 2,
+        "hours_json": null,
+        "phone": null,
+        "website": null,
+        "formatted": "Rotorua"
+      },
+      {
+        "place_id": "pl_akl_airport",
+        "name": "Auckland Airport",
+        "category": "airport",
+        "lat": -37.0082,
+        "lng": 174.785,
+        "country": "NZ",
+        "city": "Auckland",
+        "rating": 4.0,
+        "price_level": 2,
+        "hours_json": null,
+        "phone": null,
+        "website": null,
+        "formatted": "Auckland"
+      }
+    ],
+    "roads": [
+      {
+        "road_id": "rd_sh94_milford",
+        "name": "SH94 Milford Road",
+        "city": "Te Anau",
+        "geom_json": "{\"type\":\"LineString\",\"coordinates\":[[167.73,-45.41],[167.93,-44.67]]}",
+        "geom": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              168.66256,
+              -45.03117
+            ],
+            [
+              168.66683,
+              -45.03398
+            ],
+            [
+              168.66866,
+              -45.03372
+            ],
+            [
+              168.67444,
+              -45.03491
+            ],
+            [
+              168.68081,
+              -45.03373
+            ],
+            [
+              168.70175,
+              -45.02184
+            ],
+            [
+              168.71876,
+              -45.01664
+            ],
+            [
+              168.73162,
+              -45.01559
+            ],
+            [
+              168.73347,
+              -45.02963
+            ],
+            [
+              168.73992,
+              -45.03261
+            ],
+            [
+              168.74449,
+              -45.03879
+            ],
+            [
+              168.75261,
+              -45.03832
+            ],
+            [
+              168.75431,
+              -45.05861
+            ],
+            [
+              168.76042,
+              -45.07108
+            ],
+            [
+              168.75538,
+              -45.09135
+            ],
+            [
+              168.75679,
+              -45.10389
+            ],
+            [
+              168.76245,
+              -45.11245
+            ],
+            [
+              168.75767,
+              -45.129
+            ],
+            [
+              168.76064,
+              -45.13943
+            ],
+            [
+              168.75132,
+              -45.15905
+            ],
+            [
+              168.74199,
+              -45.19472
+            ],
+            [
+              168.74322,
+              -45.21074
+            ],
+            [
+              168.73919,
+              -45.22709
+            ],
+            [
+              168.74291,
+              -45.24554
+            ],
+            [
+              168.74464,
+              -45.24724
+            ],
+            [
+              168.74788,
+              -45.24766
+            ],
+            [
+              168.74991,
+              -45.24913
+            ],
+            [
+              168.76015,
+              -45.2656
+            ],
+            [
+              168.76527,
+              -45.28683
+            ],
+            [
+              168.75214,
+              -45.31582
+            ],
+            [
+              168.74261,
+              -45.32758
+            ],
+            [
+              168.73031,
+              -45.33238
+            ],
+            [
+              168.71797,
+              -45.34289
+            ],
+            [
+              168.67012,
+              -45.39596
+            ],
+            [
+              168.67523,
+              -45.41977
+            ],
+            [
+              168.67664,
+              -45.42045
+            ],
+            [
+              168.68526,
+              -45.42014
+            ],
+            [
+              168.69088,
+              -45.42106
+            ],
+            [
+              168.70027,
+              -45.42521
+            ],
+            [
+              168.70314,
+              -45.42871
+            ],
+            [
+              168.6926,
+              -45.45981
+            ],
+            [
+              168.6841,
+              -45.46518
+            ],
+            [
+              168.6639,
+              -45.49467
+            ],
+            [
+              168.62306,
+              -45.51759
+            ],
+            [
+              168.61974,
+              -45.51792
+            ],
+            [
+              168.60599,
+              -45.51536
+            ],
+            [
+              168.59737,
+              -45.51206
+            ],
+            [
+              168.58824,
+              -45.51265
+            ],
+            [
+              168.58323,
+              -45.51131
+            ],
+            [
+              168.56602,
+              -45.50855
+            ],
+            [
+              168.55545,
+              -45.50947
+            ],
+            [
+              168.54818,
+              -45.53514
+            ],
+            [
+              168.53338,
+              -45.54375
+            ],
+            [
+              168.52634,
+              -45.5443
+            ],
+            [
+              168.51394,
+              -45.54981
+            ],
+            [
+              168.50668,
+              -45.55632
+            ],
+            [
+              168.50363,
+              -45.57144
+            ],
+            [
+              168.49178,
+              -45.57617
+            ],
+            [
+              168.47989,
+              -45.58946
+            ],
+            [
+              168.45865,
+              -45.62357
+            ],
+            [
+              168.43609,
+              -45.6173
+            ],
+            [
+              168.43216,
+              -45.6119
+            ],
+            [
+              168.42231,
+              -45.61208
+            ],
+            [
+              168.38943,
+              -45.62188
+            ],
+            [
+              168.35497,
+              -45.62736
+            ],
+            [
+              168.34223,
+              -45.63736
+            ],
+            [
+              168.26464,
+              -45.65664
+            ],
+            [
+              168.25278,
+              -45.65565
+            ],
+            [
+              168.24107,
+              -45.67057
+            ],
+            [
+              168.2252,
+              -45.66419
+            ],
+            [
+              168.21905,
+              -45.65946
+            ],
+            [
+              168.20744,
+              -45.66095
+            ],
+            [
+              168.20092,
+              -45.65828
+            ],
+            [
+              168.18913,
+              -45.64388
+            ],
+            [
+              168.17598,
+              -45.63733
+            ],
+            [
+              168.17051,
+              -45.63337
+            ],
+            [
+              168.15555,
+              -45.61972
+            ],
+            [
+              168.15234,
+              -45.61347
+            ],
+            [
+              168.14051,
+              -45.60814
+            ],
+            [
+              168.13618,
+              -45.60502
+            ],
+            [
+              168.1227,
+              -45.58516
+            ],
+            [
+              168.10938,
+              -45.57364
+            ],
+            [
+              168.09378,
+              -45.56652
+            ],
+            [
+              168.08234,
+              -45.56329
+            ],
+            [
+              168.06749,
+              -45.5668
+            ],
+            [
+              168.05852,
+              -45.56505
+            ],
+            [
+              168.05226,
+              -45.56248
+            ],
+            [
+              168.04644,
+              -45.56079
+            ],
+            [
+              168.02091,
+              -45.55967
+            ],
+            [
+              168.01598,
+              -45.5574
+            ],
+            [
+              168.01089,
+              -45.55196
+            ],
+            [
+              168.00704,
+              -45.55063
+            ],
+            [
+              167.99958,
+              -45.54929
+            ],
+            [
+              167.9867,
+              -45.54328
+            ],
+            [
+              167.97852,
+              -45.54181
+            ],
+            [
+              167.96924,
+              -45.53903
+            ],
+            [
+              167.95774,
+              -45.5394
+            ],
+            [
+              167.93531,
+              -45.54546
+            ],
+            [
+              167.89276,
+              -45.54542
+            ],
+            [
+              167.88368,
+              -45.53978
+            ],
+            [
+              167.87382,
+              -45.53791
+            ],
+            [
+              167.85764,
+              -45.53206
+            ],
+            [
+              167.85135,
+              -45.53054
+            ],
+            [
+              167.84075,
+              -45.52488
+            ],
+            [
+              167.8329,
+              -45.52218
+            ],
+            [
+              167.81073,
+              -45.52437
+            ],
+            [
+              167.79778,
+              -45.52344
+            ],
+            [
+              167.79094,
+              -45.52141
+            ],
+            [
+              167.78151,
+              -45.51357
+            ],
+            [
+              167.7808,
+              -45.5034
+            ],
+            [
+              167.79143,
+              -45.48261
+            ],
+            [
+              167.79312,
+              -45.46509
+            ],
+            [
+              167.78572,
+              -45.45837
+            ],
+            [
+              167.78097,
+              -45.44995
+            ],
+            [
+              167.78036,
+              -45.43905
+            ],
+            [
+              167.77589,
+              -45.43432
+            ],
+            [
+              167.76988,
+              -45.43175
+            ],
+            [
+              167.76374,
+              -45.43106
+            ],
+            [
+              167.74599,
+              -45.42597
+            ],
+            [
+              167.73848,
+              -45.42515
+            ],
+            [
+              167.73101,
+              -45.42287
+            ],
+            [
+              167.73473,
+              -45.41069
+            ],
+            [
+              167.74173,
+              -45.40957
+            ],
+            [
+              167.7588,
+              -45.39801
+            ],
+            [
+              167.76271,
+              -45.38388
+            ],
+            [
+              167.75621,
+              -45.37027
+            ],
+            [
+              167.75859,
+              -45.3608
+            ],
+            [
+              167.76943,
+              -45.35319
+            ],
+            [
+              167.7795,
+              -45.31415
+            ],
+            [
+              167.79034,
+              -45.30197
+            ],
+            [
+              167.79699,
+              -45.26104
+            ],
+            [
+              167.82273,
+              -45.2169
+            ],
+            [
+              167.82232,
+              -45.19962
+            ],
+            [
+              167.82925,
+              -45.1929
+            ],
+            [
+              167.83613,
+              -45.19566
+            ],
+            [
+              167.84489,
+              -45.19412
+            ],
+            [
+              167.85397,
+              -45.19873
+            ],
+            [
+              167.85856,
+              -45.19901
+            ],
+            [
+              167.86825,
+              -45.18827
+            ],
+            [
+              167.88251,
+              -45.18398
+            ],
+            [
+              167.90192,
+              -45.1437
+            ],
+            [
+              167.91183,
+              -45.13963
+            ],
+            [
+              167.92751,
+              -45.13879
+            ],
+            [
+              167.92837,
+              -45.13592
+            ],
+            [
+              167.93319,
+              -45.13714
+            ],
+            [
+              167.94609,
+              -45.1345
+            ],
+            [
+              167.94534,
+              -45.12594
+            ],
+            [
+              167.95646,
+              -45.11707
+            ],
+            [
+              167.96434,
+              -45.10307
+            ],
+            [
+              167.98509,
+              -45.08148
+            ],
+            [
+              167.99245,
+              -45.06393
+            ],
+            [
+              168.01129,
+              -45.0509
+            ],
+            [
+              168.00739,
+              -45.04447
+            ],
+            [
+              168.01171,
+              -45.02969
+            ],
+            [
+              168.00787,
+              -45.00597
+            ],
+            [
+              168.01396,
+              -44.99844
+            ],
+            [
+              168.01831,
+              -44.95805
+            ],
+            [
+              168.01634,
+              -44.94676
+            ],
+            [
+              168.02704,
+              -44.93073
+            ],
+            [
+              168.04335,
+              -44.92043
+            ],
+            [
+              168.04805,
+              -44.90897
+            ],
+            [
+              168.05429,
+              -44.90645
+            ],
+            [
+              168.06832,
+              -44.90645
+            ],
+            [
+              168.07979,
+              -44.89999
+            ],
+            [
+              168.09031,
+              -44.88882
+            ],
+            [
+              168.09802,
+              -44.87683
+            ],
+            [
+              168.10236,
+              -44.85299
+            ],
+            [
+              168.11514,
+              -44.83349
+            ],
+            [
+              168.11739,
+              -44.82435
+            ],
+            [
+              168.11555,
+              -44.81573
+            ],
+            [
+              168.11038,
+              -44.80991
+            ],
+            [
+              168.10515,
+              -44.80922
+            ],
+            [
+              168.09803,
+              -44.81304
+            ],
+            [
+              168.09087,
+              -44.81376
+            ],
+            [
+              168.08864,
+              -44.81699
+            ],
+            [
+              168.07365,
+              -44.81812
+            ],
+            [
+              168.06286,
+              -44.81676
+            ],
+            [
+              168.05867,
+              -44.8152
+            ],
+            [
+              168.05216,
+              -44.81538
+            ],
+            [
+              168.04594,
+              -44.81284
+            ],
+            [
+              168.04045,
+              -44.81209
+            ],
+            [
+              168.039,
+              -44.81071
+            ],
+            [
+              168.03707,
+              -44.81048
+            ],
+            [
+              168.03269,
+              -44.80866
+            ],
+            [
+              168.02187,
+              -44.80163
+            ],
+            [
+              168.02042,
+              -44.78985
+            ],
+            [
+              168.01477,
+              -44.78201
+            ],
+            [
+              168.00856,
+              -44.77767
+            ],
+            [
+              168.00659,
+              -44.77113
+            ],
+            [
+              168.00208,
+              -44.76927
+            ],
+            [
+              167.99729,
+              -44.76461
+            ],
+            [
+              167.99133,
+              -44.76508
+            ],
+            [
+              167.97355,
+              -44.76351
+            ],
+            [
+              167.97154,
+              -44.76054
+            ],
+            [
+              167.96997,
+              -44.76328
+            ],
+            [
+              167.96891,
+              -44.76002
+            ],
+            [
+              167.96805,
+              -44.76102
+            ],
+            [
+              167.96616,
+              -44.75998
+            ],
+            [
+              167.96212,
+              -44.75979
+            ],
+            [
+              167.96373,
+              -44.7575
+            ],
+            [
+              167.9595,
+              -44.75516
+            ],
+            [
+              167.95474,
+              -44.74226
+            ],
+            [
+              167.94774,
+              -44.73772
+            ],
+            [
+              167.94318,
+              -44.73769
+            ],
+            [
+              167.9416,
+              -44.73534
+            ],
+            [
+              167.9481,
+              -44.72387
+            ],
+            [
+              167.97067,
+              -44.70423
+            ],
+            [
+              167.96744,
+              -44.6986
+            ],
+            [
+              167.96925,
+              -44.69463
+            ],
+            [
+              167.96273,
+              -44.68536
+            ],
+            [
+              167.96242,
+              -44.67739
+            ],
+            [
+              167.94932,
+              -44.67881
+            ],
+            [
+              167.94595,
+              -44.67721
+            ],
+            [
+              167.94292,
+              -44.67725
+            ],
+            [
+              167.94003,
+              -44.6761
+            ],
+            [
+              167.93428,
+              -44.67635
+            ],
+            [
+              167.92639,
+              -44.67399
+            ],
+            [
+              167.92585,
+              -44.6716
+            ]
+          ]
+        }
+      },
+      {
+        "road_id": "rd_sh80_mtcook",
+        "name": "SH80 Mount Cook Road",
+        "city": "Mt Cook",
+        "geom_json": "{\"type\":\"LineString\",\"coordinates\":[[170.10,-44.00],[170.14,-43.73]]}",
+        "geom": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              170.48218,
+              -44.00445
+            ],
+            [
+              170.48145,
+              -44.0068
+            ],
+            [
+              170.47497,
+              -44.00318
+            ],
+            [
+              170.46529,
+              -44.00223
+            ],
+            [
+              170.46061,
+              -44.00082
+            ],
+            [
+              170.44961,
+              -44.00294
+            ],
+            [
+              170.42874,
+              -43.99858
+            ],
+            [
+              170.4183,
+              -43.99743
+            ],
+            [
+              170.40726,
+              -44.00479
+            ],
+            [
+              170.40097,
+              -44.02436
+            ],
+            [
+              170.38322,
+              -44.03839
+            ],
+            [
+              170.34943,
+              -44.08535
+            ],
+            [
+              170.35422,
+              -44.10048
+            ],
+            [
+              170.34923,
+              -44.13353
+            ],
+            [
+              170.33585,
+              -44.15623
+            ],
+            [
+              170.33272,
+              -44.16914
+            ],
+            [
+              170.31784,
+              -44.18065
+            ],
+            [
+              170.28436,
+              -44.19462
+            ],
+            [
+              170.27844,
+              -44.19989
+            ],
+            [
+              170.26402,
+              -44.20368
+            ],
+            [
+              170.25361,
+              -44.20179
+            ],
+            [
+              170.24953,
+              -44.19982
+            ],
+            [
+              170.22959,
+              -44.18138
+            ],
+            [
+              170.21767,
+              -44.1763
+            ],
+            [
+              170.21305,
+              -44.16854
+            ],
+            [
+              170.20821,
+              -44.1694
+            ],
+            [
+              170.20435,
+              -44.17666
+            ],
+            [
+              170.19105,
+              -44.18317
+            ],
+            [
+              170.18809,
+              -44.183
+            ],
+            [
+              170.18294,
+              -44.17837
+            ],
+            [
+              170.17486,
+              -44.17481
+            ],
+            [
+              170.15741,
+              -44.17619
+            ],
+            [
+              170.15661,
+              -44.18254
+            ],
+            [
+              170.14333,
+              -44.19073
+            ],
+            [
+              170.13948,
+              -44.1906
+            ],
+            [
+              170.13105,
+              -44.18662
+            ],
+            [
+              170.12259,
+              -44.18707
+            ],
+            [
+              170.11377,
+              -44.17918
+            ],
+            [
+              170.10824,
+              -44.15591
+            ],
+            [
+              170.10943,
+              -44.148
+            ],
+            [
+              170.12823,
+              -44.12391
+            ],
+            [
+              170.13393,
+              -44.10321
+            ],
+            [
+              170.13447,
+              -44.03979
+            ],
+            [
+              170.12877,
+              -44.02266
+            ],
+            [
+              170.13207,
+              -44.00845
+            ],
+            [
+              170.12767,
+              -43.96315
+            ],
+            [
+              170.13152,
+              -43.94698
+            ],
+            [
+              170.12557,
+              -43.92609
+            ],
+            [
+              170.1192,
+              -43.91962
+            ],
+            [
+              170.11433,
+              -43.91852
+            ],
+            [
+              170.11367,
+              -43.9178
+            ],
+            [
+              170.12592,
+              -43.90448
+            ],
+            [
+              170.11746,
+              -43.89582
+            ],
+            [
+              170.11977,
+              -43.8727
+            ],
+            [
+              170.10766,
+              -43.86467
+            ],
+            [
+              170.10343,
+              -43.86349
+            ],
+            [
+              170.10274,
+              -43.86158
+            ],
+            [
+              170.11054,
+              -43.85551
+            ],
+            [
+              170.10924,
+              -43.82123
+            ],
+            [
+              170.11442,
+              -43.79853
+            ],
+            [
+              170.12382,
+              -43.78223
+            ],
+            [
+              170.12188,
+              -43.76181
+            ],
+            [
+              170.11029,
+              -43.73951
+            ],
+            [
+              170.12712,
+              -43.74171
+            ],
+            [
+              170.14018,
+              -43.72855
+            ],
+            [
+              170.16269,
+              -43.69852
+            ],
+            [
+              170.16459,
+              -43.6836
+            ],
+            [
+              170.17575,
+              -43.66242
+            ]
+          ]
+        }
+      },
+      {
+        "road_id": "rd_sh8_tekapo",
+        "name": "SH8 Tekapo-Twizel",
+        "city": "Lake Tekapo",
+        "geom_json": "{\"type\":\"LineString\",\"coordinates\":[[170.48,-44.00],[170.10,-44.24]]}",
+        "geom": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              172.53358,
+              -43.49208
+            ],
+            [
+              172.52427,
+              -43.50805
+            ],
+            [
+              172.51342,
+              -43.50472
+            ],
+            [
+              172.48985,
+              -43.54516
+            ],
+            [
+              172.49143,
+              -43.54893
+            ],
+            [
+              172.41165,
+              -43.58126
+            ],
+            [
+              172.39148,
+              -43.58604
+            ],
+            [
+              172.08995,
+              -43.69941
+            ],
+            [
+              172.02792,
+              -43.75223
+            ],
+            [
+              172.01925,
+              -43.76495
+            ],
+            [
+              171.84758,
+              -43.83863
+            ],
+            [
+              171.74187,
+              -43.90823
+            ],
+            [
+              171.55484,
+              -44.01045
+            ],
+            [
+              171.41969,
+              -44.04496
+            ],
+            [
+              171.37077,
+              -44.06683
+            ],
+            [
+              171.32191,
+              -44.09645
+            ],
+            [
+              171.31106,
+              -44.11398
+            ],
+            [
+              171.31431,
+              -44.12494
+            ],
+            [
+              171.29807,
+              -44.13737
+            ],
+            [
+              171.2894,
+              -44.12701
+            ],
+            [
+              171.25019,
+              -44.12618
+            ],
+            [
+              171.22405,
+              -44.11238
+            ],
+            [
+              171.19257,
+              -44.12096
+            ],
+            [
+              171.18839,
+              -44.12043
+            ],
+            [
+              171.17794,
+              -44.1178
+            ],
+            [
+              171.16884,
+              -44.11253
+            ],
+            [
+              171.15257,
+              -44.11075
+            ],
+            [
+              171.13715,
+              -44.1114
+            ],
+            [
+              171.13186,
+              -44.11765
+            ],
+            [
+              171.11263,
+              -44.12119
+            ],
+            [
+              171.08875,
+              -44.12922
+            ],
+            [
+              171.08291,
+              -44.12393
+            ],
+            [
+              171.07612,
+              -44.12445
+            ],
+            [
+              171.06387,
+              -44.11993
+            ],
+            [
+              171.05565,
+              -44.1198
+            ],
+            [
+              171.04501,
+              -44.12302
+            ],
+            [
+              171.03938,
+              -44.12246
+            ],
+            [
+              171.02532,
+              -44.11908
+            ],
+            [
+              171.01039,
+              -44.10912
+            ],
+            [
+              171.00367,
+              -44.10321
+            ],
+            [
+              171.00091,
+              -44.09707
+            ],
+            [
+              170.98516,
+              -44.08564
+            ],
+            [
+              170.98027,
+              -44.08379
+            ],
+            [
+              170.97942,
+              -44.08027
+            ],
+            [
+              170.95954,
+              -44.08918
+            ],
+            [
+              170.94964,
+              -44.08074
+            ],
+            [
+              170.94485,
+              -44.06618
+            ],
+            [
+              170.93022,
+              -44.05607
+            ],
+            [
+              170.9264,
+              -44.05529
+            ],
+            [
+              170.92119,
+              -44.05252
+            ],
+            [
+              170.91299,
+              -44.05137
+            ],
+            [
+              170.90726,
+              -44.04868
+            ],
+            [
+              170.90402,
+              -44.04974
+            ],
+            [
+              170.90218,
+              -44.04836
+            ],
+            [
+              170.90013,
+              -44.04878
+            ],
+            [
+              170.89858,
+              -44.04778
+            ],
+            [
+              170.88549,
+              -44.06455
+            ],
+            [
+              170.8817,
+              -44.06601
+            ],
+            [
+              170.87262,
+              -44.06578
+            ],
+            [
+              170.86826,
+              -44.06827
+            ],
+            [
+              170.86687,
+              -44.08492
+            ],
+            [
+              170.85129,
+              -44.09359
+            ],
+            [
+              170.84975,
+              -44.09355
+            ],
+            [
+              170.8471,
+              -44.09169
+            ],
+            [
+              170.82887,
+              -44.09771
+            ],
+            [
+              170.81276,
+              -44.08491
+            ],
+            [
+              170.80201,
+              -44.0785
+            ],
+            [
+              170.75949,
+              -44.04727
+            ],
+            [
+              170.74816,
+              -44.03569
+            ],
+            [
+              170.73926,
+              -44.03247
+            ],
+            [
+              170.71662,
+              -44.02933
+            ],
+            [
+              170.6913,
+              -44.03569
+            ],
+            [
+              170.68787,
+              -44.03825
+            ],
+            [
+              170.66362,
+              -44.07998
+            ],
+            [
+              170.65239,
+              -44.08951
+            ],
+            [
+              170.63814,
+              -44.08903
+            ],
+            [
+              170.62215,
+              -44.09183
+            ],
+            [
+              170.59344,
+              -44.08959
+            ],
+            [
+              170.57317,
+              -44.09311
+            ],
+            [
+              170.56596,
+              -44.09635
+            ],
+            [
+              170.55475,
+              -44.09195
+            ],
+            [
+              170.5385,
+              -44.08391
+            ],
+            [
+              170.50527,
+              -44.06518
+            ],
+            [
+              170.50201,
+              -44.05619
+            ],
+            [
+              170.50808,
+              -44.04211
+            ],
+            [
+              170.50025,
+              -44.02981
+            ],
+            [
+              170.50114,
+              -44.01254
+            ],
+            [
+              170.49255,
+              -44.0072
+            ],
+            [
+              170.48469,
+              -44.00776
+            ],
+            [
+              170.48145,
+              -44.0068
+            ],
+            [
+              170.48218,
+              -44.00445
+            ]
+          ]
+        }
+      }
+    ],
+    "road_events": [
+      {
+        "event_id": "re_milford_rain",
+        "road_id": "rd_sh94_milford",
+        "start_dt": "2026-10-15T06:00",
+        "end_dt": "2026-10-16T18:00",
+        "kind": "closure",
+        "note": "Heavy rain, avalanche debris on SH94.",
+        "active": 0
+      },
+      {
+        "event_id": "re_sh80_quake",
+        "road_id": "rd_sh80_mtcook",
+        "start_dt": "2026-10-12T05:00",
+        "end_dt": "2026-10-13T12:00",
+        "kind": "closure",
+        "note": "Post-earthquake rockfall risk: SH80 Mt Cook Road closed for inspection until 2026-10-13 12:00; wait for confirmed reopening before travel.",
+        "active": 0
+      }
+    ],
+    "transit_lines": [
+      {
+        "line_id": "ln_interislander",
+        "name": "Interislander Ferry Picton-Wellington",
+        "mode": "train",
+        "operator": "KiwiRail",
+        "segment_minutes_json": "{\"Picton-Wellington\":210}",
+        "segment_minutes": {
+          "Picton-Wellington": 210
+        }
+      }
+    ],
+    "transit_stops": [
+      {
+        "stop_id": "ts_picton",
+        "name": "Picton Ferry Terminal",
+        "lat": -41.2833,
+        "lng": 174.0017,
+        "city": "Picton"
+      },
+      {
+        "stop_id": "ts_wellington_ferry",
+        "name": "Wellington Ferry Terminal",
+        "lat": -41.2865,
+        "lng": 174.785,
+        "city": "Wellington"
+      }
+    ],
+    "transit_events": [
+      {
+        "event_id": "te_cook_ferry_cancel",
+        "line_id": "ln_interislander",
+        "stop_id": null,
+        "start_dt": "2026-10-19T05:30",
+        "end_dt": "2026-10-19T13:00",
+        "kind": "suspended",
+        "note": "Morning Cook Strait sailing cancelled after weather/mechanical check; later campervan service resumes subject to final safety clearance.",
+        "active": 0
+      }
+    ],
+    "place_geo_map": {
+      "pl_chc_airport": "christchurch",
+      "pl_tekapo": "tekapo",
+      "pl_mt_cook": "mt_cook",
+      "pl_queenstown": "queenstown",
+      "pl_milford": "milford",
+      "pl_wanaka": "wanaka",
+      "pl_picton": "picton",
+      "pl_wellington": "wellington",
+      "pl_taupo": "taupo",
+      "pl_rotorua": "rotorua",
+      "pl_akl_airport": "auckland"
+    }
+  },
+  "flights": {
+    "MU779": {
+      "date": "2026-10-10",
+      "status": "on_time",
+      "delay_min": 0,
+      "depart": "11:00",
+      "note": "去程 PVG→CHC"
+    },
+    "MU780": {
+      "date": "2026-10-24",
+      "status": "on_time",
+      "delay_min": 0,
+      "depart": "11:30",
+      "gate": "15",
+      "note": "返程 AKL→PVG"
+    }
+  }
+}
