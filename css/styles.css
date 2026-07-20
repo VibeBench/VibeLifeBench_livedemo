@@ -1720,6 +1720,21 @@ select {
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 12px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.field.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  grid-template-columns: none;
+}
+
+.field.check input {
+  width: auto;
+  margin-top: 2px;
+  padding: 0;
 }
 
 .console .hint {
@@ -1727,6 +1742,14 @@ select {
   color: var(--muted);
   line-height: 1.45;
   margin: 0 0 14px;
+}
+
+.console .provider-hint {
+  margin-top: -4px;
+  padding: 8px 10px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  border: 1px solid var(--line);
 }
 
 .console-actions {

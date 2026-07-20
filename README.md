@@ -18,8 +18,10 @@ Enable Pages once (repo admin):
 ```bash
 ./start.sh
 # http://127.0.0.1:8080
-# Demo console API Base → http://127.0.0.1:8787
 ```
+
+Demo console supports **OpenAI-compatible** providers (DeepSeek / OpenAI / OpenRouter / SiliconFlow / Ollama / custom).  
+Browser CORS: pick provider **本地 CORS 代理**, Base `http://127.0.0.1:8787`, set upstream (e.g. DeepSeek).
 
 ## Rebuild data
 

@@ -1,6 +1,6 @@
 /**
- * DeepSeek V4 Pro client with thinking-mode streaming + mock MCP tools.
- * OpenAI-compatible: POST https://api.deepseek.com/chat/completions
+ * OpenAI-compatible chat client (DeepSeek / OpenAI / OpenRouter / Ollama / …)
+ * with optional thinking/reasoning streaming + mock MCP tools.
  *
  * Stream callback shape (Claude-like):
  *   onStream({ thinking, content, phase, toolHint })
@@ -8,6 +8,41 @@
  */
 const DEFAULT_BASE = "https://api.deepseek.com";
 const DEFAULT_MODEL = "deepseek-v4-pro";
+const DEFAULT_PROVIDER = "deepseek";
+
+/** Normalize base so `${base}/chat/completions` resolves correctly. */
+export function normalizeBaseUrl(base, provider = "") {
+  let u = String(base || DEFAULT_BASE).trim().replace(/\/+$/, "");
+  if (!u) u = DEFAULT_BASE;
+  u = u.replace(/\/chat\/completions\/?$/i, "");
+  if (/\/v\d+$/i.test(u) || /\/api\/v\d+$/i.test(u)) return u;
+
+  if (/deepseek\.com$/i.test(u) || provider === "deepseek" || provider === "proxy" || provider === "custom") {
+    // deepseek root OK; proxy/custom leave untouched
+    if (/deepseek\.com$/i.test(u) || provider === "deepseek") return u;
+  }
+  if (/openrouter\.ai$/i.test(u) || provider === "openrouter") {
+    if (/openrouter\.ai$/i.test(u)) return `${u}/api/v1`;
+    if (/openrouter\.ai\/api$/i.test(u)) return `${u}/v1`;
+  }
+  if (/openai\.com$/i.test(u) || provider === "openai") return /openai\.com$/i.test(u) ? `${u}/v1` : u;
+  if (/siliconflow\.cn$/i.test(u) || provider === "siliconflow") {
+    return /siliconflow\.cn$/i.test(u) ? `${u}/v1` : u;
+  }
+  if (/:11434$/i.test(u) || provider === "ollama") return /\/v\d+$/i.test(u) ? u : `${u}/v1`;
+  return u;
+}
+
+export function detectProvider(baseUrl = "") {
+  const u = String(baseUrl).toLowerCase();
+  if (/127\.0\.0\.1:8787|localhost:8787/.test(u)) return "proxy";
+  if (/deepseek/.test(u)) return "deepseek";
+  if (/openai\.com/.test(u)) return "openai";
+  if (/openrouter\.ai/.test(u)) return "openrouter";
+  if (/siliconflow/.test(u)) return "siliconflow";
+  if (/11434|:11434|ollama/.test(u)) return "ollama";
+  return "custom";
+}
 
 export function buildSystemPrompt(workspace, meta) {
   const parts = [
@@ -110,9 +145,21 @@ export function buildTools() {
 }
 
 export class TravelAgent {
-  constructor({ apiKey, baseUrl, model, engine, workspace, meta, onStream, onTool, thinking = true }) {
+  constructor({
+    apiKey,
+    baseUrl,
+    model,
+    provider,
+    engine,
+    workspace,
+    meta,
+    onStream,
+    onTool,
+    thinking = true,
+  }) {
     this.apiKey = apiKey;
-    this.baseUrl = (baseUrl || DEFAULT_BASE).replace(/\/$/, "");
+    this.provider = provider || detectProvider(baseUrl) || DEFAULT_PROVIDER;
+    this.baseUrl = normalizeBaseUrl(baseUrl || DEFAULT_BASE, this.provider);
     this.model = model || DEFAULT_MODEL;
     this.engine = engine;
     this.thinking = thinking !== false;
@@ -237,29 +284,61 @@ export class TravelAgent {
       tool_choice: "auto",
       stream: true,
     };
+    const p = this.provider || detectProvider(this.baseUrl);
+
     if (this.thinking) {
-      body.thinking = { type: "enabled" };
-      body.reasoning_effort = "high";
-      // thinking mode ignores temperature; omit to avoid confusion
+      if (p === "deepseek" || (p === "proxy" && /deepseek/i.test(this.model))) {
+        // DeepSeek V3/V4 thinking
+        body.thinking = { type: "enabled" };
+        body.reasoning_effort = "high";
+      } else if (p === "openai" || /^(o[1-9]|gpt-5)/i.test(this.model)) {
+        body.reasoning_effort = "high";
+      } else if (p === "openrouter") {
+        // Many OR reasoning models expose reasoning tokens when asked
+        body.include_reasoning = true;
+      } else {
+        body.temperature = 0.4;
+      }
     } else {
-      body.thinking = { type: "disabled" };
+      if (p === "deepseek") body.thinking = { type: "disabled" };
       body.temperature = 0.4;
     }
     return body;
   }
 
+  _requestHeaders() {
+    const headers = {
+      "Content-Type": "application/json",
+    };
+    if (this.apiKey) headers.Authorization = `Bearer ${this.apiKey}`;
+    const p = this.provider || detectProvider(this.baseUrl);
+    // Local CORS proxy: tell it where to forward (any OpenAI-compatible upstream)
+    if (p === "proxy" || /127\.0\.0\.1:8787|localhost:8787/.test(this.baseUrl)) {
+      const upstream = this._proxyUpstreamTarget();
+      if (upstream) headers["X-Upstream-Base"] = upstream;
+    }
+    if (p === "openrouter" || /openrouter\.ai/.test(this.baseUrl)) {
+      headers["HTTP-Referer"] = typeof location !== "undefined" ? location.origin : "https://vibebench.github.io";
+      headers["X-Title"] = "VibeLifeBench Live Demo";
+    }
+    return headers;
+  }
+
+  /** When Base is local proxy, settings may stash real upstream in this.upstreamBase */
+  _proxyUpstreamTarget() {
+    return this.upstreamBase || null;
+  }
+
   async _chatCompletionStream({ onDelta }) {
-    const res = await fetch(`${this.baseUrl}/chat/completions`, {
+    const url = `${this.baseUrl.replace(/\/+$/, "")}/chat/completions`;
+    const res = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-      },
+      headers: this._requestHeaders(),
       body: JSON.stringify(this._requestBody()),
     });
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`DeepSeek API ${res.status}: ${errText.slice(0, 500)}`);
+      throw new Error(`LLM API ${res.status}: ${errText.slice(0, 500)}`);
     }
 
     const reader = res.body.getReader();
@@ -294,8 +373,11 @@ export class TravelAgent {
         const delta = json.choices?.[0]?.delta || {};
         const finish = json.choices?.[0]?.finish_reason;
 
-        if (delta.reasoning_content) {
-          thinking += delta.reasoning_content;
+        // DeepSeek: reasoning_content; OpenRouter/others: reasoning; some: reasoning_text
+        const reasonChunk =
+          delta.reasoning_content || delta.reasoning || delta.reasoning_text || "";
+        if (reasonChunk) {
+          thinking += reasonChunk;
           phase = "thinking";
           onDelta({ thinking, content, phase });
         }
@@ -418,4 +500,4 @@ export class TravelAgent {
   }
 }
 
-export { DEFAULT_MODEL, DEFAULT_BASE };
+export { DEFAULT_MODEL, DEFAULT_BASE, DEFAULT_PROVIDER };
