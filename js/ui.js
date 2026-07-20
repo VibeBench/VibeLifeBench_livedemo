@@ -189,7 +189,7 @@ export class UI {
   }
 
   /**
-   * Detect new ledger items → tab badges + in-phone toast banners.
+   * Detect new ledger items → tab badges + in-phone toast banners + chat history cards.
    * Fires once per new flight / hotel status / notion snippet (not only tip summary).
    */
   syncLedgerAlerts(ledger) {
@@ -202,8 +202,48 @@ export class UI {
     for (const a of fresh) {
       const tab = a.tab === "notes" ? "notes" : "trip";
       this.bumpNavBadge(tab, 1);
+      // Keep booking / status changes visible in chat history (not only toast).
+      this.appendStateCard({
+        icon: a.icon,
+        title: a.title || a.text,
+        body: a.body,
+        tab,
+        time: a.time || null,
+        kind: a.kind || "ledger",
+      });
     }
     this.enqueuePhoneBanners(fresh.map((a) => ({ ...a, openTab: "mail" })));
+  }
+
+  /**
+   * Persistent chat card for booking / ledger / write-tool side effects.
+   * Stays in history; tap jumps to trip/notes tab when relevant.
+   */
+  appendStateCard({ icon = "🔔", title = "", body = "", tab = null, time = null, kind = "state" } = {}) {
+    const wrap = document.createElement("div");
+    wrap.className = `bubble state-card kind-${kind}`;
+    const stamp = formatSimStamp(time);
+    const timeHtml = stamp ? `<div class="bubble-time">${escapeHtml(stamp)}</div>` : "";
+    const detail = body && body !== title ? `<div class="state-card-body">${escapeHtml(body)}</div>` : "";
+    const tabHint =
+      tab === "trip" ? "行程" : tab === "notes" ? "笔记" : tab === "mail" ? "邮件" : "";
+    wrap.innerHTML = `
+      ${timeHtml}
+      <div class="state-card-inner">
+        <span class="state-card-icon">${icon}</span>
+        <div class="state-card-main">
+          <div class="state-card-title">${escapeHtml(title)}</div>
+          ${detail}
+          ${tabHint ? `<div class="state-card-hint">已记入 · ${tabHint}</div>` : ""}
+        </div>
+      </div>`;
+    if (tab) {
+      wrap.classList.add("clickable");
+      wrap.addEventListener("click", () => this.setPhoneTab(tab));
+    }
+    this.els.chatMessages.appendChild(wrap);
+    this._scrollChatToBottom({ force: true });
+    return wrap;
   }
 
   /** Pull silent email-server mutations into the inbox (+ banner). */
@@ -310,12 +350,23 @@ export class UI {
     from,
     time,
     kind,
+    chat = true,
   } = {}) {
     const k = key || `manual:${text}`;
     if (!this._seenLedgerKeys) this._seenLedgerKeys = new Set();
     if (this._seenLedgerKeys.has(k)) return;
     this._seenLedgerKeys.add(k);
     if (tab === "trip" || tab === "notes") this.bumpNavBadge(tab, 1);
+    if (chat) {
+      this.appendStateCard({
+        icon,
+        title: title || text,
+        body: body || "",
+        tab: tab === "mail" ? null : tab,
+        time,
+        kind: kind || "state",
+      });
+    }
     this.enqueuePhoneBanners([
       {
         icon,
@@ -827,7 +878,7 @@ export class UI {
     return wrap;
   }
 
-  /** Claude-homepage-like agent turn: collapsible Thinking + answer stream */
+  /** Claude-homepage-like agent turn: collapsible Thinking + persistent tool log + answer */
   beginAgentTurn({ time = null } = {}) {
     const wrap = document.createElement("div");
     wrap.className = "bubble agent agent-turn streaming";
@@ -843,7 +894,7 @@ export class UI {
         </button>
         <div class="think-body"><div class="think-text"></div></div>
       </div>
-      <div class="tool-chip" data-tool hidden></div>
+      <div class="tool-log" data-tool-log hidden></div>
       <div class="bubble-text answer-text"></div>`;
     wrap.querySelector(".think-toggle").addEventListener("click", () => {
       const block = wrap.querySelector("[data-think]");
@@ -852,9 +903,80 @@ export class UI {
       wrap.querySelector(".think-chevron").textContent = open ? "▾" : "▸";
     });
     wrap._startedAt = Date.now();
+    wrap._toolRows = new Map(); // key → row element
     this.els.chatMessages.appendChild(wrap);
     this._scrollChatToBottom();
     return wrap;
+  }
+
+  /**
+   * Append / update a tool-call row. Rows stay visible after the turn finishes (not collapsed).
+   * status: 'pending' | 'done'
+   */
+  appendToolCall(wrap, { name, args = {}, result = null, status = "done" } = {}) {
+    if (!wrap || !name) return null;
+    const log = wrap.querySelector("[data-tool-log]");
+    if (!log) return null;
+    log.hidden = false;
+    if (!wrap._toolRows) wrap._toolRows = new Map();
+
+    const key = toolCallKey(name, args);
+    let row = wrap._toolRows.get(key);
+    if (!row && status === "done") {
+      // Upgrade a streaming pending row for the same tool name (args unknown at stream time)
+      for (const [k, el] of wrap._toolRows) {
+        if (el.dataset.toolName === name && el.classList.contains("pending")) {
+          row = el;
+          wrap._toolRows.delete(k);
+          wrap._toolRows.set(key, row);
+          break;
+        }
+      }
+    }
+    if (!row && status === "pending") {
+      for (const el of wrap._toolRows.values()) {
+        if (el.dataset.toolName === name && el.classList.contains("pending")) {
+          row = el;
+          break;
+        }
+      }
+    }
+    if (!row) {
+      row = document.createElement("div");
+      row.className = "tool-row";
+      row.dataset.toolName = name;
+      log.appendChild(row);
+      wrap._toolRows.set(key, row);
+    }
+
+    const meta = describeToolCall(name, args, result);
+    row.classList.toggle("pending", status === "pending");
+    row.classList.toggle("done", status !== "pending");
+    row.classList.toggle("stateful", meta.stateful);
+    row.classList.toggle("error", meta.error);
+    row.innerHTML = `
+      <span class="tool-row-ico">${meta.icon}</span>
+      <div class="tool-row-main">
+        <div class="tool-row-title">${escapeHtml(meta.title)}</div>
+        ${meta.detail ? `<div class="tool-row-detail">${escapeHtml(meta.detail)}</div>` : ""}
+      </div>
+      <span class="tool-row-status">${status === "pending" ? "…" : meta.error ? "失败" : "完成"}</span>`;
+
+    this._scrollChatToBottom();
+    return row;
+  }
+
+  /** Ensure every completed tool call from the turn is present in the log. */
+  syncToolCalls(wrap, toolCalls = []) {
+    if (!wrap || !toolCalls?.length) return;
+    for (const tc of toolCalls) {
+      this.appendToolCall(wrap, {
+        name: tc.name,
+        args: tc.args || {},
+        result: tc.result,
+        status: "done",
+      });
+    }
   }
 
   updateAgentTurn(wrap, { thinking, content, phase, toolHint } = {}) {
@@ -862,7 +984,6 @@ export class UI {
     const thinkBlock = wrap.querySelector("[data-think]");
     const thinkText = wrap.querySelector(".think-text");
     const answer = wrap.querySelector(".answer-text");
-    const toolChip = wrap.querySelector("[data-tool]");
     const label = wrap.querySelector(".think-label");
 
     if (thinking != null && thinkText) {
@@ -882,18 +1003,18 @@ export class UI {
     } else if (phase === "tool") {
       thinkBlock?.classList.add("thinking", "open");
       if (label) label.textContent = "Thinking";
-      if (toolChip) {
-        toolChip.hidden = !toolHint;
-        toolChip.textContent = toolHint ? `Using ${toolHint}…` : "";
+      // Show a pending row immediately; onTool will fill args/result and keep it.
+      if (toolHint) {
+        this.appendToolCall(wrap, { name: toolHint, args: {}, result: null, status: "pending" });
       }
     } else if (phase === "answering" || phase === "done") {
-      if (toolChip) toolChip.hidden = true;
+      // Tool log stays visible — do not hide.
       thinkBlock?.classList.remove("thinking");
       if (label && thinking) {
         const secs = Math.max(1, Math.round((Date.now() - (wrap._startedAt || Date.now())) / 1000));
         label.textContent = `Thought for ${secs}s`;
       }
-      // Auto-collapse thinking when answer starts (Claude-like)
+      // Auto-collapse thinking when answer starts (Claude-like); tools remain expanded above.
       if (phase === "answering" && thinking && !wrap._collapsedOnce) {
         thinkBlock?.classList.remove("open");
         wrap.querySelector(".think-toggle")?.setAttribute("aria-expanded", "false");
@@ -912,13 +1033,20 @@ export class UI {
     this._scrollChatToBottom();
   }
 
-  finishAgentTurn(wrap, { thinking, content, error } = {}) {
+  finishAgentTurn(wrap, { thinking, content, error, toolCalls = [] } = {}) {
     if (!wrap) return;
     wrap.classList.remove("streaming");
     const thinkBlock = wrap.querySelector("[data-think]");
     thinkBlock?.classList.remove("thinking");
-    const toolChip = wrap.querySelector("[data-tool]");
-    if (toolChip) toolChip.hidden = true;
+
+    // Finalize any still-pending tool rows + ensure full history is present
+    this.syncToolCalls(wrap, toolCalls);
+    wrap.querySelectorAll(".tool-row.pending").forEach((row) => {
+      row.classList.remove("pending");
+      row.classList.add("done");
+      const st = row.querySelector(".tool-row-status");
+      if (st && st.textContent === "…") st.textContent = "完成";
+    });
 
     if (error) {
       const answer = wrap.querySelector(".answer-text");
@@ -984,6 +1112,76 @@ export class UI {
 
 function $(sel) {
   return document.querySelector(sel);
+}
+
+function toolCallKey(name, args) {
+  try {
+    return `${name}:${JSON.stringify(args || {})}`;
+  } catch {
+    return `${name}:`;
+  }
+}
+
+const TOOL_META = {
+  get_current_weather: { icon: "🌦️", label: "查询天气" },
+  get_forecast_daily: { icon: "📅", label: "查询预报" },
+  get_traffic_estimate: { icon: "🛣️", label: "查询路况" },
+  get_flight_status: { icon: "✈️", label: "查询航班" },
+  list_active_alerts: { icon: "🚨", label: "查询告警" },
+  get_budget_snapshot: { icon: "💰", label: "查询预算" },
+};
+
+function isWriteToolName(name) {
+  return /book|cancel|create|send|post|update|write|insert|reserve|confirm|refund/i.test(
+    String(name || "")
+  );
+}
+
+function describeToolCall(name, args = {}, result = null) {
+  const base = TOOL_META[name] || {
+    icon: isWriteToolName(name) ? "🔧" : "🛠️",
+    label: name,
+  };
+  const stateful = isWriteToolName(name) || Boolean(result?.booked || result?.written || result?.mutated);
+  const error = result && result.ok === false;
+  const argBits = [];
+  if (args.geo_key) argBits.push(args.geo_key);
+  if (args.flight_no) argBits.push(args.flight_no);
+  if (args.road_id) argBits.push(args.road_id);
+  if (args.query) argBits.push(args.query);
+  if (args.date) argBits.push(args.date);
+  if (args.hotel_id || args.hotel_name) argBits.push(args.hotel_id || args.hotel_name);
+  if (!argBits.length) {
+    const vals = Object.values(args || {}).filter((v) => v != null && String(v).trim() !== "");
+    if (vals.length) argBits.push(String(vals[0]).slice(0, 28));
+  }
+
+  let detail = argBits.join(" · ");
+  if (result) {
+    if (result.summary) detail = [detail, result.summary].filter(Boolean).join(" · ");
+    else if (result.note) detail = [detail, result.note].filter(Boolean).join(" · ");
+    else if (error && result.error) detail = [detail, result.error].filter(Boolean).join(" · ");
+    else if (result.condition != null) {
+      detail = [detail, `${result.condition} ${result.tmin ?? ""}~${result.tmax ?? ""}℃`]
+        .filter(Boolean)
+        .join(" · ");
+    } else if (result.flight_no || result.status) {
+      detail = [detail, result.status || result.note].filter(Boolean).join(" · ");
+    } else if (Array.isArray(result.matched)) {
+      detail = [detail, `命中 ${result.matched.length} 条`].filter(Boolean).join(" · ");
+    } else if (result.budget) {
+      const b = result.budget;
+      detail = [detail, `已花 ¥${fmt(b.spent_cny)} / 预算 ¥${fmt(b.total_cny)}`].filter(Boolean).join(" · ");
+    }
+  }
+
+  return {
+    icon: base.icon,
+    title: stateful ? `${base.label}` : base.label,
+    detail: detail || (stateful ? "已写入环境状态" : ""),
+    stateful,
+    error: Boolean(error),
+  };
 }
 
 /** Build toastable alerts from ledger snapshot (stable keys for dedupe). */
@@ -1167,6 +1365,7 @@ function setMarkdown(el, text) {
   const purify = globalThis.DOMPurify;
   if (!markedApi?.parse) {
     el.textContent = src;
+    recoverOrphanPipeTables(el);
     return;
   }
   try {
@@ -1184,47 +1383,58 @@ function setMarkdown(el, text) {
         })
       : raw;
     el.innerHTML = clean;
+    recoverOrphanPipeTables(el);
     wrapMarkdownTables(el);
     scrubBrokenTableRows(el);
   } catch {
     el.textContent = src;
+    recoverOrphanPipeTables(el);
   }
 }
 
 /**
  * Fix common LLM table mistakes for GFM:
+ * - fullwidth / box-drawing pipes → ASCII |
+ * - leading indent / NBSP (otherwise marked treats as code or plain <p>)
  * - blank line before table
- * - insert ONE header separator if missing (not between every data row)
- * - drop repeated separator-only lines the model sometimes emits between rows
+ * - insert ONE header separator if missing
+ * - drop repeated separator-only lines between body rows
  */
 function normalizeAgentMarkdown(src) {
-  let s = src.replace(/\r\n/g, "\n");
-  s = s.replace(/([^\n|])\n(\|[^\n]+\|)\n/g, "$1\n\n$2\n");
+  let s = String(src ?? "").replace(/\r\n/g, "\n");
+  // Unicode pipes / separators models often emit in CJK answers
+  // Fullwidth / box-drawing vertical bars → ASCII pipe
+  s = s.replace(/[\uFF5C\u2502\u2503\u2223]/g, "|");
+
   const lines = s.split("\n");
   const out = [];
   let inTable = false;
   let sawSeparator = false;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    let line = stripRowIndent(lines[i]);
     const prev = out.length ? out[out.length - 1] : null;
-    const next = lines[i + 1];
+    const nextRaw = lines[i + 1];
+    const next = nextRaw != null ? stripRowIndent(nextRaw) : null;
     const isRow = isPipeRow(line);
     const isSep = isPipeSeparator(line);
 
     if (!isRow) {
       inTable = false;
       sawSeparator = false;
-      out.push(line);
+      out.push(lines[i]); // keep original non-table line (preserve intentional indent in lists/code)
       continue;
     }
 
-    // Start of a new table block
+    // Ensure blank line before a table so it is not swallowed by a paragraph
+    if (!inTable && prev != null && prev.trim() !== "" && !isPipeRow(prev)) {
+      out.push("");
+    }
+
     if (!inTable) {
       inTable = true;
       sawSeparator = false;
       out.push(line);
-      // Header row without separator → insert one before next data row
       if (
         !isSep &&
         next != null &&
@@ -1241,50 +1451,63 @@ function normalizeAgentMarkdown(src) {
       continue;
     }
 
-    // Inside table: keep at most one separator line; skip extras / dash-only junk rows
     if (isSep) {
-      if (sawSeparator) continue; // duplicate |---|---| between body rows
+      if (sawSeparator) continue;
       sawSeparator = true;
-      out.push(line);
+      out.push(normalizeSeparatorLine(line));
       continue;
     }
 
-    if (isDashOnlyRow(line)) continue; // model emitted "| --- | --- |" as a "data" row
+    if (isDashOnlyRow(line)) continue;
     out.push(line);
   }
   return out.join("\n");
 }
 
+/** Strip leading spaces/tabs/NBSP/ideographic space so pipe rows are not code-fenced. */
+function stripRowIndent(line) {
+  return String(line || "").replace(/^[\t \u00A0\u3000\u2000-\u200B\uFEFF]+/, "");
+}
+
+function normalizeSeparatorLine(line) {
+  const cols = Math.max(countPipeCols(line), 1);
+  return "| " + Array(cols).fill("---").join(" | ") + " |";
+}
+
 function isDashOnlyRow(line) {
-  const cells = String(line || "")
+  const cells = splitPipeCells(line);
+  if (cells.length < 2) return false;
+  return cells.every((c) => isSepCell(c));
+}
+
+function isSepCell(c) {
+  const t = String(c || "").trim();
+  return !t || /^:?[-–—−\u2013\u2014\u2212]{2,}:?$/.test(t) || t === "—" || t === "-" || t === "–";
+}
+
+function isPipeRow(line) {
+  const t = stripRowIndent(line).trimEnd();
+  if (!t.includes("|")) return false;
+  return splitPipeCells(t).length >= 2;
+}
+
+function isPipeSeparator(line) {
+  const cells = splitPipeCells(line);
+  if (cells.length < 2) return false;
+  return cells.every((c) => isSepCell(c));
+}
+
+function splitPipeCells(line) {
+  return stripRowIndent(line)
     .trim()
     .replace(/^\|/, "")
     .replace(/\|$/, "")
     .split("|")
     .map((c) => c.trim());
-  if (cells.length < 2) return false;
-  return cells.every((c) => /^:?-{2,}:?$/.test(c) || c === "—" || c === "-" || c === "–");
-}
-
-function isPipeRow(line) {
-  const t = String(line || "").trim();
-  if (!t.includes("|")) return false;
-  // at least two cells
-  return t.split("|").filter((c) => c.trim() !== "").length >= 2;
-}
-
-function isPipeSeparator(line) {
-  const t = String(line || "").trim();
-  if (!t.includes("|")) return false;
-  return /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(t);
 }
 
 function countPipeCols(line) {
-  return String(line || "")
-    .trim()
-    .replace(/^\|/, "")
-    .replace(/\|$/, "")
-    .split("|").length;
+  return splitPipeCells(line).length;
 }
 
 function softBreakParagraphs(html) {
@@ -1293,8 +1516,110 @@ function softBreakParagraphs(html) {
     if (inner.includes("<table") || inner.includes("<li") || inner.includes("<pre")) {
       return `<p>${inner}</p>`;
     }
+    // Leave pipe-table-shaped paragraphs alone — recoverOrphanPipeTables will promote them
+    const plain = inner.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "");
+    if (looksLikePipeTable(plain)) return `<p>${inner}</p>`;
     return `<p>${inner.replace(/\n/g, "<br>\n")}</p>`;
   });
+}
+
+/**
+ * When marked still emits a pipe table as <p> or <pre><code>, rebuild a real <table>.
+ * Covers residual fullwidth/indent/edge cases after normalize.
+ */
+function recoverOrphanPipeTables(root) {
+  if (!root?.querySelectorAll) return;
+
+  const candidates = [...root.querySelectorAll("p, pre")];
+  for (const node of candidates) {
+    let text = "";
+    if (node.tagName === "PRE") {
+      text = node.textContent || "";
+    } else {
+      // Preserve soft line breaks from <br>
+      text = (node.innerHTML || "")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<[^>]+>/g, "");
+      text = decodeBasicEntities(text);
+    }
+    if (!looksLikePipeTable(text)) continue;
+    const table = buildHtmlTableFromPipes(text);
+    if (!table) continue;
+    node.replaceWith(table);
+  }
+}
+
+function looksLikePipeTable(text) {
+  const lines = String(text || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map(stripRowIndent)
+    .map((l) => l.trimEnd())
+    .filter((l) => l.length);
+  if (lines.length < 2) return false;
+  // Entire block should be pipe rows (avoid false positives in prose)
+  if (!lines.every(isPipeRow)) return false;
+  // Need a separator, or ≥3 rows (header + 2 body)
+  return lines.some(isPipeSeparator) || lines.length >= 3;
+}
+
+function buildHtmlTableFromPipes(text) {
+  let lines = String(text || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map(stripRowIndent)
+    .map((l) => l.trimEnd())
+    .filter((l) => l.length && isPipeRow(l));
+  if (lines.length < 2) return null;
+
+  // Drop leading separators
+  while (lines.length && isPipeSeparator(lines[0])) lines = lines.slice(1);
+  if (!lines.length) return null;
+
+  let header = splitPipeCells(lines[0]);
+  let bodyLines = lines.slice(1);
+  if (bodyLines.length && isPipeSeparator(bodyLines[0])) {
+    bodyLines = bodyLines.slice(1);
+  }
+  bodyLines = bodyLines.filter((l) => !isPipeSeparator(l) && !isDashOnlyRow(l));
+  if (!header.length) return null;
+
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  const hr = document.createElement("tr");
+  for (const cell of header) {
+    const th = document.createElement("th");
+    th.textContent = cell;
+    hr.appendChild(th);
+  }
+  thead.appendChild(hr);
+  table.appendChild(thead);
+
+  if (bodyLines.length) {
+    const tbody = document.createElement("tbody");
+    for (const line of bodyLines) {
+      const cells = splitPipeCells(line);
+      const tr = document.createElement("tr");
+      for (let i = 0; i < header.length; i++) {
+        const td = document.createElement("td");
+        td.textContent = cells[i] ?? "";
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+  }
+  return table;
+}
+
+function decodeBasicEntities(s) {
+  return String(s || "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
 }
 
 function wrapMarkdownTables(root) {
@@ -1314,7 +1639,7 @@ function scrubBrokenTableRows(root) {
     if (!cells.length) return;
     const dashOnly = cells.every((c) => {
       const t = (c.textContent || "").trim();
-      return !t || /^:?-{2,}:?$/.test(t) || t === "—" || t === "-" || t === "–";
+      return !t || isSepCell(t);
     });
     if (dashOnly) tr.remove();
   });

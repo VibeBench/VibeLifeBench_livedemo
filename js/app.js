@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260720-48";
-import { DemoEngine } from "./engine.js?v=20260720-48";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260720-50";
+import { DemoEngine } from "./engine.js?v=20260720-50";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260720-48";
+} from "./agent.js?v=20260720-50";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260720-48";
+import { UI } from "./ui.js?v=20260720-50";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -187,14 +187,34 @@ function ensureAgent() {
     onStream: (payload) => {
       if (ui._streamBubble) ui.updateAgentTurn(ui._streamBubble, payload);
     },
-    onTool: ({ name, args }) => {
-      console.debug("tool", name, args);
-      if (/book|cancel|create|send|post|update|write|insert|reserve/i.test(name || "")) {
+    onTool: ({ name, args, result }) => {
+      console.debug("tool", name, args, result);
+      if (ui._streamBubble) {
+        ui.appendToolCall(ui._streamBubble, {
+          name,
+          args: args || {},
+          result,
+          status: "done",
+        });
+      }
+      // Write / booking tools also leave a durable state card in chat history
+      if (/book|cancel|create|send|post|update|write|insert|reserve|confirm|refund/i.test(name || "")) {
         const tab = /notion|page|block/i.test(name) ? "notes" : "trip";
+        const detail =
+          result?.summary ||
+          result?.note ||
+          Object.entries(args || {})
+            .map(([k, v]) => `${k}=${v}`)
+            .slice(0, 3)
+            .join(" · ");
         ui.notifyStateChange({
-          icon: tab === "notes" ? "📝" : "🔧",
-          text: `工具已写入 · ${name}`,
+          icon: tab === "notes" ? "📝" : /flight|air/i.test(name) ? "✈️" : /hotel|stay/i.test(name) ? "🏨" : "🔧",
+          text: `已执行 · ${name}`,
+          title: `已执行 · ${name}`,
+          body: detail,
           tab,
+          kind: "tool-write",
+          key: `tool-write:${name}:${JSON.stringify(args || {}).slice(0, 80)}`,
         });
       }
     },
@@ -321,6 +341,7 @@ async function stepOnce() {
           ui.finishAgentTurn(ui._streamBubble, {
             thinking: turn.thinking,
             content: turn.content || "（空回复）",
+            toolCalls: turn.toolCalls || [],
           });
           trajectory.pushAgentTurn({
             eventId: event.id,
@@ -369,6 +390,7 @@ async function sendUserChat(text) {
     ui.finishAgentTurn(ui._streamBubble, {
       thinking: turn.thinking,
       content: turn.content || "（空回复）",
+      toolCalls: turn.toolCalls || [],
     });
     trajectory.pushAgentTurn({
       eventId: null,
