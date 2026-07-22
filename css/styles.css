@@ -1010,14 +1010,8 @@ select {
 }
 
 .event-stream {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: none;
-  overflow: auto;
-  padding: 10px 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  /* Map-side timeline removed — tool flow is in the phone chat. */
+  display: none !important;
 }
 
 .stream-item {

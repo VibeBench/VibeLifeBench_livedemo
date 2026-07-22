@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-55";
-import { DemoEngine } from "./engine.js?v=20260722-55";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-56";
+import { DemoEngine } from "./engine.js?v=20260722-56";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,10 +7,10 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-55";
+} from "./agent.js?v=20260722-56";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-55";
-import { isOceanFlightCrossing } from "./map.js?v=20260722-55";
+import { UI } from "./ui.js?v=20260722-56";
+import { isOceanFlightCrossing } from "./map.js?v=20260722-56";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -409,18 +409,7 @@ function refreshDashboard() {
   ui.renderNotionLedger(ledger);
   ui.syncLedgerAlerts(ledger);
 
-  let list;
-  if (viewDate) {
-    const revealed = engine.eventsForDate(viewDate).filter((e) => engine.revealed.includes(e));
-    list = revealed.length ? revealed : engine.revealed.slice(-10);
-  } else {
-    list = engine.revealed.slice(-10);
-  }
-  // Mutations stay invisible in the UI timeline (Agent must discover via tools).
-  ui.renderEventStream(
-    list.filter((e) => e?.kind !== "mutation"),
-    engine.meta
-  );
+  // Map event flow removed — tool steps are visible in the phone chat.
   ui.syncEnvEmails(view.env?.emails || engine.env?.emails, engine.simNow?.());
   ui.renderMap(engine);
   ui.renderFooter(engine);

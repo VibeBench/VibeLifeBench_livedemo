@@ -17,7 +17,7 @@ import {
   isOceanFlightCrossing,
   playMapAction,
   hideMapActionStage,
-} from "./map.js?v=20260722-55";
+} from "./map.js?v=20260722-56";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1216,23 +1216,18 @@ export class UI {
       : `<div class="ledger-empty">Agent 写入游记 / 费用 / 安全备注后会出现在这里。</div>${body}`;
   }
 
-  renderEventStream(events, meta) {
-    this._envStreamEvents = events || [];
-    this._streamMeta = meta || null;
-    this._paintEventStream();
+  renderEventStream(_events, _meta) {
+    // Map-side event flow removed — tools/replies live in the phone chat.
   }
 
   clearActivityFeed() {
     this._activityFeed = [];
     this._activitySeq = 0;
-    if (this.els.eventStream) this._paintEventStream();
   }
 
   /**
-   * Mirror Agent tool / reply / booking side-effects into the left dashboard stream.
-   * kind: 'agent_tool' | 'agent_reply' | 'agent_state'
-   * Same `id` upserts (used to merge repeated tool calls).
-   * Only tool calls pulse on the map (messages / mutations stay off-map).
+   * Activity lines used to mirror into the map timeline.
+   * Kept as a no-op hook so call sites stay stable; phone chat is the source of truth.
    */
   appendActivityFeed({
     kind = "agent_tool",
@@ -1244,59 +1239,21 @@ export class UI {
     id = null,
     mapPulse = false,
   } = {}) {
+    if (!mapPulse) return;
     const km = KIND_META[kind] || KIND_META.agent_tool;
     const text = [body, detail].filter(Boolean).join(" · ");
     if (!String(text || "").trim()) return;
-    if (!this._activityFeed) this._activityFeed = [];
-    const feedId = id || `act-${(this._activitySeq || 0) + 1}`;
-    const existingIdx = this._activityFeed.findIndex((a) => a.id === feedId);
-    if (existingIdx >= 0) {
-      const prev = this._activityFeed[existingIdx];
-      this._activityFeed[existingIdx] = {
-        ...prev,
-        kind,
-        icon: icon || prev.icon || km.icon,
-        who: who || prev.who || km.label,
-        body: truncate(text, 180),
-        time: time || prev.time || null,
-        cls: km.cls,
-      };
-      this._paintEventStream();
-      if (mapPulse) {
-        this.pulseMapFeedback({
-          id: `${feedId}:map`,
-          icon: icon || prev.icon || km.icon,
-          title: body || km.label,
-          detail,
-          kind,
-        });
-      }
-      return;
-    }
-    this._activitySeq = (this._activitySeq || 0) + 1;
-    this._activityFeed.push({
-      id: feedId,
-      seq: this._activitySeq,
-      kind,
+    this.pulseMapFeedback({
+      id: id || `act-map:${Date.now()}`,
       icon: icon || km.icon,
-      who: who || km.label,
-      body: truncate(text, 180),
-      time: time || null,
-      cls: km.cls,
+      title: body || km.label,
+      detail,
+      kind,
     });
-    if (this._activityFeed.length > 100) {
-      this._activityFeed = this._activityFeed.slice(-100);
-    }
-    this._paintEventStream();
-    if (mapPulse) {
-      this.pulseMapFeedback({
-        id: `${feedId}:map`,
-        icon: icon || km.icon,
-        title: body || km.label,
-        detail,
-        kind,
-      });
-    }
+  }
+
+  _paintEventStream() {
+    // no-op
   }
 
   /** Brief map toast — prefer anchoring near the related place. */
@@ -1342,57 +1299,6 @@ export class UI {
       roadId: resolvedRoad,
       latlng,
     });
-  }
-
-  _paintEventStream() {
-    const el = this.els.eventStream;
-    if (!el) return;
-    const meta = this._streamMeta || {};
-    const labels = meta.kind_labels || this.kindLabels;
-    const speakers = meta.speakers || this.speakers;
-
-    const rows = [];
-    for (const ev of this._envStreamEvents || []) {
-      const row = formatEnvStreamRow(ev, { labels, speakers });
-      rows.push({
-        sortKey: String(ev.time || ""),
-        seq: rows.length,
-        html: streamItemHtml({
-          id: ev.id,
-          cls: row.cls,
-          time: formatSimStamp(ev.time) || "--:--",
-          icon: row.icon,
-          who: row.who,
-          body: row.body,
-        }),
-      });
-    }
-    for (const a of this._activityFeed || []) {
-      rows.push({
-        sortKey: String(a.time || ""),
-        seq: 100000 + (a.seq || 0),
-        html: streamItemHtml({
-          id: a.id,
-          cls: a.cls || "",
-          time: formatSimStamp(a.time) || "Agent",
-          icon: a.icon,
-          who: a.who,
-          body: a.body,
-        }),
-      });
-    }
-    rows.sort((x, y) => {
-      if (x.sortKey && y.sortKey && x.sortKey !== y.sortKey) {
-        return x.sortKey < y.sortKey ? -1 : 1;
-      }
-      if (!!x.sortKey !== !!y.sortKey) return x.sortKey ? -1 : 1;
-      return x.seq - y.seq;
-    });
-
-    el.innerHTML =
-      rows.map((r) => r.html).join("") ||
-      `<div class="ledger-empty">推进日程或启动 Agent 后，环境事件与工具动态会出现在这里。</div>`;
-    el.scrollTop = el.scrollHeight;
   }
 
   renderMap(engine) {
