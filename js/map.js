@@ -998,14 +998,15 @@ function paintLeafletBase(ctx) {
 
   for (const p of visiblePlaces(ctx)) {
     const isHere = p.place_id === ctx.herePlaceId || ctx.placeGeo[p.place_id] === ctx.geo;
+    // When live "现在" marker is on, keep place dots quiet so they don't compete.
     const marker = window.L.circleMarker([p.lat, p.lng], {
-      radius: isHere ? (liveHere ? 5 : 10) : 7,
+      radius: isHere ? (liveHere ? 4 : 10) : 6,
       color: "#ffffff",
-      weight: 2,
+      weight: isHere && liveHere ? 1.5 : 2,
       fillColor: isHere ? "#16a34a" : categoryColor(p.category),
-      fillOpacity: isHere && liveHere ? 0.55 : 0.95,
+      fillOpacity: isHere && liveHere ? 0.35 : isHere ? 0.95 : 0.82,
+      opacity: isHere && liveHere ? 0.55 : 1,
     }).addTo(leafletLayer);
-    // Permanent top tooltip collides with basemap POI pins + activity pill; only hover for "here".
     marker.bindTooltip(p.name, {
       direction: isHere ? "right" : "top",
       offset: isHere ? [12, 0] : [0, -8],
@@ -1017,7 +1018,7 @@ function paintLeafletBase(ctx) {
     );
 
     const stays = ctx.hotelsByPlace?.[p.place_id];
-    if (stays?.length) {
+    if (stays?.length && !(isHere && liveHere)) {
       const tip = stays.map((h) => `${h.name}${h.refundable ? " ·可退" : ""}`).join(" / ");
       window.L.marker([p.lat, p.lng], {
         icon: window.L.divIcon({
@@ -1510,13 +1511,19 @@ function paintHomeActivity(ctx) {
   if (!activityLayer) return;
   const home = ctx.home;
   const emoji = ctx.activity?.emoji || "🏠";
-  // Icon only — no permanent text label over the map
+  const label = ctx.activity?.label || "行前准备";
   window.L.marker([home.lat, home.lng], {
-    icon: emojiIcon(emoji, "home-emoji"),
-    zIndexOffset: 700,
+    icon: hereMarkerIcon(emoji, label),
+    zIndexOffset: 1200,
+    interactive: false,
   })
     .addTo(activityLayer)
-    .bindTooltip(ctx.activity?.label || "行前准备", { permanent: false, direction: "right", offset: [12, 0] });
+    .bindTooltip(`现在 · ${label}`, {
+      permanent: true,
+      direction: "right",
+      offset: [28, -4],
+      className: "map-here-tooltip",
+    });
 }
 
 async function paintLiveActivity(ctx, token) {
@@ -1542,24 +1549,30 @@ async function paintLiveActivity(ctx, token) {
     return;
   }
 
-  // Stationary activity: side pill (not top tooltip) so it clears basemap red pins / place labels.
+  // Stationary: prominent "现在" marker (not a bare emoji among place pins).
   const here = placeLatLng(ctx);
   if (!here) return;
   window.L.circle(here, {
-    radius: 420,
+    radius: 520,
     color: "#16a34a",
     weight: 2,
     fillColor: "#86efac",
-    fillOpacity: 0.18,
+    fillOpacity: 0.16,
     className: "activity-ring",
   }).addTo(activityLayer);
 
   window.L.marker(here, {
-    icon: emojiIcon(act.emoji, "activity-here-emoji"),
-    zIndexOffset: 700,
+    icon: hereMarkerIcon(act.emoji, act.label),
+    zIndexOffset: 1200,
+    interactive: false,
   })
     .addTo(activityLayer)
-    .bindTooltip(`${act.emoji} ${act.label}`, { permanent: false, direction: "right", offset: [14, 0] });
+    .bindTooltip(`现在 · ${act.label}`, {
+      permanent: true,
+      direction: "right",
+      offset: [28, -4],
+      className: "map-here-tooltip",
+    });
 }
 
 async function liveSegmentPath(ctx) {
@@ -1955,28 +1968,58 @@ function emojiIcon(emoji, extraClass = "") {
   });
 }
 
+/** Distinct "you are here" marker — stands out among place/hotel pins. */
+function hereMarkerIcon(emoji, label = "") {
+  const tip = escapeHtml(String(label || "").trim());
+  return window.L.divIcon({
+    className: "map-here-wrap",
+    html: `
+      <div class="map-here-marker" title="${tip}">
+        <span class="map-here-pulse" aria-hidden="true"></span>
+        <span class="map-here-pulse map-here-pulse-late" aria-hidden="true"></span>
+        <span class="map-here-core">
+          <span class="map-here-emoji">${emoji || "📍"}</span>
+        </span>
+        <span class="map-here-tag">现在</span>
+      </div>`,
+    iconSize: [72, 72],
+    iconAnchor: [36, 40],
+  });
+}
+
 function startTravelerAnim(latlngs, emoji, label) {
   stopTravelerAnim();
   if (!activityLayer || !latlngs?.length) return;
 
   const marker = window.L.marker(latlngs[0], {
-    icon: emojiIcon(emoji, "traveler-emoji"),
-    zIndexOffset: 800,
+    icon: hereMarkerIcon(emoji, label),
+    zIndexOffset: 1200,
+    interactive: false,
   }).addTo(activityLayer);
   if (label) {
-    marker.bindTooltip(label, { permanent: false, direction: "top", offset: [0, -14] });
+    marker.bindTooltip(`现在 · ${label}`, {
+      permanent: true,
+      direction: "right",
+      offset: [28, -4],
+      className: "map-here-tooltip",
+    });
   }
 
   const lengths = segmentLengths(latlngs);
   const total = lengths.reduce((a, b) => a + b, 0) || 1;
-  const duration = Math.min(14000, Math.max(6000, total * 80));
+  // Slow one-shot crawl along the road (no loop). Typical day leg ≈ 25–40s.
+  const duration = Math.min(42000, Math.max(24000, total * 340));
   const t0 = performance.now();
 
   function frame(now) {
-    const u = ((now - t0) % duration) / duration;
+    const u = Math.min(1, (now - t0) / duration);
     const pos = pointAlong(latlngs, lengths, total, u);
     marker.setLatLng(pos);
-    travelerAnim = requestAnimationFrame(frame);
+    if (u < 1) {
+      travelerAnim = requestAnimationFrame(frame);
+    } else {
+      travelerAnim = null;
+    }
   }
   travelerAnim = requestAnimationFrame(frame);
 }
