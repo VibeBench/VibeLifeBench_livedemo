@@ -504,7 +504,7 @@ function paintHomeBase(ctx) {
   })
     .addTo(leafletLayer)
     .bindTooltip(atAirport ? "✈️ 上海·浦东机场" : "🏠 " + home.name, {
-      permanent: true,
+      permanent: false,
       direction: "top",
       offset: [0, -10],
     });
@@ -520,7 +520,7 @@ function paintHomeBase(ctx) {
       fillOpacity: 0.9,
     })
       .addTo(leafletLayer)
-      .bindTooltip(`✈️ 计划抵达 · 基督城${fno}`, { permanent: true, direction: "bottom", offset: [0, 10] });
+      .bindTooltip(`✈️ 计划抵达 · 基督城${fno}`, { permanent: false, direction: "bottom", offset: [0, 10] });
   }
 
   window.L.marker([home.lat, home.lng], {
@@ -755,20 +755,14 @@ function paintHomeFlightArc(ctx) {
 function paintHomeActivity(ctx) {
   if (!activityLayer) return;
   const home = ctx.home;
-  const label = ctx.activity?.label || "行前准备";
   const emoji = ctx.activity?.emoji || "🏠";
-  // Avoid stacking a second pin that looks like "中断"；只用轻量标签
+  // Icon only — no permanent text label over the map
   window.L.marker([home.lat, home.lng], {
-    icon: window.L.divIcon({
-      className: "map-emoji-icon home-status-tag",
-      html: `<span class="home-status-pill">${escapeHtml(label)}</span>`,
-      iconSize: [0, 0],
-      iconAnchor: [-16, 8],
-    }),
+    icon: emojiIcon(emoji, "home-emoji"),
     zIndexOffset: 700,
-    interactive: false,
-  }).addTo(activityLayer);
-  void emoji;
+  })
+    .addTo(activityLayer)
+    .bindTooltip(ctx.activity?.label || "行前准备", { permanent: false, direction: "right", offset: [12, 0] });
 }
 
 async function paintLiveActivity(ctx, token) {
@@ -807,15 +801,11 @@ async function paintLiveActivity(ctx, token) {
   }).addTo(activityLayer);
 
   window.L.marker(here, {
-    icon: window.L.divIcon({
-      className: "map-emoji-icon activity-status-tag",
-      html: `<span class="activity-status-pill pulse"><span class="activity-status-emoji">${act.emoji}</span>${escapeHtml(act.label)}</span>`,
-      iconSize: [0, 0],
-      iconAnchor: [-14, 10],
-    }),
+    icon: emojiIcon(act.emoji, "activity-here-emoji"),
     zIndexOffset: 700,
-    interactive: false,
-  }).addTo(activityLayer);
+  })
+    .addTo(activityLayer)
+    .bindTooltip(`${act.emoji} ${act.label}`, { permanent: false, direction: "right", offset: [14, 0] });
 }
 
 async function liveSegmentPath(ctx) {
@@ -1112,7 +1102,9 @@ function startTravelerAnim(latlngs, emoji, label) {
     icon: emojiIcon(emoji, "traveler-emoji"),
     zIndexOffset: 800,
   }).addTo(activityLayer);
-  marker.bindTooltip(label || "", { direction: "top", offset: [0, -14] });
+  if (label) {
+    marker.bindTooltip(label, { permanent: false, direction: "top", offset: [0, -14] });
+  }
 
   const lengths = segmentLengths(latlngs);
   const total = lengths.reduce((a, b) => a + b, 0) || 1;

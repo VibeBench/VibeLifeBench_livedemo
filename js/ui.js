@@ -1,7 +1,7 @@
 /**
  * Dashboard + phone chat rendering
  */
-import { renderLeafletMap, destroyMap } from "./map.js?v=20260722-05";
+import { renderLeafletMap, destroyMap } from "./map.js?v=20260722-06";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {

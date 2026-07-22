@@ -212,12 +212,12 @@ select {
   margin: 0;
   padding: 8px 10px;
   max-width: min(280px, 42%);
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
   pointer-events: auto;
 }
 
@@ -233,11 +233,11 @@ select {
 }
 
 .panel-glass {
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.38);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
 
 .float-ribbon {
@@ -264,11 +264,11 @@ select {
   min-height: 0;
   padding: 8px 10px;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
 }
 
 .float-status .status-icon {
@@ -278,8 +278,7 @@ select {
 }
 
 .float-status .status-label {
-  font-size: 10px;
-  margin-bottom: 2px;
+  display: none;
 }
 
 .float-status .status-value {
@@ -321,13 +320,19 @@ select {
 }
 
 .float-toggle {
-  border: 1px solid var(--line);
-  background: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.35);
   border-radius: 999px;
   padding: 3px 10px;
   font-size: 11px;
-  color: var(--muted);
+  color: #334155;
   cursor: pointer;
+}
+
+.float-events .stream-item {
+  padding: 7px 8px;
+  background: rgba(255, 255, 255, 0.32);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 .float-events .event-stream {
@@ -344,11 +349,6 @@ select {
 
 .float-events.collapsed .event-stream {
   display: none;
-}
-
-.float-events .stream-item {
-  padding: 7px 8px;
-  background: rgba(247, 249, 252, 0.92);
 }
 
 .float-plan {
@@ -388,9 +388,12 @@ select {
   padding: 8px 12px;
   border-radius: 14px;
   font-size: 12px;
-  background: rgba(26, 35, 50, 0.88);
+  background: rgba(26, 35, 50, 0.42);
   color: #e8eef8;
-  border-color: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
 }
 
 .float-footer .btn {
@@ -428,8 +431,8 @@ select {
 .day-chip {
   flex: 0 0 auto;
   width: 84px;
-  border: 1px solid var(--line);
-  background: #f7f9fc;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(247, 249, 252, 0.42);
   border-radius: 12px;
   padding: 8px 6px;
   display: grid;
