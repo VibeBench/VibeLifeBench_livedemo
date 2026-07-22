@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260720-52";
-import { DemoEngine } from "./engine.js?v=20260720-52";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-01";
+import { DemoEngine } from "./engine.js?v=20260722-01";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260720-52";
+} from "./agent.js?v=20260722-01";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260720-52";
+import { UI } from "./ui.js?v=20260722-01";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {

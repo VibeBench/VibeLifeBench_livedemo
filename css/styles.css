@@ -22,6 +22,7 @@
 html,
 body {
   margin: 0;
+  height: 100%;
   min-height: 100%;
   font-family: var(--font);
   color: var(--ink);
@@ -29,6 +30,13 @@ body {
     radial-gradient(1200px 600px at 10% -10%, #dce7ff 0%, transparent 55%),
     radial-gradient(900px 500px at 90% 0%, #e7f7f0 0%, transparent 50%),
     var(--bg);
+}
+
+@media (min-width: 1101px) {
+  html,
+  body {
+    overflow: hidden;
+  }
 }
 
 button,
@@ -39,14 +47,18 @@ select {
 
 .app {
   display: grid;
-  grid-template-columns: 1fr minmax(400px, 440px);
-  grid-template-rows: auto 1fr;
-  align-items: start;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 34vw, 440px);
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: clamp(10px, 1.2vw, 18px);
+  width: 100%;
   max-width: 1520px;
   margin: 0 auto;
-  padding: 14px 16px 18px;
-  min-height: 100vh;
+  padding: clamp(10px, 1.2vw, 14px) clamp(10px, 1.4vw, 16px) clamp(10px, 1.2vw, 14px);
+  box-sizing: border-box;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
 }
 
 /* —— Top bar —— */
@@ -141,8 +153,12 @@ select {
 .dashboard {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: clamp(8px, 1vh, 12px);
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .panel {
@@ -155,6 +171,7 @@ select {
 .day-ribbon-wrap {
   padding: 10px;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .day-ribbon {
@@ -275,6 +292,7 @@ select {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .status-card {
@@ -318,9 +336,17 @@ select {
 
 .content-grid {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
   gap: 12px;
-  min-height: 360px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.content-grid > .panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .section-title {
@@ -328,10 +354,13 @@ select {
   padding: 14px 16px 0;
   font-size: 14px;
   font-weight: 700;
+  flex-shrink: 0;
 }
 
 .event-stream {
-  max-height: 420px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
   overflow: auto;
   padding: 10px 12px 14px;
   display: flex;
@@ -407,16 +436,30 @@ select {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
+}
+
+.map-side > #mapPanel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .map-shell {
   margin: 12px 14px 0;
   position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .map-frame {
   position: relative;
-  height: 320px;
+  flex: 1 1 auto;
+  min-height: clamp(140px, 22vh, 280px);
+  height: auto;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -624,7 +667,8 @@ select {
 .map-canvas,
 .map-host,
 .leaflet-host {
-  height: 320px;
+  height: 100%;
+  min-height: clamp(140px, 22vh, 280px);
   border-radius: 12px;
   position: relative;
   overflow: hidden;
@@ -787,6 +831,7 @@ select {
   color: #e8eef8;
   border-radius: var(--radius);
   font-size: 12px;
+  flex-shrink: 0;
 }
 
 .footer-stats {
@@ -806,12 +851,13 @@ select {
 .phone-col {
   display: flex;
   align-items: stretch;
-  position: sticky;
-  top: 14px;
-  height: calc(100vh - 28px);
-  max-height: calc(100vh - 28px);
-  align-self: start;
+  position: relative;
+  top: auto;
+  height: 100%;
+  max-height: 100%;
+  align-self: stretch;
   min-height: 0;
+  min-width: 0;
 }
 
 .phone {
@@ -2075,20 +2121,109 @@ body.is-busy .btn.primary {
 }
 
 @media (max-width: 1100px) {
+  html,
+  body {
+    overflow: auto;
+    height: auto;
+    min-height: 100%;
+  }
+
   .app {
     grid-template-columns: 1fr;
     grid-template-rows: auto;
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    max-height: none;
+    overflow: visible;
   }
+
+  .dashboard {
+    height: auto;
+    overflow: visible;
+  }
+
+  .content-grid {
+    flex: none;
+    min-height: 360px;
+  }
+
+  .content-grid > .panel {
+    overflow: visible;
+    min-height: 280px;
+  }
+
+  .event-stream {
+    max-height: 420px;
+  }
+
+  .map-frame {
+    min-height: 240px;
+    height: min(42vh, 360px);
+    flex: none;
+  }
+
+  .map-canvas,
+  .map-host,
+  .leaflet-host {
+    min-height: 240px;
+  }
+
   .phone-col {
     position: relative;
     top: auto;
-    height: min(70vh, 720px);
-    max-height: min(70vh, 720px);
+    width: min(100%, 440px);
+    margin: 0 auto;
+    height: min(78dvh, 720px);
+    max-height: min(78dvh, 720px);
   }
+
   .status-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
   .content-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .app {
+    padding: 8px;
+    gap: 10px;
+  }
+
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .top-actions .btn {
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  .phone-col {
+    height: min(85dvh, 680px);
+    max-height: min(85dvh, 680px);
+  }
+
+  .map-frame {
+    height: min(36vh, 280px);
+  }
+}
+
+@media (min-width: 1101px) and (max-height: 760px) {
+  .status-card {
+    min-height: 72px;
+    padding: 8px 10px;
+  }
+
+  .day-chip {
+    width: 72px;
+    padding: 6px 4px;
+  }
+
+  .map-frame {
+    min-height: 120px;
   }
 }

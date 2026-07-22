@@ -48,6 +48,8 @@ let travelerAnim = null;
 let bannerHideTimer = null;
 /** Alert signature user dismissed / auto-hid — don't keep blocking the map. */
 let dismissedAlertKey = null;
+let mapResizeObs = null;
+let mapResizeTimer = null;
 
 export function ensureMapContainer(panelEl) {
   let shell = panelEl.querySelector(".map-shell");
@@ -92,6 +94,7 @@ export function renderLeafletMap(engine) {
 
   try {
     ensureLeaflet(host);
+    bindMapResize(host);
     paintLeafletBase(ctx);
     watchTiles(host);
     // Wait for baked road polylines so live legs (e.g. SH80) don't flash as straight lines.
@@ -132,6 +135,15 @@ function updateLegend(panel, ctx) {
 
 export function destroyMap() {
   clearTimeout(tileWatch);
+  clearTimeout(mapResizeTimer);
+  if (mapResizeObs) {
+    try {
+      mapResizeObs.disconnect();
+    } catch {
+      /* ignore */
+    }
+    mapResizeObs = null;
+  }
   drawToken += 1;
   stopTravelerAnim();
   if (leafletMap) {
@@ -145,6 +157,38 @@ export function destroyMap() {
   leafletLayer = null;
   routeLayer = null;
   activityLayer = null;
+}
+
+function bindMapResize(host) {
+  if (!host || typeof ResizeObserver === "undefined") {
+    window.addEventListener("resize", onViewportResize, { passive: true });
+    return;
+  }
+  if (mapResizeObs) {
+    try {
+      mapResizeObs.disconnect();
+    } catch {
+      /* ignore */
+    }
+  }
+  mapResizeObs = new ResizeObserver(() => {
+    clearTimeout(mapResizeTimer);
+    mapResizeTimer = setTimeout(() => {
+      if (!leafletMap) return;
+      leafletMap.invalidateSize(true);
+    }, 80);
+  });
+  const frame = host.closest(".map-frame") || host;
+  mapResizeObs.observe(frame);
+  window.addEventListener("resize", onViewportResize, { passive: true });
+}
+
+function onViewportResize() {
+  clearTimeout(mapResizeTimer);
+  mapResizeTimer = setTimeout(() => {
+    if (!leafletMap) return;
+    leafletMap.invalidateSize(true);
+  }, 100);
 }
 
 function watchTiles(host) {
