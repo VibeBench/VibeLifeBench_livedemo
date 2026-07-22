@@ -996,22 +996,21 @@ async function repaintAgentPlan({ fit = false } = {}) {
   }
 
   if (path.length >= 2) {
-    // Soft violet ghost corridor — lighter than live/planning blues & road colors,
-    // stays readable as a long-lived backdrop without competing with active routes.
+    // Persistent plan corridor: soft violet (not live blue), but opaque enough to read on topo.
     const under = window.L.polyline(path, {
-      color: "#f5f3ff",
-      weight: 6,
-      opacity: 0.55,
+      color: "#ffffff",
+      weight: 7,
+      opacity: 0.65,
       lineCap: "round",
       lineJoin: "round",
       interactive: false,
       className: "map-agent-plan-route-under",
     }).addTo(agentPlanLayer);
     const line = window.L.polyline(path, {
-      color: "#a78bfa",
-      weight: 2.5,
-      opacity: 0.48,
-      dashArray: "3 10",
+      color: "#7c3aed",
+      weight: 3.5,
+      opacity: 0.78,
+      dashArray: "7 9",
       lineCap: "round",
       lineJoin: "round",
       className: "map-agent-plan-route",
