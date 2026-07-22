@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-81";
-import { DemoEngine } from "./engine.js?v=20260722-81";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-82";
+import { DemoEngine } from "./engine.js?v=20260722-82";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,10 +7,10 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-81";
+} from "./agent.js?v=20260722-82";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-81";
-import { isOceanFlightCrossing } from "./map.js?v=20260722-81";
+import { UI } from "./ui.js?v=20260722-82";
+import { isOceanFlightCrossing, isDomesticTransfer, playDriveHop } from "./map.js?v=20260722-82";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -86,6 +86,8 @@ let playbackEpoch = 1;
 let lastSceneGeo = null;
 /** Play ocean-flight cutscene at most once per from→to pair per run. */
 let flightPlayed = new Set();
+/** Play overland car hop at most once per from→to pair per run. */
+let drivePlayed = new Set();
 
 const settings = loadSettings();
 
@@ -111,6 +113,7 @@ function bootCase(data) {
   trajectory = new Trajectory(data.meta.case_id);
   lastSceneGeo = null;
   flightPlayed = new Set();
+  drivePlayed = new Set();
   ui.setMeta(data.meta);
   ui.clearChat();
   ui.resetLedgerAlerts();
@@ -164,6 +167,25 @@ async function maybePlayFlightCrossing(fromGeo, toGeo, { event = null, time = nu
     flightNo,
     durationMs: 7200,
   });
+  return true;
+}
+
+/** Overland transfer: quick car hop along the road (not ocean flight). */
+async function maybePlayDriveHop(fromGeo, toGeo, { time = null } = {}) {
+  const from = fromGeo;
+  const to = toGeo;
+  if (!isDomesticTransfer(from, to)) return false;
+  const key = `${from}>${to}`;
+  if (drivePlayed.has(key)) return false;
+  drivePlayed.add(key);
+  ui.appendChat({
+    role: "system",
+    text: `🚗 转场出发 · ${from} → ${to}`,
+    time,
+  });
+  await (ui.playDriveHop
+    ? ui.playDriveHop({ fromGeo: from, toGeo: to, durationMs: 2400 })
+    : playDriveHop({ fromGeo: from, toGeo: to, durationMs: 2400 }));
   return true;
 }
 
@@ -258,6 +280,7 @@ function clearAndRewind({ confirm: needConfirm = true } = {}) {
   ui._streamBubble = null;
   lastSceneGeo = null;
   flightPlayed = new Set();
+  drivePlayed = new Set();
 
   // Fresh engine + trajectory
   engine = new DemoEngine(caseData);
@@ -467,8 +490,12 @@ async function stepOnce() {
 
     if (epoch !== playbackEpoch) return;
     refreshDashboard();
-    await maybePlayFlightCrossing(prevGeo, nextGeo, { event, time: t });
+    const flew = await maybePlayFlightCrossing(prevGeo, nextGeo, { event, time: t });
     if (epoch !== playbackEpoch) return;
+    if (!flew) {
+      await maybePlayDriveHop(prevGeo, nextGeo, { time: t });
+      if (epoch !== playbackEpoch) return;
+    }
     lastSceneGeo = nextGeo || prevGeo || lastSceneGeo;
 
     if (feedToAgent && agentText) {
@@ -679,7 +706,8 @@ function bindChrome() {
     }
     refreshDashboard();
     const nextGeo = currentSceneGeo();
-    await maybePlayFlightCrossing(prevGeo, nextGeo, { time: null });
+    const flew = await maybePlayFlightCrossing(prevGeo, nextGeo, { time: null });
+    if (!flew) await maybePlayDriveHop(prevGeo, nextGeo, { time: null });
     lastSceneGeo = nextGeo || prevGeo || lastSceneGeo;
   });
 

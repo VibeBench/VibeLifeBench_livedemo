@@ -63,6 +63,16 @@ let planningClearTimer = null;
 let flightLayer = null;
 let flightAnim = null;
 let flightCrossingActive = false;
+/** Persistent booked flight arcs (flown + upcoming), rotate highlight. */
+let flightPlanLayer = null;
+let flightRotateTimer = null;
+let flightRotateIdx = 0;
+/** @type {Array<{ polyline: object, flown: boolean, label: string, flightNo: string }> } */
+let flightPlanEntries = [];
+/** Quick overland car hop between NZ places. */
+let driveHopLayer = null;
+let driveHopAnim = null;
+let driveHopActive = false;
 /** Bumped on rewind/reset — async overlays must check before painting. */
 let mapSession = 1;
 let mapActionToken = 0;
@@ -102,6 +112,8 @@ export function abortMapPlayback() {
   setPlanningBadge("");
   stopTravelerAnim();
   stopFlightCrossing();
+  stopFlightPlanRotate();
+  stopDriveHop();
   try {
     pulseLayer?.clearLayers();
   } catch {
@@ -109,6 +121,16 @@ export function abortMapPlayback() {
   }
   try {
     activityLayer?.clearLayers();
+  } catch {
+    /* ignore */
+  }
+  try {
+    flightPlanLayer?.clearLayers();
+  } catch {
+    /* ignore */
+  }
+  try {
+    driveHopLayer?.clearLayers();
   } catch {
     /* ignore */
   }
@@ -2087,16 +2109,17 @@ function updateLegend(panel, ctx) {
   const root = document.querySelector("#mapLegend") || panel?.querySelector("#mapLegend");
   const flightLeg = root?.querySelector('[data-leg="flight"]');
   if (!flightLeg) return;
-  const flags = ctx.flags || {};
-  if (flags.showOutboundFlightArc) {
-    flightLeg.hidden = false;
-    flightLeg.innerHTML = `<i class="lg-flight"></i>已确认航线`;
-  } else if (flags.showPlannedArrival) {
-    flightLeg.hidden = false;
-    flightLeg.innerHTML = `<i class="lg-flight"></i>计划抵达`;
-  } else {
+  const flights = catalogBookedFlights(ctx);
+  if (!flights.length) {
     flightLeg.hidden = true;
+    return;
   }
+  flightLeg.hidden = false;
+  const focus = flights[flightRotateIdx % flights.length] || flights[0];
+  const mark = focus.flown ? "已飞" : "未飞";
+  flightLeg.innerHTML = `<i class="lg-flight"></i>${mark} · ${escapeHtml(focus.flight_no)} · ${escapeHtml(
+    focus.route
+  )}`;
 }
 
 export function destroyMap() {
@@ -2127,6 +2150,8 @@ export function destroyMap() {
   pulseLayer = null;
   planningLayer = null;
   flightLayer = null;
+  flightPlanLayer = null;
+  driveHopLayer = null;
   agentPlanLayer = null;
   lastCtx = null;
 }
@@ -2527,8 +2552,7 @@ async function paintLeafletRoutes(ctx) {
   stopTravelerAnim();
 
   if (ctx.isHome) {
-    // Arc only after 确认到机场 (D7+)
-    if (ctx.flags?.showOutboundFlightArc) paintHomeFlightArc(ctx);
+    paintPersistentFlightArcs(ctx);
     paintHomeActivity(ctx);
     return;
   }
@@ -2602,6 +2626,7 @@ async function paintLeafletRoutes(ctx) {
   }
 
   await paintLiveActivity(ctx, token);
+  paintPersistentFlightArcs(ctx);
 }
 
 /** Full campervan drive plan as dated legs (solid = done, dashed = planned ahead). */
@@ -2712,23 +2737,145 @@ function styleForDriveLeg(leg, traveled, sh80Closed) {
   };
 }
 
-function paintHomeFlightArc(ctx) {
-  if (!ctx.flags?.showOutboundFlightArc) return;
-  const home = ctx.home;
-  const chc = ctx.placeById?.pl_chc_airport || { lat: -43.4894, lng: 172.532 };
-  const fno = ctx.flags?.outboundFlightNo || "MU779";
-  const arc = greatCircle([home.lat, home.lng], [chc.lat, chc.lng], 48);
-  if (arc.length >= 2) {
-    window.L.polyline(arc, {
-      color: "#94a3b8",
-      weight: 3,
-      opacity: 0.7,
-      dashArray: "6 10",
-      className: "flight-plan-line",
-    })
-      .addTo(routeLayer)
-      .bindTooltip(`已确认航班 ${fno} · PVG → CHC`);
+function catalogBookedFlights(ctx) {
+  const flags = ctx?.flags || {};
+  const planDate = ctx?.planDate || "";
+  const ledger = ctx?.engine?.env?.ledger?.flights || [];
+  const out = [];
+
+  const push = (f) => {
+    if (!f?.flight_no && !f?.route) return;
+    const blob = `${f.id || ""} ${f.route || ""} ${f.note || ""}`;
+    const outbound = /outbound|PVG\s*[→\-–]\s*CHC|去程/i.test(blob) || f.id === "flt_outbound";
+    const fromGeo = outbound ? "shanghai_home" : "auckland";
+    const toGeo = outbound ? "christchurch" : "shanghai_home";
+    const date = String(f.date || (outbound ? "2026-10-10" : "2026-10-24")).slice(0, 10);
+    let flown = false;
+    if (outbound) {
+      flown = Boolean(flags.inNewZealand || (planDate && planDate >= date));
+    } else {
+      flown = Boolean(flags.tripClosing || (planDate && planDate > date));
+    }
+    out.push({
+      id: f.id || (outbound ? "flt_outbound" : "flt_return"),
+      flight_no: f.flight_no || (outbound ? flags.outboundFlightNo || "MU779" : "MU780"),
+      route: f.route || (outbound ? "PVG → CHC" : "AKL → PVG"),
+      date,
+      fromGeo,
+      toGeo,
+      flown,
+      note: f.note || "",
+    });
+  };
+
+  if (ledger.length) {
+    for (const f of ledger) push(f);
+  } else if (flags.flightBooked || flags.flightDisclosed || flags.showPlannedArrival || flags.showOutboundFlightArc) {
+    push({
+      id: "flt_outbound",
+      flight_no: flags.outboundFlightNo || "MU779",
+      route: "PVG → CHC",
+      date: "2026-10-10",
+    });
+    if (flags.inNewZealand || flags.tripClosing || (planDate && planDate >= "2026-10-20")) {
+      push({
+        id: "flt_return",
+        flight_no: "MU780",
+        route: "AKL → PVG",
+        date: "2026-10-24",
+      });
+    }
   }
+  return out;
+}
+
+function stopFlightPlanRotate() {
+  if (flightRotateTimer) {
+    clearInterval(flightRotateTimer);
+    flightRotateTimer = null;
+  }
+  flightPlanEntries = [];
+  flightRotateIdx = 0;
+}
+
+/** Draw all booked air corridors; cycle highlight (flown vs not-yet) like ferry done/planned. */
+function paintPersistentFlightArcs(ctx) {
+  if (!leafletMap || !window.L) return;
+  stopFlightPlanRotate();
+  if (!flightPlanLayer) flightPlanLayer = window.L.layerGroup().addTo(leafletMap);
+  flightPlanLayer.clearLayers();
+
+  const flights = catalogBookedFlights(ctx);
+  if (!flights.length) {
+    updateLegend(document.querySelector("#mapPanel"), ctx);
+    return;
+  }
+
+  flightPlanEntries = [];
+  for (const f of flights) {
+    const a = latLngForGeoKey(f.fromGeo);
+    const b = latLngForGeoKey(f.toGeo);
+    if (!a || !b) continue;
+    const arc = greatCircle(a, b, 48);
+    if (arc.length < 2) continue;
+    const label = `${f.flown ? "已飞" : "未飞"} · ${f.flight_no} · ${f.route}`;
+    const line = window.L.polyline(arc, {
+      color: f.flown ? "#64748b" : "#94a3b8",
+      weight: f.flown ? 3.5 : 3,
+      opacity: f.flown ? 0.55 : 0.4,
+      dashArray: f.flown ? null : "6 10",
+      className: f.flown ? "flight-flown-line" : "flight-plan-line",
+    })
+      .addTo(flightPlanLayer)
+      .bindTooltip(label);
+    flightPlanEntries.push({
+      polyline: line,
+      flown: f.flown,
+      label,
+      flightNo: f.flight_no,
+      route: f.route,
+    });
+  }
+
+  const applyFocus = (idx) => {
+    if (!flightPlanEntries.length) return;
+    flightRotateIdx = ((idx % flightPlanEntries.length) + flightPlanEntries.length) % flightPlanEntries.length;
+    flightPlanEntries.forEach((e, i) => {
+      const on = i === flightRotateIdx;
+      e.polyline.setStyle({
+        color: e.flown ? (on ? "#334155" : "#94a3b8") : on ? "#2563eb" : "#cbd5e1",
+        weight: on ? 5 : e.flown ? 3 : 2.5,
+        opacity: on ? 0.92 : e.flown ? 0.4 : 0.28,
+        dashArray: e.flown ? null : on ? "8 8" : "4 10",
+      });
+      if (on) {
+        try {
+          e.polyline.bringToFront();
+        } catch {
+          /* ignore */
+        }
+      }
+    });
+    updateLegend(document.querySelector("#mapPanel"), ctx);
+    const focus = flightPlanEntries[flightRotateIdx];
+    if (focus && !flightCrossingActive && !driveHopActive) {
+      setPlanningBadge(
+        `${focus.flown ? "已飞航线" : "未飞航线"} · ${focus.flightNo} · ${focus.route}`,
+        focus.flown ? "consider" : "checking"
+      );
+    }
+  };
+
+  applyFocus(0);
+  if (flightPlanEntries.length > 1) {
+    flightRotateTimer = setInterval(() => {
+      applyFocus(flightRotateIdx + 1);
+    }, 3200);
+  }
+}
+
+function paintHomeFlightArc(ctx) {
+  paintPersistentFlightArcs(ctx);
 }
 
 const NZ_GEO_KEYS = new Set([
@@ -2761,6 +2908,139 @@ export function isOceanFlightCrossing(fromGeo, toGeo) {
   const a = geoSide(fromGeo);
   const b = geoSide(toGeo);
   return (a === "cn" && b === "nz") || (a === "nz" && b === "cn");
+}
+
+/** Same-country place hop (NZ drive / transfer) — not an ocean flight. */
+export function isDomesticTransfer(fromGeo, toGeo) {
+  if (!fromGeo || !toGeo || fromGeo === toGeo) return false;
+  if (isOceanFlightCrossing(fromGeo, toGeo)) return false;
+  const a = geoSide(fromGeo);
+  const b = geoSide(toGeo);
+  return a === b && a !== "other";
+}
+
+function stopDriveHop() {
+  if (driveHopAnim) {
+    cancelAnimationFrame(driveHopAnim);
+    driveHopAnim = null;
+  }
+  driveHopActive = false;
+  try {
+    driveHopLayer?.clearLayers();
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Quick car hop along the road when geo moves between land places.
+ */
+export function playDriveHop({
+  fromGeo = null,
+  toGeo = null,
+  durationMs = 2400,
+  label = "",
+} = {}) {
+  return new Promise(async (resolve) => {
+    const session = mapSession;
+    if (!leafletMap || !window.L || !isDomesticTransfer(fromGeo, toGeo)) {
+      resolve(false);
+      return;
+    }
+    stopDriveHop();
+    if (!isMapSession(session)) {
+      resolve(false);
+      return;
+    }
+
+    const fromId = GEO_TO_PLACE[String(fromGeo || "").toLowerCase()] || null;
+    const toId = GEO_TO_PLACE[String(toGeo || "").toLowerCase()] || null;
+    let path = [];
+    if (fromId && toId && lastCtx) {
+      try {
+        path = await buildDrivingPath(lastCtx, [fromId, toId]);
+      } catch {
+        path = [];
+      }
+    }
+    if (path.length < 2) {
+      const a = latLngForGeoKey(fromGeo);
+      const b = latLngForGeoKey(toGeo);
+      if (!a || !b) {
+        resolve(false);
+        return;
+      }
+      path = [a, b];
+    }
+    if (!isMapSession(session) || !leafletMap) {
+      resolve(false);
+      return;
+    }
+
+    if (!driveHopLayer) driveHopLayer = window.L.layerGroup().addTo(leafletMap);
+    driveHopLayer.clearLayers();
+    driveHopActive = true;
+
+    const tip = label || `转场中 · ${fromGeo || "?"} → ${toGeo || "?"}`;
+    setPlanningBadge(`🚗 ${tip}`, "adjust");
+
+    window.L.polyline(path, {
+      color: "#16a34a",
+      weight: 5,
+      opacity: 0.85,
+      className: "route-live-line drive-hop-line",
+    }).addTo(driveHopLayer);
+
+    const lengths = segmentLengths(path);
+    const total = lengths.reduce((s, n) => s + n, 0) || 1;
+    const car = window.L.marker(path[0], {
+      icon: window.L.divIcon({
+        className: "map-drive-hop-wrap",
+        html: `<span class="map-drive-hop-car" aria-hidden="true">🚗</span>`,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+      }),
+      zIndexOffset: 1500,
+      interactive: false,
+    }).addTo(driveHopLayer);
+
+    try {
+      leafletMap.fitBounds(window.L.latLngBounds(path), fitOptions({ maxZoom: 9, padding: [36, 36] }));
+    } catch {
+      /* ignore */
+    }
+
+    const t0 = performance.now();
+    const dur = Math.max(1400, Math.min(3600, Number(durationMs) || 2400));
+
+    function frame(now) {
+      if (!isMapSession(session) || !driveHopActive) {
+        driveHopAnim = null;
+        resolve(false);
+        return;
+      }
+      const u = Math.min(1, (now - t0) / dur);
+      const eased = 1 - (1 - u) ** 2;
+      const pos = pointAlong(path, lengths, total, eased);
+      car.setLatLng(pos);
+      if (u < 1) {
+        driveHopAnim = requestAnimationFrame(frame);
+      } else {
+        driveHopAnim = null;
+        driveHopActive = false;
+        setTimeout(() => {
+          try {
+            driveHopLayer?.clearLayers();
+          } catch {
+            /* ignore */
+          }
+          if (isMapSession(session)) setPlanningBadge("");
+          resolve(true);
+        }, 220);
+      }
+    }
+    driveHopAnim = requestAnimationFrame(frame);
+  });
 }
 
 function latLngForGeoKey(geoKey) {

@@ -15,11 +15,13 @@ import {
   extractRoadIdsFromText,
   playFlightCrossing,
   isOceanFlightCrossing,
+  playDriveHop,
+  isDomesticTransfer,
   playMapAction,
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260722-81";
+} from "./map.js?v=20260722-82";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -938,8 +940,6 @@ export class UI {
     const prev = this._statusSnap || {};
     const weatherValue = shortWeather(state?.weather);
     const nextSnap = { budget: budgetValue, flight: flightStatus, weather: weatherValue };
-    const budgetChanged =
-      prev.budget != null && prev.budget !== nextSnap.budget && nextSnap.budget !== "待确定";
     const flightChanged =
       prev.flight != null && prev.flight !== nextSnap.flight && nextSnap.flight !== "待预订";
     const weatherChanged =
@@ -959,17 +959,7 @@ export class UI {
       )
       .join("");
 
-    // Fly-in from map → land on status chip (skip first paint)
-    if (budgetChanged) {
-      this.enqueueStatusLanding({
-        kind: "budget",
-        icon: "💰",
-        title: "费用更新",
-        fromText: prev.budget,
-        toText: nextSnap.budget,
-        detail: budgetSub || "状态栏已同步",
-      });
-    }
+    // Budget sync animation only from tool call — not every status-bar paint.
     if (flightChanged) {
       this.enqueueStatusLanding({
         kind: "flight",
@@ -1807,6 +1797,15 @@ export class UI {
   /** Ocean flight cutscene: plane flies from takeoff geo to landing geo. */
   async playFlightCrossing(opts = {}) {
     return playFlightCrossing(opts);
+  }
+
+  /** Overland transfer: car hops quickly along the road between geos. */
+  async playDriveHop(opts = {}) {
+    return playDriveHop(opts);
+  }
+
+  isDomesticTransfer(fromGeo, toGeo) {
+    return isDomesticTransfer(fromGeo, toGeo);
   }
 
   /**

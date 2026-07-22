@@ -1243,6 +1243,11 @@ select {
   filter: drop-shadow(0 0 2px rgba(148, 163, 184, 0.35));
 }
 
+.flight-flown-line {
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 2px rgba(51, 65, 85, 0.3));
+}
+
 .flight-live-line {
   stroke-linecap: round;
   filter: drop-shadow(0 0 3px rgba(100, 116, 139, 0.45));
@@ -1265,6 +1270,31 @@ select {
   transform-origin: center center;
   filter: drop-shadow(0 3px 8px rgba(15, 23, 42, 0.35));
   transition: transform 0.12s linear;
+}
+
+.map-drive-hop-wrap {
+  background: transparent !important;
+  border: none !important;
+}
+
+.map-drive-hop-car {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  font-size: 26px;
+  line-height: 1;
+  filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.35));
+  animation: drive-hop-bob 0.35s ease-in-out infinite alternate;
+}
+
+@keyframes drive-hop-bob {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-2px);
+  }
 }
 
 @keyframes route-dash {
