@@ -2010,12 +2010,6 @@ export class UI {
     this.els.agentStatus.classList.toggle("offline", !online);
   }
 
-  setQuickChips(items) {
-    this.els.quickChips.innerHTML = items
-      .map((t) => `<button type="button" class="chip" data-chip="${escapeHtml(t)}">${escapeHtml(t)}</button>`)
-      .join("");
-  }
-
   toast(msg, ms = 2200) {
     const el = this.els.toast;
     el.textContent = msg;
