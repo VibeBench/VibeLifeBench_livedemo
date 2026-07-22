@@ -1,7 +1,7 @@
 /**
  * Dashboard + phone chat rendering
  */
-import { renderLeafletMap, destroyMap } from "./map.js?v=20260722-19";
+import { renderLeafletMap, destroyMap, pulseMapEvent } from "./map.js?v=20260722-20";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -809,7 +809,8 @@ export class UI {
   /**
    * Mirror Agent tool / reply / booking side-effects into the left dashboard stream.
    * kind: 'agent_tool' | 'agent_reply' | 'agent_state'
-   * Same `id` upserts (used to merge repeated tool calls). No map toasts.
+   * Same `id` upserts (used to merge repeated tool calls).
+   * Only tool calls pulse on the map (messages / mutations stay off-map).
    */
   appendActivityFeed({
     kind = "agent_tool",
@@ -819,6 +820,7 @@ export class UI {
     time = null,
     detail = "",
     id = null,
+    mapPulse = false,
   } = {}) {
     const km = KIND_META[kind] || KIND_META.agent_tool;
     const text = [body, detail].filter(Boolean).join(" · ");
@@ -838,6 +840,15 @@ export class UI {
         cls: km.cls,
       };
       this._paintEventStream();
+      if (mapPulse) {
+        this.pulseMapFeedback({
+          id: `${feedId}:map`,
+          icon: icon || prev.icon || km.icon,
+          title: body || km.label,
+          detail,
+          kind,
+        });
+      }
       return;
     }
     this._activitySeq = (this._activitySeq || 0) + 1;
@@ -855,11 +866,41 @@ export class UI {
       this._activityFeed = this._activityFeed.slice(-100);
     }
     this._paintEventStream();
+    if (mapPulse) {
+      this.pulseMapFeedback({
+        id: `${feedId}:map`,
+        icon: icon || km.icon,
+        title: body || km.label,
+        detail,
+        kind,
+      });
+    }
   }
 
-  /** Map overlay toasts disabled — keep timeline / phone / chat instead. */
-  pulseMapFeedback() {
-    /* no-op */
+  /** Brief map toast — used for merged tool calls only. */
+  pulseMapFeedback({
+    id = null,
+    icon = "📌",
+    label = "",
+    title = "",
+    detail = "",
+    kind = "",
+  } = {}) {
+    if (!this._mapPulseSeen) this._mapPulseSeen = new Set();
+    // Allow one map toast per logical id (merged tools update in timeline, not spam map).
+    const key = id || `${kind}:${title || label}`;
+    if (this._mapPulseSeen.has(key)) return;
+    this._mapPulseSeen.add(key);
+    if (this._mapPulseSeen.size > 200) {
+      this._mapPulseSeen = new Set([...this._mapPulseSeen].slice(-100));
+    }
+    pulseMapEvent({
+      icon,
+      title: title || label,
+      detail,
+      kind,
+      durationMs: 5200,
+    });
   }
 
   _paintEventStream() {
@@ -1087,7 +1128,8 @@ export class UI {
       wrap.querySelector(".think-chevron").textContent = open ? "▾" : "▸";
     });
     wrap._startedAt = Date.now();
-    wrap._toolRows = new Map(); // key → row element
+    wrap._toolRows = new Map(); // toolName → row element
+    wrap._toolSeen = new Set(); // fingerprints to avoid onTool+sync double count
     wrap._activityReplyPushed = false;
     wrap._simTime = time;
     this.els.chatMessages.appendChild(wrap);
@@ -1104,7 +1146,9 @@ export class UI {
     const log = wrap.querySelector("[data-tool-log]");
     if (!log) return null;
     log.hidden = false;
+    log.removeAttribute("hidden");
     if (!wrap._toolRows) wrap._toolRows = new Map();
+    if (!wrap._toolSeen) wrap._toolSeen = new Set();
 
     // Merge by tool name within the turn (ignore arg variance).
     const key = String(name);
@@ -1134,27 +1178,70 @@ export class UI {
       return row;
     }
 
+    // Dedupe: onTool + finishAgentTurn/syncToolCalls would otherwise double-count.
+    let fp;
+    try {
+      fp = `${name}:${JSON.stringify(args || {})}:${JSON.stringify(result ?? null)}`;
+    } catch {
+      fp = `${name}:${Date.now()}:${row._calls.length}`;
+    }
+    if (wrap._toolSeen.has(fp)) {
+      this._paintToolRow(row, name);
+      return row;
+    }
+    wrap._toolSeen.add(fp);
+
     const meta = describeToolCall(name, args, result);
     row._calls.push({ args, result, meta });
+    this._paintToolRow(row, name);
+
     const n = row._calls.length;
     const baseLabel =
       (TOOL_META[name] && TOOL_META[name].label) || humanizeToolName(name);
     const title = n > 1 ? `${baseLabel} · ${n} 次` : meta.title;
+    const detail = this._mergedToolDetail(row);
+
+    // One timeline + one map toast per tool name per turn (merged).
+    this.appendActivityFeed({
+      id: `tool:${wrap._simTime || wrap._startedAt || "t"}:${name}`,
+      kind: "agent_tool",
+      icon: meta.icon,
+      who: "Agent 工具",
+      body: title,
+      detail,
+      time: wrap._simTime || null,
+      mapPulse: true,
+    });
+
+    this._scrollChatToBottom();
+    return row;
+  }
+
+  _mergedToolDetail(row) {
     const details = [];
     const seen = new Set();
-    for (const c of row._calls) {
-      const bit = String(c.meta.detail || c.meta.title || "").trim();
+    for (const c of row._calls || []) {
+      const bit = String(c.meta?.detail || c.meta?.title || "").trim();
       if (!bit || seen.has(bit)) continue;
       seen.add(bit);
       details.push(bit);
     }
-    const detail =
-      details.length > 3
-        ? `${details.slice(0, 3).join("； ")}；…共 ${details.length} 条`
-        : details.join("； ");
-    const anyError = row._calls.some((c) => c.meta.error);
-    const anyStateful = row._calls.some((c) => c.meta.stateful);
+    if (details.length > 3) {
+      return `${details.slice(0, 3).join("； ")}；…共 ${details.length} 条`;
+    }
+    return details.join("； ");
+  }
 
+  _paintToolRow(row, name) {
+    if (!row?._calls?.length) return;
+    const meta = row._calls[row._calls.length - 1].meta;
+    const n = row._calls.length;
+    const baseLabel =
+      (TOOL_META[name] && TOOL_META[name].label) || humanizeToolName(name);
+    const title = n > 1 ? `${baseLabel} · ${n} 次` : meta.title;
+    const detail = this._mergedToolDetail(row);
+    const anyError = row._calls.some((c) => c.meta?.error);
+    const anyStateful = row._calls.some((c) => c.meta?.stateful);
     row.classList.remove("pending");
     row.classList.add("done");
     row.classList.toggle("stateful", anyStateful);
@@ -1166,20 +1253,6 @@ export class UI {
         ${detail ? `<div class="tool-row-detail">${escapeHtml(detail)}</div>` : ""}
       </div>
       <span class="tool-row-status">${anyError ? "失败" : n > 1 ? `${n} 次` : "完成"}</span>`;
-
-    // One timeline row per tool name per turn; upsert as more calls arrive.
-    this.appendActivityFeed({
-      id: `tool:${wrap._simTime || "t"}:${name}`,
-      kind: "agent_tool",
-      icon: meta.icon,
-      who: "Agent 工具",
-      body: title,
-      detail,
-      time: wrap._simTime || null,
-    });
-
-    this._scrollChatToBottom();
-    return row;
   }
 
   /** Ensure every completed tool call from the turn is present in the log. */

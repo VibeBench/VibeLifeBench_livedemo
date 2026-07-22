@@ -348,9 +348,16 @@ select {
   text-overflow: ellipsis;
 }
 
-/* Map toast rail unused — feedback lives in 时间动态 / phone / chat */
+/* Fixed toast rail — tool call feedback only (messages / mutations stay off-map) */
 .map-toast-rail {
-  display: none !important;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: min(380px, 62%);
+  max-height: min(46vh, 340px);
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .map-toast-rail .map-pulse-card {
