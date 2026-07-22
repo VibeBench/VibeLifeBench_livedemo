@@ -12,7 +12,7 @@ import {
   focusPlanning,
   extractPlaceIdsFromText,
   extractRoadIdsFromText,
-} from "./map.js?v=20260722-22";
+} from "./map.js?v=20260722-23";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1217,6 +1217,57 @@ export class UI {
     const meta = describeToolCall(name, args, result);
     const anchor = resolveToolMapAnchor(name, args, result);
 
+    // Budget / alerts with nothing active: never paint a drive corridor.
+    if (name === "get_budget_snapshot") {
+      clearPlanning({ immediate: true });
+      this.pulseMapFeedback({
+        id: `tool-place:${name}:${anchor.placeId || anchor.geoKey || "budget"}`,
+        icon: meta.icon,
+        title: meta.title,
+        detail: meta.detail,
+        kind: "agent_tool",
+        placeId: anchor.placeId,
+        geoKey: anchor.geoKey || "shanghai_home",
+        roadId: null,
+      });
+      return;
+    }
+
+    if (name === "list_active_alerts") {
+      const roads = result?.road_events || [];
+      const transit = result?.transit_events || [];
+      const flights = Object.keys(result?.flights || {});
+      const hasIssue = roads.length + transit.length + flights.length > 0;
+      if (!hasIssue) {
+        // "暂无告警" — stay put, no fake SH80/SH94 overlay.
+        clearPlanning({ immediate: true });
+        this.pulseMapFeedback({
+          id: `tool-place:${name}:clear`,
+          icon: meta.icon,
+          title: meta.title,
+          detail: meta.detail || "当前无路况/渡轮/航班异常",
+          kind: "agent_tool",
+          placeId: anchor.placeId,
+          geoKey: anchor.geoKey,
+        });
+        return;
+      }
+      if (roads.length) {
+        focusTrafficResult({ matched: roads }, {}).catch(() => {});
+      }
+      this.pulseMapFeedback({
+        id: `tool-place:${name}:${anchor.roadId || roads[0]?.road_id || "alerts"}`,
+        icon: meta.icon,
+        title: meta.title,
+        detail: meta.detail,
+        kind: "agent_tool",
+        placeId: anchor.placeId,
+        geoKey: anchor.geoKey,
+        roadId: anchor.roadId || roads[0]?.road_id || null,
+      });
+      return;
+    }
+
     if (name === "get_traffic_estimate") {
       focusTrafficResult(result || {}, args || {}).catch(() => {});
     } else if (name === "get_current_weather" || name === "get_forecast_daily") {
@@ -1229,17 +1280,9 @@ export class UI {
         label: args.flight_no ? `工具：航班 ${args.flight_no}` : "工具：航班动态",
         force: true,
       }).catch(() => {});
-    } else if (name === "list_active_alerts") {
-      const roads = result?.road_events || [];
-      const roadIds = roads.map((e) => e.road_id).filter(Boolean);
-      const blob = roads.map((e) => e.note || "").join(" ");
-      syncPlanningFromText(`${blob} SH80 SH94`).catch(() => {});
-      if (roadIds.length) {
-        focusTrafficResult({ matched: roads }, {}).catch(() => {});
-      }
     }
 
-    // Always show the lookup result near the place when we can resolve one.
+    // Place bubble for location lookups (weather / traffic / flight).
     if (anchor.placeId || anchor.geoKey || anchor.roadId) {
       this.pulseMapFeedback({
         id: `tool-place:${name}:${anchor.placeId || anchor.geoKey || anchor.roadId}`,

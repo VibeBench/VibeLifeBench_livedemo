@@ -336,6 +336,23 @@ function inferPlanningMode(text) {
   return "consider";
 }
 
+/** True when text is actually about routing / roads — not budget, visa, packing, etc. */
+function isRoutePlanningIntent(text) {
+  const s = String(text || "");
+  return /路线|改道|绕行|路况|封路|通行|自驾|开往|前往|开车|公路|路段|行程安排|重新规划|避开|封闭|渡轮时刻|ferry\s*route|drive|route|reroute|traffic|SH\s*\d+|国道/i.test(
+    s
+  );
+}
+
+/** Budget / money checks should never pull up a drive corridor. */
+function isNonRouteIntent(text) {
+  const s = String(text || "");
+  if (isRoutePlanningIntent(s)) return false;
+  return /预算|花费|费用|花了|还剩|够不够|机票钱|签证费|房车租金|住宿费|¥|￥|CNY|NZD|budget|cost|expense|price/i.test(
+    s
+  );
+}
+
 function planningStyle(mode) {
   if (mode === "blocked") {
     return { color: "#e11d48", weight: 6, opacity: 0.92, dashArray: "10 8", className: "route-planning-line route-planning-blocked" };
@@ -478,15 +495,23 @@ export async function focusPlanning(opts = {}) {
   return true;
 }
 
-/** Parse thinking / answer text and update planning overlay (throttled by caller). */
-export async function syncPlanningFromText(text, { label } = {}) {
-  const placeIds = extractPlaceIdsFromText(text);
-  const roadIds = extractRoadIdsFromText(text);
-  if (placeIds.length < 1 && roadIds.length < 1) return false;
-  // Prefer the latest corridor (last 2–4 mentions) so the map follows the thought.
+/**
+ * Parse thinking / answer text and update planning overlay (throttled by caller).
+ * Only draws routes when the text is clearly about routing — not budget / generic place name-drops.
+ */
+export async function syncPlanningFromText(text, { label, force = false } = {}) {
+  const raw = String(text || "");
+  if (!force && isNonRouteIntent(raw)) return false;
+  if (!force && !isRoutePlanningIntent(raw)) return false;
+
+  const placeIds = extractPlaceIdsFromText(raw);
+  const roadIds = extractRoadIdsFromText(raw);
+  // Need a real corridor or road — a single place name is not a route plan.
+  if (roadIds.length < 1 && placeIds.length < 2) return false;
+
   const routeIds =
     placeIds.length >= 2 ? placeIds.slice(Math.max(0, placeIds.length - 4)) : placeIds;
-  const mode = inferPlanningMode(text);
+  const mode = inferPlanningMode(raw);
   return focusPlanning({
     placeIds: routeIds,
     roadIds,
@@ -497,9 +522,7 @@ export async function syncPlanningFromText(text, { label } = {}) {
         ? "思考：路段受阻"
         : mode === "adjust"
           ? "思考：调整路线"
-          : routeIds.length >= 2
-            ? "思考：推演路线"
-            : "思考：关注地点"),
+          : "思考：推演路线"),
   });
 }
 
