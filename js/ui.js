@@ -19,7 +19,7 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260722-66";
+} from "./map.js?v=20260722-67";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1480,7 +1480,7 @@ export class UI {
     return wrap;
   }
 
-  /** Claude-homepage-like agent turn: thinking collapsed by default + tool log + answer */
+  /** Agent turn: timeline rail (thinking quote + tool steps) + answer */
   beginAgentTurn({ time = null } = {}) {
     clearPlanning({ immediate: true });
     clearTimeout(this._planThinkTimer);
@@ -1493,26 +1493,55 @@ export class UI {
     wrap.innerHTML = `
       ${timeHtml}
       <div class="bubble-name">Agent</div>
-      <div class="think-block thinking" data-think hidden>
-        <button type="button" class="think-toggle" aria-expanded="false">
-          <span class="think-chevron">▸</span>
-          <span class="think-label">Thinking</span>
-        </button>
-        <div class="think-body"><div class="think-text"></div></div>
+      <div class="turn-header-bar" data-turn-header hidden></div>
+      <div class="agent-rail" data-agent-rail hidden>
+        <div class="rail-step rail-think" data-think hidden>
+          <div class="rail-gutter">
+            <span class="rail-dot think" aria-hidden="true"></span>
+            <span class="rail-line" aria-hidden="true"></span>
+          </div>
+          <div class="rail-body">
+            <div class="rail-think-meta">
+              <span class="rail-think-label">Thinking</span>
+              <span class="rail-think-secs" data-think-secs></span>
+            </div>
+            <blockquote class="rail-think-quote">
+              <p class="rail-think-summary" data-think-summary></p>
+              <div class="rail-think-full" data-think-full hidden></div>
+            </blockquote>
+            <button type="button" class="rail-think-more" data-think-more hidden>展开全文</button>
+          </div>
+        </div>
+        <div class="rail-tools" data-tool-log></div>
+        <div class="rail-collapse-wrap" data-rail-collapse hidden>
+          <button type="button" class="rail-collapse-btn" data-rail-collapse-btn>… <span data-collapse-n>0</span> steps</button>
+        </div>
       </div>
-      <div class="tool-log" data-tool-log hidden></div>
       <div class="bubble-text answer-text"></div>`;
-    wrap.querySelector(".think-toggle").addEventListener("click", () => {
-      const block = wrap.querySelector("[data-think]");
-      const open = block.classList.toggle("open");
-      wrap.querySelector(".think-toggle").setAttribute("aria-expanded", open ? "true" : "false");
-      wrap.querySelector(".think-chevron").textContent = open ? "▾" : "▸";
+
+    const moreBtn = wrap.querySelector("[data-think-more]");
+    moreBtn?.addEventListener("click", () => {
+      const full = wrap.querySelector("[data-think-full]");
+      if (!full) return;
+      const open = full.hasAttribute("hidden");
+      if (open) full.removeAttribute("hidden");
+      else full.setAttribute("hidden", "");
+      moreBtn.textContent = open ? "收起" : "展开全文";
     });
+
+    const collapseBtn = wrap.querySelector("[data-rail-collapse-btn]");
+    collapseBtn?.addEventListener("click", () => {
+      wrap._railExpanded = !wrap._railExpanded;
+      this._refreshRailCollapse(wrap);
+    });
+
     wrap._startedAt = Date.now();
-    wrap._toolRows = new Map(); // toolName → row element
-    wrap._toolSeen = new Set(); // fingerprints to avoid onTool+sync double count
+    wrap._toolRows = new Map();
+    wrap._toolSeen = new Set();
+    wrap._toolOrder = [];
     wrap._activityReplyPushed = false;
     wrap._simTime = time;
+    wrap._railExpanded = false;
     this.els.chatMessages.appendChild(wrap);
     this._scrollChatToBottom();
     return wrap;
@@ -1742,47 +1771,70 @@ export class UI {
   }
 
   /**
-   * Append / update a tool-call row. Same tool name within a turn merges into one row.
-   * status: 'pending' | 'done'
+   * Append / update a tool step on the rail.
+   * Same tool name merges into one group with expandable children.
+   * Budget tools go to the turn header bar (global state), not the rail.
    */
   appendToolCall(wrap, { name, args = {}, result = null, status = "done" } = {}) {
     if (!wrap || !name) return null;
+
+    // Budget = global state → header bar, not a rail step
+    if (name === "get_budget_snapshot" || (/budget/i.test(name) && !/book|cancel/i.test(name))) {
+      this._setTurnBudgetHeader(wrap, args, result);
+      let fp;
+      try {
+        fp = `${name}:${JSON.stringify(args || {})}:${JSON.stringify(result ?? null)}`;
+      } catch {
+        fp = `${name}:budget:${Date.now()}`;
+      }
+      if (!wrap._toolSeen) wrap._toolSeen = new Set();
+      wrap._toolSeen.add(fp);
+      return null;
+    }
+
+    const rail = wrap.querySelector("[data-agent-rail]");
     const log = wrap.querySelector("[data-tool-log]");
-    if (!log) return null;
-    log.hidden = false;
-    log.removeAttribute("hidden");
+    if (!log || !rail) return null;
+    rail.hidden = false;
+    rail.removeAttribute("hidden");
     if (!wrap._toolRows) wrap._toolRows = new Map();
     if (!wrap._toolSeen) wrap._toolSeen = new Set();
+    if (!wrap._toolOrder) wrap._toolOrder = [];
 
-    // Merge by tool name within the turn (ignore arg variance).
     const key = String(name);
     let row = wrap._toolRows.get(key);
     if (!row) {
       row = document.createElement("div");
-      row.className = "tool-row";
+      row.className = "rail-step rail-tool";
       row.dataset.toolName = name;
       row._calls = [];
+      row._expanded = false;
+      row._jsonOpen = false;
       log.appendChild(row);
       wrap._toolRows.set(key, row);
+      wrap._toolOrder.push(key);
     }
 
     if (status === "pending") {
       if (row._calls.length) return row;
-      const meta = describeToolCall(name, args, null);
       row.classList.add("pending");
-      row.classList.remove("done", "error", "stateful", "budget");
+      row.classList.remove("done", "err", "warn");
       row.innerHTML = `
-        <span class="tool-row-ico" aria-hidden="true">${meta.icon}</span>
-        <div class="tool-row-main">
-          <div class="tool-row-title">${escapeHtml(meta.title)}</div>
-          <div class="tool-row-detail">调用中…</div>
+        <div class="rail-gutter">
+          <span class="rail-dot pending" aria-hidden="true"></span>
+          <span class="rail-line" aria-hidden="true"></span>
         </div>
-        <span class="tool-row-status">进行中</span>`;
+        <div class="rail-body">
+          <button type="button" class="rail-tool-main" disabled>
+            <span class="rail-ico">${toolOutlineIcon(name)}</span>
+            <span class="rail-mono">${escapeHtml(formatToolMono(name, args))}</span>
+          </button>
+        </div>`;
+      this._refreshRailCollapse(wrap);
       this._scrollChatToBottom();
       return row;
     }
 
-    // Dedupe: onTool + finishAgentTurn/syncToolCalls would otherwise double-count.
     let fp;
     try {
       fp = `${name}:${JSON.stringify(args || {})}:${JSON.stringify(result ?? null)}`;
@@ -1790,14 +1842,14 @@ export class UI {
       fp = `${name}:${Date.now()}:${row._calls.length}`;
     }
     if (wrap._toolSeen.has(fp)) {
-      this._paintToolRow(row, name);
+      this._paintToolRow(row, name, wrap);
       return row;
     }
     wrap._toolSeen.add(fp);
 
     const meta = describeToolCall(name, args, result);
     row._calls.push({ args, result, meta });
-    this._paintToolRow(row, name);
+    this._paintToolRow(row, name, wrap);
 
     const n = row._calls.length;
     const baseLabel =
@@ -1805,7 +1857,6 @@ export class UI {
     const title = n > 1 ? `${baseLabel} · ${n} 次` : meta.title;
     const detail = this._mergedToolDetail(row);
 
-    // Timeline only — place bubbles are emitted from focusMapFromTool / per-call pulse.
     this.appendActivityFeed({
       id: `tool:${wrap._simTime || wrap._startedAt || "t"}:${name}`,
       kind: "agent_tool",
@@ -1817,8 +1868,6 @@ export class UI {
       mapPulse: false,
     });
 
-    // If onTool didn't run focus yet (e.g. syncToolCalls), still drop a place bubble —
-    // except tools with their own map feedback (search / budget / weather / writes).
     const hasOwnCinematic =
       name === "search_web" ||
       name === "get_budget_snapshot" ||
@@ -1845,6 +1894,33 @@ export class UI {
     return row;
   }
 
+  _setTurnBudgetHeader(wrap, args = {}, result = null) {
+    if (!wrap) return;
+    const bar = wrap.querySelector("[data-turn-header]");
+    if (!bar) return;
+    const b = result?.budget || {};
+    const total = b.total_cny != null ? `¥${fmt(b.total_cny)}` : "—";
+    const spent = b.spent_cny != null ? `¥${fmt(b.spent_cny)}` : "—";
+    const remain =
+      b.total_cny != null && b.spent_cny != null
+        ? `¥${fmt(Number(b.total_cny) - Number(b.spent_cny))}`
+        : b.remaining_cny != null
+          ? `¥${fmt(b.remaining_cny)}`
+          : "—";
+    const value =
+      b.total_cny != null
+        ? Number(b.spent_cny) > 0
+          ? `已用 ${spent} / ${total} · 剩余 ${remain}`
+          : `预算 ${total}`
+        : "预算核对中…";
+    bar.hidden = false;
+    bar.removeAttribute("hidden");
+    bar.innerHTML = `
+      <span class="turn-header-ico" aria-hidden="true">${toolOutlineIcon("get_budget_snapshot")}</span>
+      <span class="turn-header-label">行程预算</span>
+      <span class="turn-header-value">${escapeHtml(value)}</span>`;
+  }
+
   _mergedToolDetail(row) {
     const details = [];
     const seen = new Set();
@@ -1860,32 +1936,149 @@ export class UI {
     return details.join("； ");
   }
 
-  _paintToolRow(row, name) {
-    if (!row?._calls?.length) return;
-    const meta = row._calls[row._calls.length - 1].meta;
-    const n = row._calls.length;
-    const baseLabel =
-      (TOOL_META[name] && TOOL_META[name].label) || humanizeToolName(name);
-    // Count lives in the status pill — don't repeat "· n 次" in the title.
-    const title = n > 1 ? baseLabel : meta.title;
-    const detail = this._mergedToolDetail(row);
-    const anyError = row._calls.some((c) => c.meta?.error);
-    const anyStateful = row._calls.some((c) => c.meta?.stateful);
-    const isBudget = name === "get_budget_snapshot" || /budget/i.test(name || "");
+  _paintToolRow(row, name, wrap = null) {
+    if (!row) return;
+    const calls = row._calls || [];
+    const pending = row.classList.contains("pending") && !calls.length;
+    if (pending) return;
+
+    const last = calls[calls.length - 1] || { args: {}, result: null, meta: {} };
+    const n = calls.length;
+    const anyError = calls.some((c) => c.meta?.error || c.result?.ok === false);
+    const anyWarn = calls.some((c) => c.meta?.warning || c.result?.warning);
+    const tone = anyError ? "err" : anyWarn ? "warn" : "ok";
+    const mono = formatToolMono(name, last.args || {});
+
     row.classList.remove("pending");
     row.classList.add("done");
-    row.classList.toggle("stateful", anyStateful && !isBudget);
-    row.classList.toggle("budget", isBudget);
-    row.classList.toggle("error", anyError);
-    const ico = isBudget ? "💰" : meta.icon;
-    const status = anyError ? "失败" : n > 1 ? `×${n}` : "完成";
+    row.classList.toggle("err", anyError);
+    row.classList.toggle("warn", anyWarn && !anyError);
+
+    const childrenOpen = row._expanded || (anyError && n > 1);
+    const jsonOpen = row._jsonOpen || (anyError && n === 1);
+    row._expanded = childrenOpen;
+
+    const childrenHtml =
+      n > 1
+        ? `<div class="rail-children"${childrenOpen ? "" : " hidden"}>${calls
+            .map((c, i) => {
+              const line = formatToolMono(name, c.args || {});
+              const err = c.meta?.error ? " · err" : "";
+              return `<div class="rail-child" data-child-idx="${i}" title="${escapeHtml(line)}">${escapeHtml(line)}${err}</div>`;
+            })
+            .join("")}</div>`
+        : "";
+
+    const payload = {
+      args: n === 1 ? last.args : calls.map((c) => c.args),
+      result: n === 1 ? last.result : calls.map((c) => summarizeToolResult(c.result)),
+    };
+    let jsonText = "";
+    try {
+      jsonText = JSON.stringify(payload, null, 2);
+    } catch {
+      jsonText = String(last.result ?? "");
+    }
+
     row.innerHTML = `
-      <span class="tool-row-ico" aria-hidden="true">${ico}</span>
-      <div class="tool-row-main">
-        <div class="tool-row-title" title="${escapeHtml(title)}">${escapeHtml(title)}</div>
-        ${detail ? `<div class="tool-row-detail">${escapeHtml(detail)}</div>` : ""}
+      <div class="rail-gutter">
+        <span class="rail-dot ${tone}" aria-hidden="true"></span>
+        <span class="rail-line" aria-hidden="true"></span>
       </div>
-      <span class="tool-row-status">${status}</span>`;
+      <div class="rail-body">
+        <button type="button" class="rail-tool-main" aria-expanded="${childrenOpen || jsonOpen ? "true" : "false"}">
+          <span class="rail-ico">${toolOutlineIcon(name)}</span>
+          <span class="rail-mono" title="${escapeHtml(mono)}">${escapeHtml(mono)}</span>
+          ${n > 1 ? `<span class="rail-count">×${n}</span>` : ""}
+        </button>
+        ${childrenHtml}
+        <pre class="rail-json"${jsonOpen ? "" : " hidden"}>${escapeHtml(jsonText)}</pre>
+      </div>`;
+
+    const main = row.querySelector(".rail-tool-main");
+    const children = row.querySelector(".rail-children");
+    const jsonEl = row.querySelector(".rail-json");
+
+    main?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      if (n > 1 && children) {
+        row._expanded = !row._expanded;
+        if (row._expanded) children.removeAttribute("hidden");
+        else children.setAttribute("hidden", "");
+        // Keep JSON for hover/fail; don't force-toggle on group click
+        main.setAttribute("aria-expanded", row._expanded ? "true" : "false");
+        return;
+      }
+      row._jsonOpen = !row._jsonOpen;
+      if (jsonEl) {
+        if (row._jsonOpen) jsonEl.removeAttribute("hidden");
+        else jsonEl.setAttribute("hidden", "");
+      }
+      main.setAttribute("aria-expanded", row._jsonOpen ? "true" : "false");
+    });
+
+    // Hover preview of JSON (desktop)
+    let hoverTimer = null;
+    row.addEventListener("mouseenter", () => {
+      if (row._jsonOpen) return;
+      hoverTimer = setTimeout(() => {
+        jsonEl?.removeAttribute("hidden");
+      }, 280);
+    });
+    row.addEventListener("mouseleave", () => {
+      clearTimeout(hoverTimer);
+      if (!row._jsonOpen) jsonEl?.setAttribute("hidden", "");
+    });
+
+    if (wrap) this._refreshRailCollapse(wrap);
+  }
+
+  /** Collapse middle tool steps when the trajectory is long. */
+  _refreshRailCollapse(wrap) {
+    if (!wrap) return;
+    const order = wrap._toolOrder || [];
+    const collapseWrap = wrap.querySelector("[data-rail-collapse]");
+    const log = wrap.querySelector("[data-tool-log]");
+    const EDGE = 3;
+    const THRESHOLD = 8;
+
+    for (const key of order) {
+      wrap._toolRows?.get(key)?.classList.remove("is-collapsed-away");
+    }
+
+    if (!collapseWrap || !log) return;
+
+    if (order.length <= THRESHOLD) {
+      collapseWrap.hidden = true;
+      collapseWrap.setAttribute("hidden", "");
+      // keep at end of rail
+      wrap.querySelector("[data-agent-rail]")?.appendChild(collapseWrap);
+      return;
+    }
+
+    if (wrap._railExpanded) {
+      collapseWrap.hidden = false;
+      collapseWrap.removeAttribute("hidden");
+      const btn = collapseWrap.querySelector("[data-rail-collapse-btn]");
+      if (btn) btn.textContent = "收起中间步骤";
+      wrap.querySelector("[data-agent-rail]")?.appendChild(collapseWrap);
+      return;
+    }
+
+    const hiddenKeys = order.slice(EDGE, Math.max(EDGE, order.length - EDGE));
+    for (const key of hiddenKeys) {
+      wrap._toolRows?.get(key)?.classList.add("is-collapsed-away");
+    }
+    const btn = collapseWrap.querySelector("[data-rail-collapse-btn]");
+    if (btn) btn.innerHTML = `… <span data-collapse-n>${hiddenKeys.length}</span> steps`;
+    collapseWrap.hidden = false;
+    collapseWrap.removeAttribute("hidden");
+
+    // Sit after the last visible leading edge step
+    const edgeRow = wrap._toolRows?.get(order[EDGE - 1]);
+    if (edgeRow?.parentElement === log) {
+      log.insertBefore(collapseWrap, edgeRow.nextSibling);
+    }
   }
 
   /** Ensure every completed tool call from the turn is present in the log. */
@@ -1904,17 +2097,36 @@ export class UI {
   updateAgentTurn(wrap, { thinking, content, phase, toolHint } = {}) {
     if (!wrap) return;
     const thinkBlock = wrap.querySelector("[data-think]");
-    const thinkText = wrap.querySelector(".think-text");
+    const summaryEl = wrap.querySelector("[data-think-summary]");
+    const fullEl = wrap.querySelector("[data-think-full]");
+    const moreBtn = wrap.querySelector("[data-think-more]");
+    const secsEl = wrap.querySelector("[data-think-secs]");
     const answer = wrap.querySelector(".answer-text");
-    const label = wrap.querySelector(".think-label");
+    const rail = wrap.querySelector("[data-agent-rail]");
 
-    if (thinking != null && thinkText) {
-      thinkText.textContent = thinking;
-      if (thinking) thinkBlock.hidden = false;
-      const body = wrap.querySelector(".think-body");
-      // Only pin think-body scroll if the outer chat is still following the stream.
-      if (body && thinkBlock?.classList.contains("open") && this._chatStickToBottom) {
-        body.scrollTop = body.scrollHeight;
+    if (thinking != null) {
+      const text = String(thinking || "");
+      if (text && rail) {
+        rail.hidden = false;
+        rail.removeAttribute("hidden");
+      }
+      if (thinkBlock) {
+        if (text) {
+          thinkBlock.hidden = false;
+          thinkBlock.removeAttribute("hidden");
+        }
+      }
+      if (summaryEl) summaryEl.textContent = thinkSummaryLine(text) || "…";
+      if (fullEl) fullEl.textContent = text;
+      if (moreBtn) {
+        const needsMore = text.length > 96 || text.includes("\n");
+        if (needsMore) {
+          moreBtn.hidden = false;
+          moreBtn.removeAttribute("hidden");
+        } else {
+          moreBtn.hidden = true;
+          moreBtn.setAttribute("hidden", "");
+        }
       }
       if (phase === "thinking" || phase === "tool" || !phase) {
         this.syncMapPlanningFromThinking(thinking);
@@ -1922,45 +2134,30 @@ export class UI {
     }
 
     if (phase === "thinking") {
-      // Keep collapsed by default — only shimmer the label.
       thinkBlock?.classList.add("thinking");
-      thinkBlock?.classList.remove("open");
-      if (label) label.textContent = "Thinking";
-      const chev = wrap.querySelector(".think-chevron");
-      if (chev) chev.textContent = "▸";
-      wrap.querySelector(".think-toggle")?.setAttribute("aria-expanded", "false");
+      if (summaryEl && !summaryEl.textContent) summaryEl.textContent = "梳理行程约束…";
     } else if (phase === "tool") {
       thinkBlock?.classList.add("thinking");
-      thinkBlock?.classList.remove("open");
-      if (label) label.textContent = "Thinking";
-      const chev = wrap.querySelector(".think-chevron");
-      if (chev) chev.textContent = "▸";
-      wrap.querySelector(".think-toggle")?.setAttribute("aria-expanded", "false");
-      // Show a pending row immediately; onTool will fill args/result and keep it.
       if (toolHint) {
         this.appendToolCall(wrap, { name: toolHint, args: {}, result: null, status: "pending" });
       }
     } else if (phase === "answering" || phase === "done") {
-      // Tool log stays visible — do not hide.
       thinkBlock?.classList.remove("thinking");
-      if (label && thinking) {
+      if (secsEl && thinking) {
         const secs = Math.max(1, Math.round((Date.now() - (wrap._startedAt || Date.now())) / 1000));
-        label.textContent = `Thought for ${secs}s`;
+        secsEl.textContent = `${secs}s`;
       }
-      // Stay collapsed (default); user can expand manually.
-      thinkBlock?.classList.remove("open");
-      wrap.querySelector(".think-toggle")?.setAttribute("aria-expanded", "false");
-      const chev = wrap.querySelector(".think-chevron");
-      if (chev) chev.textContent = "▸";
     }
 
     if (content != null && answer) {
       setMarkdown(answer, content);
-      // Do not push timeline on first streamed chars — wait for finishAgentTurn.
     }
     if (!thinking && thinkBlock && phase !== "thinking") {
-      // no thinking payload — hide empty block
-      if (!thinkText?.textContent) thinkBlock.hidden = true;
+      const hasText = Boolean(fullEl?.textContent || summaryEl?.textContent);
+      if (!hasText) {
+        thinkBlock.hidden = true;
+        thinkBlock.setAttribute("hidden", "");
+      }
     }
 
     this._scrollChatToBottom();
@@ -1972,19 +2169,25 @@ export class UI {
     const thinkBlock = wrap.querySelector("[data-think]");
     thinkBlock?.classList.remove("thinking");
 
-    // Finalize any still-pending tool rows + ensure full history is present
     this.syncToolCalls(wrap, toolCalls);
-    wrap.querySelectorAll(".tool-row.pending").forEach((row) => {
+    wrap.querySelectorAll(".rail-tool.pending").forEach((row) => {
       row.classList.remove("pending");
       row.classList.add("done");
-      const st = row.querySelector(".tool-row-status");
-      if (st && st.textContent === "…") st.textContent = "完成";
+      const dot = row.querySelector(".rail-dot");
+      if (dot) {
+        dot.classList.remove("pending");
+        dot.classList.add("ok");
+      }
     });
+    this._refreshRailCollapse(wrap);
 
     if (error) {
       const answer = wrap.querySelector(".answer-text");
       if (answer) answer.textContent = "⚠️ " + error;
-      if (thinkBlock) thinkBlock.hidden = true;
+      if (thinkBlock) {
+        thinkBlock.hidden = true;
+        thinkBlock.setAttribute("hidden", "");
+      }
       this.endMapPlanning();
       return;
     }
@@ -1995,7 +2198,6 @@ export class UI {
       phase: "done",
     });
 
-    // Final thinking pass then ease ephemeral overlay; commit full itinerary if this was a plan.
     const afterPlan = () => {
       this.endMapPlanning();
       if (planContext) {
@@ -2033,17 +2235,16 @@ export class UI {
     }
 
     if (!thinking) {
-      if (thinkBlock) thinkBlock.hidden = true;
+      if (thinkBlock) {
+        thinkBlock.hidden = true;
+        thinkBlock.setAttribute("hidden", "");
+      }
     } else {
-      // keep collapsed summary visible
       thinkBlock.hidden = false;
-      thinkBlock.classList.remove("open");
-      wrap.querySelector(".think-toggle")?.setAttribute("aria-expanded", "false");
-      const chev = wrap.querySelector(".think-chevron");
-      if (chev) chev.textContent = "▸";
+      thinkBlock.removeAttribute("hidden");
       const secs = Math.max(1, Math.round((Date.now() - (wrap._startedAt || Date.now())) / 1000));
-      const label = wrap.querySelector(".think-label");
-      if (label) label.textContent = `Thought for ${secs}s`;
+      const secsEl = wrap.querySelector("[data-think-secs]");
+      if (secsEl) secsEl.textContent = `${secs}s`;
     }
   }
 
@@ -2144,6 +2345,100 @@ const TOOL_META = {
   write_notion_page: { icon: "📝", label: "写入游记", focus: "Notion 页面更新" },
   "API-post-page": { icon: "📝", label: "创建 Notion 页面", focus: "游记文档" },
 };
+
+/** Monochrome outline icons for the tool rail (Lucide-like). */
+function toolOutlineIcon(name) {
+  const n = String(name || "");
+  const svg = (paths) =>
+    `<svg viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
+  if (/budget/i.test(n)) {
+    return svg(
+      `<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20"/><circle cx="16" cy="12" r="1.5"/>`
+    );
+  }
+  if (/search|web/i.test(n)) {
+    return svg(`<circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5 21 21"/>`);
+  }
+  if (/forecast|calendar|schedule/i.test(n)) {
+    return svg(
+      `<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/>`
+    );
+  }
+  if (/weather|forecast_daily|current_weather/i.test(n)) {
+    return svg(
+      `<path d="M7 15a4 4 0 1 1 1.2-7.8A5.5 5.5 0 0 1 18.5 10 3.5 3.5 0 0 1 19 17H7.5"/>`
+    );
+  }
+  if (/traffic|road|alert/i.test(n)) {
+    return svg(`<path d="M4 19 8 5h8l4 14"/><path d="M9.5 12h5"/>`);
+  }
+  if (/flight|air/i.test(n)) {
+    return svg(`<path d="M10 12 3 9.5 4 8l7 1.5L17 4l1.5 1.5-4.5 6.5L21 14l-.5 1.5L13 14l-1.5 6H10l1-6Z"/>`);
+  }
+  if (/hotel|stay/i.test(n)) {
+    return svg(
+      `<path d="M3 20V9a2 2 0 0 1 2-2h6v13"/><path d="M11 7h6a2 2 0 0 1 2 2v11"/><path d="M3 20h18M7 11h.01M7 14h.01"/>`
+    );
+  }
+  if (/journal|notion|page|write/i.test(n)) {
+    return svg(
+      `<path d="M5 4h10l4 4v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v4h4M8 12h8M8 16h6"/>`
+    );
+  }
+  // default: wrench / tool
+  return svg(`<path d="M14.5 5.5a3.5 3.5 0 0 0-4.6 4.6L4 16v4h4l5.9-5.9a3.5 3.5 0 0 0 4.6-4.6L16 12l-2.5-2.5Z"/>`);
+}
+
+/** `tool_name(arg=…, …)` single-line for the rail. */
+function formatToolMono(name, args = {}) {
+  const n = String(name || "tool");
+  const entries = Object.entries(args || {}).filter(
+    ([, v]) => v != null && String(v).trim() !== ""
+  );
+  if (!entries.length) return `${n}()`;
+  const parts = entries.slice(0, 4).map(([k, v]) => {
+    let s;
+    if (typeof v === "string") s = JSON.stringify(truncate(v, 36));
+    else if (typeof v === "number" || typeof v === "boolean") s = String(v);
+    else {
+      try {
+        s = truncate(JSON.stringify(v), 36);
+      } catch {
+        s = "…";
+      }
+    }
+    return `${k}=${s}`;
+  });
+  const more = entries.length > 4 ? ", …" : "";
+  return `${n}(${parts.join(", ")}${more})`;
+}
+
+function summarizeToolResult(result) {
+  if (result == null) return null;
+  if (typeof result !== "object") return result;
+  const out = {};
+  for (const [k, v] of Object.entries(result)) {
+    if (k === "results" && Array.isArray(v)) {
+      out.results = v.slice(0, 3).map((r) => r?.title || r);
+      if (v.length > 3) out.results_more = v.length - 3;
+    } else if (typeof v === "string" && v.length > 120) {
+      out[k] = truncate(v, 120);
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+/** One-line serif summary from a thinking blob. */
+function thinkSummaryLine(text) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return "";
+  const m = raw.match(/^(.{12,110}?[。！？.!?])\s/);
+  if (m) return m[1];
+  if (raw.length <= 96) return raw;
+  return `${raw.slice(0, 94)}…`;
+}
 
 function humanizeToolName(name) {
   const n = String(name || "").trim();
