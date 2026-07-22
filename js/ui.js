@@ -17,7 +17,7 @@ import {
   isOceanFlightCrossing,
   playMapAction,
   hideMapActionStage,
-} from "./map.js?v=20260722-53";
+} from "./map.js?v=20260722-54";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {

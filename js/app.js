@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-53";
-import { DemoEngine } from "./engine.js?v=20260722-53";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-54";
+import { DemoEngine } from "./engine.js?v=20260722-54";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,10 +7,10 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-53";
+} from "./agent.js?v=20260722-54";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-53";
-import { isOceanFlightCrossing } from "./map.js?v=20260722-53";
+import { UI } from "./ui.js?v=20260722-54";
+import { isOceanFlightCrossing } from "./map.js?v=20260722-54";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -702,13 +702,28 @@ function bindChrome() {
     sendUserChat("我们需要帮助，请根据当前行程状态主动检查有没有风险。");
   });
 
-  document.querySelector("#btnToggleEvents")?.addEventListener("click", () => {
-    const dock = document.querySelector("#eventDock");
-    const btn = document.querySelector("#btnToggleEvents");
-    if (!dock || !btn) return;
-    const collapsed = dock.classList.toggle("collapsed");
-    btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
-    btn.textContent = collapsed ? "展开" : "收起";
+  const legendBtn = document.querySelector("#btnMapLegend");
+  const legendPop = document.querySelector("#mapLegendPop");
+  const setLegendOpen = (open) => {
+    if (!legendPop || !legendBtn) return;
+    legendPop.hidden = !open;
+    if (open) legendPop.removeAttribute("hidden");
+    else legendPop.setAttribute("hidden", "");
+    legendBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    legendBtn.classList.toggle("is-open", open);
+  };
+  legendBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setLegendOpen(legendPop?.hidden !== false);
+  });
+  document.querySelector("#btnMapLegendClose")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setLegendOpen(false);
+  });
+  document.addEventListener("click", (e) => {
+    if (!legendPop || legendPop.hidden) return;
+    if (legendPop.contains(e.target) || legendBtn?.contains(e.target)) return;
+    setLegendOpen(false);
   });
 }
 

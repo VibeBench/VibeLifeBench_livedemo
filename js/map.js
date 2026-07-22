@@ -2296,10 +2296,13 @@ function measureChromePadding() {
 
   const events = document.querySelector("#eventDock");
   const info = document.querySelector("#infoDock");
+  const legendHelp = document.querySelector("#btnMapLegend");
   let left = gutter + 8;
   let right = gutter + 8;
   if (events) {
     left = Math.max(left, Math.min(events.offsetWidth + 16, Math.floor(mapW * 0.28)));
+  } else if (legendHelp) {
+    left = Math.max(left, Math.min(legendHelp.offsetWidth + 20, 56));
   }
   if (info) {
     right = Math.max(right, Math.min(info.offsetWidth + 16, Math.floor(mapW * 0.32)));
