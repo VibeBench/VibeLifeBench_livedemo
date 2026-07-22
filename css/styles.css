@@ -217,15 +217,14 @@ select {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 12px 12px 6px;
   pointer-events: none;
   box-sizing: border-box;
 }
 
 .map-chrome-top,
-.map-chrome-mid,
-.map-chrome-bottom {
+.map-chrome-mid {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -244,6 +243,7 @@ select {
 }
 
 .map-chrome-mid {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
@@ -258,15 +258,18 @@ select {
   pointer-events: auto;
 }
 
+/* Bottom docks only — pinned to overlay bottom, never shares space with search. */
 .map-chrome-bottom {
   position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-end;
-  gap: 8px;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: stretch;
+  gap: 0;
   flex: 0 0 auto;
   min-width: 0;
+  margin-top: auto;
+  z-index: 6;
 }
 
 .map-chrome-bottom-docks {
@@ -275,21 +278,22 @@ select {
   align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
+  width: 100%;
   min-width: 0;
   pointer-events: none;
 }
 
 .map-chrome-bottom-docks > * {
   pointer-events: auto;
+  align-self: flex-end;
 }
 
-/* Float above docks — must NOT participate in flex height or docks will rise. */
+/* Search / notion / calendar — overlay inside mid, above docks, zero layout impact on bottom. */
 .map-chrome-actions {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 100%;
-  margin-bottom: 8px;
+  bottom: 0;
   display: flex;
   justify-content: center;
   align-items: flex-end;
@@ -301,6 +305,10 @@ select {
 
 .map-chrome-actions > * {
   pointer-events: auto;
+}
+
+.map-chrome-actions .map-action-stage[hidden] {
+  display: none !important;
 }
 
 .panel-glass {
@@ -3610,7 +3618,7 @@ body.is-busy .btn.primary {
   }
 
   .map-chrome-bottom {
-    gap: 6px;
+    gap: 0;
   }
 
   .map-chrome-bottom-docks {
@@ -3642,8 +3650,8 @@ body.is-busy .btn.primary {
   }
 
   .map-overlay {
-    padding: 8px;
-    gap: 8px;
+    padding: 8px 8px 4px;
+    gap: 6px;
   }
 }
 

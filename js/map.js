@@ -729,7 +729,7 @@ let mapActionTimer = null;
 function ensureMapActionStage() {
   let el = document.querySelector("#mapActionStage");
   if (el) return el;
-  // Prefer actions slot (floats above 时间动态 / legend; does not push them up).
+  // Prefer mid actions slot (above docks; never in bottom flex).
   const host =
     document.querySelector(".map-chrome-actions") ||
     document.querySelector(".map-chrome-mid") ||
