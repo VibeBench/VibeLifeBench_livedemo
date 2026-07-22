@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-07";
-import { DemoEngine } from "./engine.js?v=20260722-07";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-08";
+import { DemoEngine } from "./engine.js?v=20260722-08";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-07";
+} from "./agent.js?v=20260722-08";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-07";
+import { UI } from "./ui.js?v=20260722-08";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -584,7 +584,7 @@ function bindChrome() {
     if (chip) sendUserChat(chip.dataset.chip);
   });
 
-  document.querySelector("#btnHelp").addEventListener("click", () => {
+  document.querySelector("#btnHelp")?.addEventListener("click", () => {
     sendUserChat("我们需要帮助，请根据当前行程状态主动检查有没有风险。");
   });
 

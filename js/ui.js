@@ -1,7 +1,7 @@
 /**
  * Dashboard + phone chat rendering
  */
-import { renderLeafletMap, destroyMap } from "./map.js?v=20260722-07";
+import { renderLeafletMap, destroyMap } from "./map.js?v=20260722-08";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -548,7 +548,8 @@ export class UI {
     this.speakers = meta.speakers || {};
     this.kindLabels = meta.kind_labels || {};
     $("#caseTitle").textContent = "VibeLifeBench";
-    $("#tripName").textContent = meta.title || meta.case_id;
+    const tripName = $("#tripName");
+    if (tripName) tripName.textContent = meta.title || meta.case_id;
   }
 
   /**
@@ -930,11 +931,13 @@ export class UI {
       : day?.day != null
         ? `Day ${day.day}`
         : "—";
-    this.els.footerStats.innerHTML = `
+    if (this.els.footerStats) {
+      this.els.footerStats.innerHTML = `
       <span>${dayLabel}/15</span>
       <span>预算已用 ${spent}</span>
       <span>下一站 ${escapeHtml(next)}</span>
       <span>事件 ${engine.progress.cursor + 1}/${engine.progress.total}</span>`;
+    }
     this.els.progressLabel.textContent = `${engine.progress.cursor + 1} / ${engine.progress.total}`;
   }
 

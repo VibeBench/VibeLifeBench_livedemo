@@ -209,7 +209,7 @@ select {
   position: absolute;
   left: 14px;
   right: auto;
-  bottom: 78px;
+  bottom: 64px;
   z-index: 500;
   margin: 0;
   padding: 7px 9px;
@@ -259,11 +259,13 @@ select {
 .map-chrome-mid {
   flex: 1 1 auto;
   min-height: 0;
-  align-items: flex-start;
+  align-items: flex-end;
+  justify-content: flex-end;
 }
 
 .map-chrome-bottom {
   flex: 0 0 auto;
+  align-items: stretch;
 }
 
 .panel-glass {
@@ -345,8 +347,8 @@ select {
 
 .float-events {
   position: static;
-  width: min(280px, 38%);
-  max-height: min(42%, 320px);
+  width: 100%;
+  max-height: min(36vh, 280px);
   display: flex;
   flex-direction: column;
   border-radius: 14px;
@@ -359,7 +361,7 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   flex-shrink: 0;
 }
 
@@ -389,7 +391,7 @@ select {
 .float-events .event-stream {
   flex: 1 1 auto;
   min-height: 0;
-  padding: 0 10px 10px;
+  padding: 0 12px 10px;
   background: transparent;
   overflow: auto;
 }
@@ -398,6 +400,7 @@ select {
   max-height: none;
   height: auto;
   width: auto;
+  align-self: flex-start;
   min-width: 148px;
 }
 
@@ -407,7 +410,6 @@ select {
 
 .float-plan {
   position: static;
-  align-self: flex-end;
   width: min(220px, 42%);
   max-height: 110px;
   overflow: auto;
@@ -427,38 +429,6 @@ select {
   padding-left: 16px;
   color: #3b4a63;
   line-height: 1.4;
-}
-
-.float-footer {
-  position: static;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 14px;
-  font-size: 12px;
-  background: rgba(26, 35, 50, 0.48);
-  color: #e8eef8;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
-  box-sizing: border-box;
-}
-
-.float-footer .btn {
-  background: transparent;
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.28);
-  flex-shrink: 0;
-}
-
-.float-footer .footer-stats {
-  opacity: 0.92;
-  min-width: 0;
-  flex: 1 1 auto;
 }
 
 
@@ -2510,8 +2480,8 @@ body.is-busy .btn.primary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .float-events {
-    width: min(280px, 52%);
+  .float-events:not(.collapsed) {
+    width: 100%;
   }
 
   .float-plan {
@@ -2523,7 +2493,7 @@ body.is-busy .btn.primary {
   }
 
   .map-stage-canvas .map-legend {
-    bottom: 70px;
+    bottom: 58px;
   }
 
   .phone-col {
@@ -2552,8 +2522,8 @@ body.is-busy .btn.primary {
     gap: 6px;
   }
 
-  .float-events {
-    width: min(100%, 260px);
+  .float-events.collapsed {
+    min-width: 132px;
   }
 
   .top-actions .btn {
