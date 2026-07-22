@@ -12,7 +12,9 @@ import {
   focusPlanning,
   extractPlaceIdsFromText,
   extractRoadIdsFromText,
-} from "./map.js?v=20260722-23";
+  playFlightCrossing,
+  isOceanFlightCrossing,
+} from "./map.js?v=20260722-24";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1301,6 +1303,11 @@ export class UI {
     clearTimeout(this._planThinkTimer);
     this._planThinkTimer = null;
     clearPlanning({ immediate: false });
+  }
+
+  /** Ocean flight cutscene: plane flies from takeoff geo to landing geo. */
+  async playFlightCrossing(opts = {}) {
+    return playFlightCrossing(opts);
   }
 
   /**

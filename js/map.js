@@ -59,6 +59,10 @@ let planningActive = false;
 let planningFocusLatLngs = null;
 let lastPlanningKey = "";
 let planningClearTimer = null;
+/** One-shot ocean-crossing flight animation. */
+let flightLayer = null;
+let flightAnim = null;
+let flightCrossingActive = false;
 
 function clearPulseTimers() {
   for (const t of pulseTimers) clearTimeout(t);
@@ -693,6 +697,8 @@ export function destroyMap() {
   activityLayer = null;
   pulseLayer = null;
   planningLayer = null;
+  stopFlightCrossing();
+  flightLayer = null;
   planningActive = false;
   planningFocusLatLngs = null;
   lastPlanningKey = "";
@@ -852,6 +858,7 @@ function classifyActivity(action, { isHome = false } = {}) {
     return { kind: "idle", emoji: "📍", label: "待更新" };
   }
   if (/自驾|转场自驾|高速|山路/.test(a)) return { kind: "driving", emoji: "🚗", label: a };
+  if (/飞行|空中|飞往|巡航|起飞后/.test(a)) return { kind: "flying", emoji: "✈️", label: a };
   if (/游船|峡湾游/.test(a)) return { kind: "cruise", emoji: "🛳️", label: a };
   if (/渡轮|登船|甲板/.test(a)) return { kind: "ferry", emoji: "⛴️", label: a };
   if (/温泉/.test(a)) return { kind: "hotspring", emoji: "♨️", label: a };
@@ -908,6 +915,7 @@ function ensureLeaflet(host) {
   activityLayer = window.L.layerGroup().addTo(leafletMap);
   pulseLayer = window.L.layerGroup().addTo(leafletMap);
   planningLayer = window.L.layerGroup().addTo(leafletMap);
+  flightLayer = window.L.layerGroup().addTo(leafletMap);
 }
 
 function paintLeafletBase(ctx) {
@@ -1293,6 +1301,211 @@ function paintHomeFlightArc(ctx) {
   }
 }
 
+const NZ_GEO_KEYS = new Set([
+  "christchurch",
+  "tekapo",
+  "mt_cook",
+  "queenstown",
+  "milford",
+  "wanaka",
+  "picton",
+  "wellington",
+  "taupo",
+  "rotorua",
+  "auckland",
+  "te_anau",
+  "manapouri",
+  "frankton",
+]);
+
+export function geoSide(geoKey) {
+  const g = String(geoKey || "").toLowerCase();
+  if (!g || g === "shanghai_home") return "cn";
+  if (NZ_GEO_KEYS.has(g)) return "nz";
+  return "other";
+}
+
+/** True when playback jumps China ↔ New Zealand (ocean flight). */
+export function isOceanFlightCrossing(fromGeo, toGeo) {
+  if (!toGeo || fromGeo === toGeo) return false;
+  const a = geoSide(fromGeo);
+  const b = geoSide(toGeo);
+  return (a === "cn" && b === "nz") || (a === "nz" && b === "cn");
+}
+
+function latLngForGeoKey(geoKey) {
+  const g = String(geoKey || "").toLowerCase();
+  if (!g || g === "shanghai_home") {
+    const home = lastCtx?.home || SHANGHAI_HOME;
+    return [home.lat, home.lng];
+  }
+  const placeId = GEO_TO_PLACE[g];
+  const p = placeId && lastCtx?.placeById?.[placeId];
+  if (p) return [p.lat, p.lng];
+  // Fallbacks when map ctx not ready
+  const FALLBACK = {
+    christchurch: [-43.4894, 172.532],
+    auckland: [-37.0082, 174.785],
+    tekapo: [-44.005, 170.477],
+    queenstown: [-45.0312, 168.6626],
+    wellington: [-41.3276, 174.807],
+  };
+  return FALLBACK[g] || null;
+}
+
+function bearingDeg(a, b) {
+  const toR = (d) => (d * Math.PI) / 180;
+  const lat1 = toR(a[0]);
+  const lat2 = toR(b[0]);
+  const dLng = toR(b[1] - a[1]);
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+function stopFlightCrossing() {
+  if (flightAnim) {
+    cancelAnimationFrame(flightAnim);
+    flightAnim = null;
+  }
+  flightCrossingActive = false;
+  try {
+    flightLayer?.clearLayers();
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Cinematic one-shot plane crossing between two geos (e.g. shanghai_home → christchurch).
+ * Blocks until the plane reaches the destination.
+ */
+export function playFlightCrossing({
+  fromGeo = "shanghai_home",
+  toGeo = "christchurch",
+  flightNo = "",
+  label = "",
+  durationMs = 6800,
+} = {}) {
+  return new Promise((resolve) => {
+    if (!leafletMap || !window.L) {
+      resolve(false);
+      return;
+    }
+    const a = latLngForGeoKey(fromGeo);
+    const b = latLngForGeoKey(toGeo);
+    if (!a || !b) {
+      resolve(false);
+      return;
+    }
+
+    stopFlightCrossing();
+    if (!flightLayer) flightLayer = window.L.layerGroup().addTo(leafletMap);
+    flightLayer.clearLayers();
+    flightCrossingActive = true;
+
+    const outbound = geoSide(fromGeo) === "cn";
+    const routeLabel =
+      label ||
+      (outbound
+        ? `飞行中 · ${flightNo || "MU779"} · PVG → CHC`
+        : `飞行中 · ${flightNo || "MU780"} · AKL → PVG`);
+    setPlanningBadge(routeLabel, "consider");
+
+    const arc = greatCircle(a, b, 72);
+    const lengths = segmentLengths(arc);
+    const total = lengths.reduce((s, n) => s + n, 0) || 1;
+
+    window.L.polyline(arc, {
+      color: "#7dd3fc",
+      weight: 2,
+      opacity: 0.45,
+      dashArray: "4 8",
+      className: "flight-plan-line",
+    }).addTo(flightLayer);
+
+    const flown = window.L.polyline([arc[0]], {
+      color: "#0ea5e9",
+      weight: 4,
+      opacity: 0.95,
+      className: "flight-live-line",
+    }).addTo(flightLayer);
+
+    // Endpoints
+    window.L.circleMarker(a, {
+      radius: 6,
+      color: "#fff",
+      weight: 2,
+      fillColor: "#38bdf8",
+      fillOpacity: 1,
+    })
+      .addTo(flightLayer)
+      .bindTooltip(outbound ? "上海浦东 PVG" : "奥克兰 AKL", { direction: "top" });
+    window.L.circleMarker(b, {
+      radius: 6,
+      color: "#fff",
+      weight: 2,
+      fillColor: "#16a34a",
+      fillOpacity: 1,
+    })
+      .addTo(flightLayer)
+      .bindTooltip(outbound ? "基督城 CHC" : "上海浦东 PVG", { direction: "top" });
+
+    const plane = window.L.marker(a, {
+      icon: window.L.divIcon({
+        className: "map-flight-plane-wrap",
+        html: `<span class="map-flight-plane" style="--brg:90deg">✈️</span>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
+      }),
+      zIndexOffset: 1200,
+      interactive: false,
+    }).addTo(flightLayer);
+
+    try {
+      leafletMap.fitBounds(window.L.latLngBounds(arc), fitOptions({ maxZoom: 4, padding: [40, 40] }));
+    } catch {
+      /* ignore */
+    }
+
+    const t0 = performance.now();
+    const dur = Math.max(4200, Number(durationMs) || 6800);
+
+    function frame(now) {
+      const u = Math.min(1, (now - t0) / dur);
+      const pos = pointAlong(arc, lengths, total, u);
+      // Look-ahead for bearing
+      const look = pointAlong(arc, lengths, total, Math.min(1, u + 0.02));
+      const brg = bearingDeg(pos, look);
+      plane.setLatLng(pos);
+      const el = plane.getElement()?.querySelector(".map-flight-plane");
+      if (el) el.style.setProperty("--brg", `${brg}deg`);
+
+      const idx = Math.max(1, Math.floor(u * (arc.length - 1)));
+      flown.setLatLngs(arc.slice(0, idx + 1));
+
+      if (u >= 1) {
+        flightAnim = null;
+        flightCrossingActive = false;
+        setPlanningBadge(outbound ? "已落地 · 基督城" : "已落地 · 上海", "consider");
+        setTimeout(() => {
+          setPlanningBadge("");
+          try {
+            flightLayer?.clearLayers();
+          } catch {
+            /* ignore */
+          }
+          if (lastCtx) applyFitForCtx(lastCtx);
+          resolve(true);
+        }, 900);
+        return;
+      }
+      flightAnim = requestAnimationFrame(frame);
+    }
+    flightAnim = requestAnimationFrame(frame);
+  });
+}
+
 function paintHomeActivity(ctx) {
   if (!activityLayer) return;
   const home = ctx.home;
@@ -1510,6 +1723,9 @@ function setViewInSafeArea(latlng, zoom) {
 
 function applyFitForCtx(ctx) {
   if (!leafletMap || !ctx) return;
+
+  // Ocean-crossing flight owns the viewport until it finishes.
+  if (flightCrossingActive) return;
 
   // While agent is planning, keep the map on the thinking corridor.
   if (planningActive && planningFocusLatLngs?.length) {

@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-23";
-import { DemoEngine } from "./engine.js?v=20260722-23";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-24";
+import { DemoEngine } from "./engine.js?v=20260722-24";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,10 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-23";
+} from "./agent.js?v=20260722-24";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-23";
+import { UI } from "./ui.js?v=20260722-24";
+import { isOceanFlightCrossing } from "./map.js?v=20260722-24";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -79,6 +80,10 @@ let trajectory = null;
 let autoplay = false;
 let busy = false;
 let autoplayTimer = null;
+/** Last geo_key after a step — used to detect China↔NZ flight jumps. */
+let lastSceneGeo = null;
+/** Play ocean-flight cutscene at most once per from→to pair per run. */
+let flightPlayed = new Set();
 
 const settings = loadSettings();
 
@@ -102,14 +107,56 @@ function bootCase(data) {
   caseData = data;
   engine = new DemoEngine(data);
   trajectory = new Trajectory(data.meta.case_id);
+  lastSceneGeo = null;
+  flightPlayed = new Set();
   ui.setMeta(data.meta);
   ui.clearChat();
   ui.resetLedgerAlerts();
   ui.setPhoneTab("chat");
   ui.setQuickChips(["查看营地详情", "明天天气怎么样", "预算还剩多少", "现在路况安全吗"]);
   refreshDashboard();
+  lastSceneGeo = engine.currentState?.geo_key || "shanghai_home";
   ensureAgent();
   showEntryGuide();
+}
+
+function currentSceneGeo() {
+  return engine?.currentState?.geo_key || lastSceneGeo || null;
+}
+
+function flightNoForCrossing(fromGeo, toGeo, event = null) {
+  const fromEvent = event?.user_state?.next_flight?.flight_no;
+  if (fromEvent) return fromEvent;
+  const flags = engine?.progressFlags?.() || {};
+  const toNz = isOceanFlightCrossing(fromGeo || "shanghai_home", toGeo) && toGeo !== "shanghai_home";
+  if (toNz) return flags.outboundFlightNo || "MU779";
+  return "MU780";
+}
+
+/** If geo jumped China↔NZ, play the plane cutscene once. */
+async function maybePlayFlightCrossing(fromGeo, toGeo, { event = null, time = null } = {}) {
+  const from = fromGeo || "shanghai_home";
+  const to = toGeo;
+  if (!isOceanFlightCrossing(from, to)) return false;
+  const key = `${from}>${to}`;
+  if (flightPlayed.has(key)) return false;
+  flightPlayed.add(key);
+  const flightNo = flightNoForCrossing(from, to, event);
+  const outbound = to !== "shanghai_home";
+  ui.appendChat({
+    role: "system",
+    text: outbound
+      ? `✈️ 航班起飞 · ${flightNo} · 上海浦东 → 基督城`
+      : `✈️ 返程起飞 · ${flightNo} · 奥克兰 → 上海浦东`,
+    time,
+  });
+  await ui.playFlightCrossing({
+    fromGeo: from,
+    toGeo: to,
+    flightNo,
+    durationMs: 7200,
+  });
+  return true;
 }
 
 function hasApiKeyConfigured() {
@@ -194,6 +241,8 @@ function clearAndRewind({ confirm: needConfirm = true } = {}) {
   busy = false;
   setBusyUI(false);
   ui._streamBubble = null;
+  lastSceneGeo = null;
+  flightPlayed = new Set();
 
   // Fresh engine + trajectory
   engine = new DemoEngine(caseData);
@@ -214,6 +263,7 @@ function clearAndRewind({ confirm: needConfirm = true } = {}) {
   ui.setPhoneTab("chat");
   ui.setQuickChips(["查看营地详情", "明天天气怎么样", "预算还剩多少", "现在路况安全吗"]);
   refreshDashboard();
+  lastSceneGeo = engine.currentState?.geo_key || "shanghai_home";
   showEntryGuide();
   ui.toast("已清空回溯到起点");
 }
@@ -362,12 +412,15 @@ async function stepOnce() {
   busy = true;
   setBusyUI(true);
   try {
+    const prevGeo = currentSceneGeo();
     const result = engine.step();
     if (!result) return;
     const { event, agentText, feedToAgent, mutationResult } = result;
     trajectory.pushEnvEvent(event, { mutationResult, feedToAgent });
 
     const t = event.time || null;
+    const nextGeo = event.user_state?.geo_key || currentSceneGeo();
+
     // Phone: surface user / notifications / heartbeats / routines
     if (event.kind === "user_message") {
       ui.appendChat({ role: "user", text: event.body, from: event.from, time: t });
@@ -405,6 +458,8 @@ async function stepOnce() {
     }
 
     refreshDashboard();
+    await maybePlayFlightCrossing(prevGeo, nextGeo, { event, time: t });
+    lastSceneGeo = nextGeo || prevGeo || lastSceneGeo;
 
     if (feedToAgent && agentText) {
       const a = ensureAgent();
@@ -570,15 +625,17 @@ function bindChrome() {
     }
   });
 
-  document.querySelector("#dayRibbon").addEventListener("click", (e) => {
+  document.querySelector("#dayRibbon").addEventListener("click", async (e) => {
     const chip = e.target.closest(".day-chip");
     if (!chip || chip.disabled || chip.classList.contains("locked")) return;
+    const prevGeo = currentSceneGeo();
     if (chip.dataset.phase === "prep") {
       if (!engine.focusPrepDay(chip.dataset.date)) {
         ui.toast("该行前日期尚未到达");
         return;
       }
       refreshDashboard();
+      lastSceneGeo = currentSceneGeo() || lastSceneGeo;
       return;
     }
     if (chip.dataset.phase === "pre") {
@@ -587,6 +644,7 @@ function bindChrome() {
         return;
       }
       refreshDashboard();
+      lastSceneGeo = currentSceneGeo() || lastSceneGeo;
       return;
     }
     const dayNum = Number(chip.dataset.day);
@@ -595,6 +653,9 @@ function bindChrome() {
       return;
     }
     refreshDashboard();
+    const nextGeo = currentSceneGeo();
+    await maybePlayFlightCrossing(prevGeo, nextGeo, { time: null });
+    lastSceneGeo = nextGeo || prevGeo || lastSceneGeo;
   });
 
   document.querySelector("#chatForm").addEventListener("submit", (e) => {
