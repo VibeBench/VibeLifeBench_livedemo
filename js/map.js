@@ -1029,7 +1029,7 @@ export function playMapAction({
       const meta = stage.querySelector(".map-action-search-meta");
       let i = 0;
       // Faster typing + staggered results; hold 1s after the last row.
-      const typeMs = 22;
+      const typeMs = 11;
       const rowGapMs = 200;
       const firstRowDelayMs = 120;
       const typeTimer = setInterval(() => {
