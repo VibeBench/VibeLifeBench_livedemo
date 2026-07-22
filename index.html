@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Noto+Sans+SC:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./css/styles.css?v=20260722-04" />
+    <link rel="stylesheet" href="./css/styles.css?v=20260722-05" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
@@ -29,34 +29,36 @@
         </div>
       </header>
 
-      <main class="dashboard">
-        <div class="panel day-ribbon-wrap">
-          <div class="day-ribbon" id="dayRibbon"></div>
-        </div>
+      <main class="dashboard map-stage">
+        <div class="map-stage-canvas" id="mapPanel"></div>
 
-        <section class="status-grid" id="statusGrid"></section>
-
-        <section class="content-grid">
-          <div class="panel">
-            <h2 class="section-title">事件流 · Agent 动态</h2>
-            <div class="event-stream" id="eventStream"></div>
+        <div class="map-overlay">
+          <div class="float-ribbon panel-glass">
+            <div class="day-ribbon" id="dayRibbon"></div>
           </div>
-          <div class="panel map-side">
-            <h2 class="section-title">今日路线 & 地图</h2>
-            <div id="mapPanel"></div>
-            <div class="plan-block">
-              <h3>原计划</h3>
-              <ul id="planList"></ul>
+
+          <section class="float-status" id="statusGrid"></section>
+
+          <aside class="float-events panel-glass" id="eventDock">
+            <div class="float-events-head">
+              <h2>事件动态</h2>
+              <button type="button" class="float-toggle" id="btnToggleEvents" aria-expanded="true">收起</button>
             </div>
+            <div class="event-stream" id="eventStream"></div>
+          </aside>
+
+          <div class="float-plan panel-glass">
+            <h3>原计划</h3>
+            <ul id="planList"></ul>
             <div class="impact-box" id="impactBox" hidden></div>
           </div>
-        </section>
 
-        <footer class="footer-bar">
-          <strong id="tripName">NZ南岛房车自驾（15天）</strong>
-          <div class="footer-stats" id="footerStats"></div>
-          <button class="btn" type="button" id="btnHelp">需要帮助？</button>
-        </footer>
+          <footer class="float-footer panel-glass">
+            <strong id="tripName">NZ南岛房车自驾（15天）</strong>
+            <div class="footer-stats" id="footerStats"></div>
+            <button class="btn" type="button" id="btnHelp">需要帮助？</button>
+          </footer>
+        </div>
       </main>
 
       <aside class="phone-col">
@@ -194,6 +196,6 @@
 
     <div class="toast" id="toast" hidden></div>
 
-    <script type="module" src="./js/app.js?v=20260722-04"></script>
+    <script type="module" src="./js/app.js?v=20260722-05"></script>
   </body>
 </html>

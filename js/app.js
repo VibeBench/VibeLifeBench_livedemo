@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-03";
-import { DemoEngine } from "./engine.js?v=20260722-03";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-05";
+import { DemoEngine } from "./engine.js?v=20260722-05";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-03";
+} from "./agent.js?v=20260722-05";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-04";
+import { UI } from "./ui.js?v=20260722-05";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -586,6 +586,15 @@ function bindChrome() {
 
   document.querySelector("#btnHelp").addEventListener("click", () => {
     sendUserChat("我们需要帮助，请根据当前行程状态主动检查有没有风险。");
+  });
+
+  document.querySelector("#btnToggleEvents")?.addEventListener("click", () => {
+    const dock = document.querySelector("#eventDock");
+    const btn = document.querySelector("#btnToggleEvents");
+    if (!dock || !btn) return;
+    const collapsed = dock.classList.toggle("collapsed");
+    btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    btn.textContent = collapsed ? "展开" : "收起";
   });
 }
 

@@ -53,25 +53,31 @@ let mapResizeTimer = null;
 
 export function ensureMapContainer(panelEl) {
   let shell = panelEl.querySelector(".map-shell");
-  if (shell && (shell.querySelector(".map-toolbar") || !shell.querySelector(".map-frame"))) {
+  const needsRebuild =
+    shell &&
+    (shell.querySelector(".map-toolbar") ||
+      !shell.querySelector(".map-frame") ||
+      !shell.querySelector(".map-frame .map-legend") ||
+      !shell.classList.contains("map-shell-stage"));
+  if (needsRebuild) {
     panelEl.innerHTML = "";
     shell = null;
     destroyMap();
   }
   if (!shell) {
     panelEl.innerHTML = `
-      <div class="map-shell">
+      <div class="map-shell map-shell-stage">
         <div class="map-frame">
           <div id="routeMap" class="map-canvas map-host"></div>
           <div class="map-banner" id="mapBanner" hidden></div>
-        </div>
-        <div class="map-legend" id="mapLegend">
-          <span><i class="lg-done"></i>已走</span>
-          <span><i class="lg-route"></i>规划未走</span>
-          <span><i class="lg-live"></i>当前路段</span>
-          <span data-leg="flight"><i class="lg-flight"></i>确认后航线</span>
-          <span><i class="lg-ferry"></i>渡轮</span>
-          <span><i class="lg-close"></i>封闭/暂缓</span>
+          <div class="map-legend" id="mapLegend">
+            <span><i class="lg-done"></i>已走</span>
+            <span><i class="lg-route"></i>规划未走</span>
+            <span><i class="lg-live"></i>当前路段</span>
+            <span data-leg="flight"><i class="lg-flight"></i>确认后航线</span>
+            <span><i class="lg-ferry"></i>渡轮</span>
+            <span><i class="lg-close"></i>封闭/暂缓</span>
+          </div>
         </div>
       </div>`;
     destroyMap();
