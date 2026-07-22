@@ -603,11 +603,11 @@ select {
 .float-info {
   align-self: flex-end;
   margin-left: auto;
-  width: min(260px, 34%);
+  width: min(360px, 46%);
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 8px 10px;
   border-radius: 14px;
   min-width: 0;
 }
@@ -618,9 +618,12 @@ select {
   left: auto;
   right: auto;
   bottom: auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
+  display: grid;
+  grid-template-columns: repeat(4, max-content);
+  column-gap: 12px;
+  row-gap: 6px;
+  justify-content: start;
+  align-items: center;
   margin: 0;
   padding: 0;
   max-width: none;
@@ -629,6 +632,15 @@ select {
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+
+.float-info-legend.map-legend > span,
+.float-info .map-legend > span {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.2;
 }
 
 .float-info-plan h3 {
