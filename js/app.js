@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-20";
-import { DemoEngine } from "./engine.js?v=20260722-20";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-21";
+import { DemoEngine } from "./engine.js?v=20260722-21";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-20";
+} from "./agent.js?v=20260722-21";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-20";
+import { UI } from "./ui.js?v=20260722-21";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -248,6 +248,7 @@ function ensureAgent() {
     thinking: settings.thinking !== false,
     onStream: (payload) => {
       if (ui._streamBubble) ui.updateAgentTurn(ui._streamBubble, payload);
+      if (payload?.thinking) ui.syncMapPlanningFromThinking(payload.thinking);
     },
     onTool: ({ name, args, result }) => {
       console.debug("tool", name, args, result);
@@ -259,6 +260,7 @@ function ensureAgent() {
           status: "done",
         });
       }
+      ui.focusMapFromTool(name, args || {}, result);
       // Write / booking tools also leave a durable state card in chat history
       if (/book|cancel|create|send|post|update|write|insert|reserve|confirm|refund/i.test(name || "")) {
         const tab = /notion|page|block/i.test(name) ? "notes" : "trip";

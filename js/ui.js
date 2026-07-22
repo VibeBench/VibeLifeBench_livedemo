@@ -1,7 +1,16 @@
 /**
  * Dashboard + phone chat rendering
  */
-import { renderLeafletMap, destroyMap, pulseMapEvent } from "./map.js?v=20260722-20";
+import {
+  renderLeafletMap,
+  destroyMap,
+  pulseMapEvent,
+  syncPlanningFromText,
+  clearPlanning,
+  focusTrafficResult,
+  focusGeoKey,
+  focusPlanning,
+} from "./map.js?v=20260722-21";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1105,6 +1114,10 @@ export class UI {
 
   /** Claude-homepage-like agent turn: thinking collapsed by default + tool log + answer */
   beginAgentTurn({ time = null } = {}) {
+    clearPlanning({ immediate: true });
+    clearTimeout(this._planThinkTimer);
+    this._planThinkTimer = null;
+    this._lastPlanThinkLen = 0;
     const wrap = document.createElement("div");
     wrap.className = "bubble agent agent-turn streaming";
     const stamp = formatSimStamp(time);
@@ -1135,6 +1148,66 @@ export class UI {
     this.els.chatMessages.appendChild(wrap);
     this._scrollChatToBottom();
     return wrap;
+  }
+
+  /**
+   * Drive map focus from streaming thinking / tool results.
+   * Throttled so we don't rebuild polylines every token.
+   */
+  syncMapPlanningFromThinking(thinking) {
+    const text = String(thinking || "");
+    if (text.length < 12) return;
+    // Only re-run when enough new content arrived.
+    if (text.length - (this._lastPlanThinkLen || 0) < 24 && this._lastPlanThinkLen > 0) {
+      clearTimeout(this._planThinkTimer);
+      this._planThinkTimer = setTimeout(() => {
+        this._lastPlanThinkLen = text.length;
+        syncPlanningFromText(text).catch(() => {});
+      }, 520);
+      return;
+    }
+    clearTimeout(this._planThinkTimer);
+    this._planThinkTimer = setTimeout(() => {
+      this._lastPlanThinkLen = text.length;
+      syncPlanningFromText(text).catch(() => {});
+    }, 380);
+  }
+
+  focusMapFromTool(name, args = {}, result = null) {
+    if (!name) return;
+    if (name === "get_traffic_estimate") {
+      focusTrafficResult(result || {}, args || {}).catch(() => {});
+      return;
+    }
+    if (name === "get_current_weather" || name === "get_forecast_daily") {
+      const geo = args.geo_key || result?.geo_key;
+      if (geo) focusGeoKey(geo, { label: `工具：天气 · ${geo}` });
+      return;
+    }
+    if (name === "get_flight_status") {
+      focusPlanning({
+        placeIds: ["pl_chc_airport"],
+        mode: "consider",
+        label: args.flight_no ? `工具：航班 ${args.flight_no}` : "工具：航班动态",
+        force: true,
+      }).catch(() => {});
+      return;
+    }
+    if (name === "list_active_alerts") {
+      const roads = result?.road_events || [];
+      const roadIds = roads.map((e) => e.road_id).filter(Boolean);
+      const blob = roads.map((e) => e.note || "").join(" ");
+      syncPlanningFromText(`${blob} SH80 SH94`).catch(() => {});
+      if (roadIds.length) {
+        focusTrafficResult({ matched: roads }, {}).catch(() => {});
+      }
+    }
+  }
+
+  endMapPlanning() {
+    clearTimeout(this._planThinkTimer);
+    this._planThinkTimer = null;
+    clearPlanning({ immediate: false });
   }
 
   /**
@@ -1283,6 +1356,9 @@ export class UI {
       if (body && thinkBlock?.classList.contains("open") && this._chatStickToBottom) {
         body.scrollTop = body.scrollHeight;
       }
+      if (phase === "thinking" || phase === "tool" || !phase) {
+        this.syncMapPlanningFromThinking(thinking);
+      }
     }
 
     if (phase === "thinking") {
@@ -1349,6 +1425,7 @@ export class UI {
       const answer = wrap.querySelector(".answer-text");
       if (answer) answer.textContent = "⚠️ " + error;
       if (thinkBlock) thinkBlock.hidden = true;
+      this.endMapPlanning();
       return;
     }
 
@@ -1357,6 +1434,15 @@ export class UI {
       content: content || "（空回复）",
       phase: "done",
     });
+
+    // Final thinking pass then ease map back after a beat.
+    if (thinking) {
+      syncPlanningFromText(thinking)
+        .catch(() => {})
+        .finally(() => this.endMapPlanning());
+    } else {
+      this.endMapPlanning();
+    }
 
     if (content && !wrap._activityReplyPushed) {
       wrap._activityReplyPushed = true;

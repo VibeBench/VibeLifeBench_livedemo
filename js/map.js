@@ -42,6 +42,7 @@ let leafletLayer = null;
 let routeLayer = null;
 let activityLayer = null;
 let pulseLayer = null;
+let planningLayer = null;
 let tileWatch = null;
 let lastCtx = null;
 let drawToken = 0;
@@ -52,6 +53,12 @@ let dismissedAlertKey = null;
 let mapResizeObs = null;
 let mapResizeTimer = null;
 let pulseTimers = [];
+/** Agent route-planning overlay (thinking / tools). */
+let planningToken = 0;
+let planningActive = false;
+let planningFocusLatLngs = null;
+let lastPlanningKey = "";
+let planningClearTimer = null;
 
 function clearPulseTimers() {
   for (const t of pulseTimers) clearTimeout(t);
@@ -149,6 +156,300 @@ function pulseTinyPin({ icon = "📌", durationMs = 2400 } = {}) {
     }
   }, durationMs);
   pulseTimers.push(t);
+}
+
+const PLACE_MENTION_PATTERNS = [
+  { re: /库克山|Mt\.?\s*Cook|Aoraki/gi, id: "pl_mt_cook" },
+  { re: /蒂卡波|Tekapo/gi, id: "pl_tekapo" },
+  { re: /皇后镇|Queenstown/gi, id: "pl_queenstown" },
+  { re: /瓦纳卡|Wanaka/gi, id: "pl_wanaka" },
+  { re: /米尔福德|马纳普里|蒂阿瑙|Milford|Manapouri|Te\s*Anau|峡湾/gi, id: "pl_milford" },
+  { re: /皮克顿|Picton/gi, id: "pl_picton" },
+  { re: /惠灵顿|Wellington/gi, id: "pl_wellington" },
+  { re: /陶波|Taup[oō]/gi, id: "pl_taupo" },
+  { re: /罗托鲁阿|Rotorua/gi, id: "pl_rotorua" },
+  { re: /奥克兰|Auckland/gi, id: "pl_akl_airport" },
+  { re: /基督城|Christchurch|\bCHC\b/gi, id: "pl_chc_airport" },
+  { re: /上海|Shanghai/gi, id: "shanghai_home" },
+];
+
+const ROAD_MENTION_PATTERNS = [
+  { re: /SH\s*80|国道\s*80|库克山公路|Mt\s*Cook\s*Road/gi, id: "rd_sh80_mtcook" },
+  { re: /SH\s*94|国道\s*94|米尔福德公路|Milford\s*Road/gi, id: "rd_sh94_milford" },
+  { re: /SH\s*8\b|国道\s*8\b|蒂卡波公路/gi, id: "rd_sh8_tekapo" },
+];
+
+const GEO_TO_PLACE = Object.fromEntries(
+  Object.entries(DEFAULT_PLACE_GEO).map(([placeId, geo]) => [geo, placeId])
+);
+
+/** Ordered unique place ids mentioned in free text (thinking / replies). */
+export function extractPlaceIdsFromText(text) {
+  const s = String(text || "");
+  if (!s.trim()) return [];
+  const hits = [];
+  for (const p of PLACE_MENTION_PATTERNS) {
+    const re = new RegExp(p.re.source, "gi");
+    let m;
+    while ((m = re.exec(s))) hits.push({ i: m.index, id: p.id });
+  }
+  hits.sort((a, b) => a.i - b.i);
+  const out = [];
+  for (const h of hits) {
+    if (h.id === "shanghai_home") continue;
+    if (out[out.length - 1] !== h.id) out.push(h.id);
+  }
+  return out;
+}
+
+export function extractRoadIdsFromText(text) {
+  const s = String(text || "");
+  if (!s.trim()) return [];
+  const out = [];
+  const seen = new Set();
+  for (const p of ROAD_MENTION_PATTERNS) {
+    if (p.re.test(s) && !seen.has(p.id)) {
+      seen.add(p.id);
+      out.push(p.id);
+    }
+    p.re.lastIndex = 0;
+  }
+  return out;
+}
+
+function inferPlanningMode(text) {
+  const s = String(text || "");
+  if (/封闭|封路|落石|雪崩|无法通行|cancelled|closed|暂缓前往|取消.*库克|defer/i.test(s)) {
+    return "blocked";
+  }
+  if (/改道|绕行|避开|调整路线|改走|改经|替代|alternate|reroute|via\s+wanaka|经瓦纳卡/i.test(s)) {
+    return "adjust";
+  }
+  return "consider";
+}
+
+function planningStyle(mode) {
+  if (mode === "blocked") {
+    return { color: "#e11d48", weight: 6, opacity: 0.92, dashArray: "10 8", className: "route-planning-line route-planning-blocked" };
+  }
+  if (mode === "adjust") {
+    return { color: "#d97706", weight: 6, opacity: 0.95, dashArray: "12 10", className: "route-planning-line route-planning-adjust" };
+  }
+  return { color: "#2563eb", weight: 5, opacity: 0.88, dashArray: "12 10", className: "route-planning-line" };
+}
+
+function setPlanningBadge(label, mode) {
+  const el = document.querySelector("#mapPlanningBadge");
+  const text = document.querySelector("#mapPlanningBadgeText");
+  if (!el) return;
+  if (!label) {
+    el.hidden = true;
+    el.setAttribute("hidden", "");
+    el.dataset.mode = "";
+    return;
+  }
+  el.hidden = false;
+  el.removeAttribute("hidden");
+  el.dataset.mode = mode || "consider";
+  if (text) text.textContent = label;
+}
+
+/**
+ * Focus map on agent route planning. Draws ephemeral overlay; does not replace itinerary.
+ * @param {{ placeIds?: string[], roadIds?: string[], latlngs?: number[][], mode?: string, label?: string, force?: boolean }} opts
+ */
+export async function focusPlanning(opts = {}) {
+  if (!leafletMap || !window.L) return false;
+  const placeIds = [...new Set((opts.placeIds || []).filter(Boolean))];
+  const roadIds = [...new Set((opts.roadIds || []).filter(Boolean))];
+  const latlngs = Array.isArray(opts.latlngs) ? opts.latlngs : [];
+  const mode = opts.mode || "consider";
+  if (!placeIds.length && !roadIds.length && latlngs.length < 2) return false;
+
+  const key = JSON.stringify({ placeIds, roadIds, mode });
+  if (!opts.force && key === lastPlanningKey && planningActive) return true;
+  lastPlanningKey = key;
+
+  const token = ++planningToken;
+  clearTimeout(planningClearTimer);
+  planningClearTimer = null;
+
+  if (!planningLayer) planningLayer = window.L.layerGroup().addTo(leafletMap);
+
+  const focus = latlngs.map((ll) => window.L.latLng(ll[0], ll[1]));
+  let path = [];
+
+  if (lastCtx) {
+    for (const rid of roadIds) {
+      const road = lastCtx.roadById?.[rid];
+      const geom = parseRoadGeom(road?.geom || road?.geom_json);
+      for (const ll of geom) focus.push(window.L.latLng(ll[0], ll[1]));
+    }
+    for (const id of placeIds) {
+      const p = lastCtx.placeById?.[id];
+      if (p) focus.push(window.L.latLng(p.lat, p.lng));
+    }
+    if (placeIds.length >= 2) {
+      try {
+        path = await buildDrivingPath(lastCtx, placeIds);
+      } catch {
+        path = placeIds
+          .map((id) => lastCtx.placeById?.[id])
+          .filter(Boolean)
+          .map((p) => [p.lat, p.lng]);
+      }
+    }
+  }
+
+  if (token !== planningToken) return false;
+
+  planningLayer.clearLayers();
+  const style = planningStyle(mode);
+
+  if (path.length >= 2) {
+    window.L.polyline(path, style)
+      .addTo(planningLayer)
+      .bindTooltip(opts.label || (mode === "blocked" ? "受阻路段" : mode === "adjust" ? "调整后路线" : "推演路线"));
+    for (const ll of path) focus.push(window.L.latLng(ll[0], ll[1]));
+  } else if (roadIds.length && lastCtx) {
+    for (const rid of roadIds) {
+      const road = lastCtx.roadById?.[rid];
+      const geom = parseRoadGeom(road?.geom || road?.geom_json);
+      if (geom.length >= 2) {
+        window.L.polyline(geom, style)
+          .addTo(planningLayer)
+          .bindTooltip(road?.name || rid);
+      }
+    }
+  } else if (placeIds.length >= 2 && lastCtx) {
+    const straight = placeIds
+      .map((id) => lastCtx.placeById?.[id])
+      .filter(Boolean)
+      .map((p) => [p.lat, p.lng]);
+    if (straight.length >= 2) {
+      window.L.polyline(straight, { ...style, opacity: 0.55 }).addTo(planningLayer);
+    }
+  }
+
+  for (const id of placeIds) {
+    const p = lastCtx?.placeById?.[id];
+    if (!p) continue;
+    window.L.circleMarker([p.lat, p.lng], {
+      radius: 7,
+      color: "#fff",
+      weight: 2,
+      fillColor: style.color,
+      fillOpacity: 0.95,
+    })
+      .addTo(planningLayer)
+      .bindTooltip(p.name || id);
+  }
+
+  planningActive = true;
+  planningFocusLatLngs = focus.length ? focus : null;
+  const badge =
+    opts.label ||
+    (mode === "blocked"
+      ? "路况受阻 · 地图已切换"
+      : mode === "adjust"
+        ? "路线调整中"
+        : placeIds.length >= 2
+          ? "路线推演中"
+          : "地图聚焦中");
+  setPlanningBadge(badge, mode);
+
+  if (planningFocusLatLngs?.length === 1) {
+    setViewInSafeArea(planningFocusLatLngs[0], 8);
+  } else if (planningFocusLatLngs?.length > 1) {
+    try {
+      leafletMap.fitBounds(window.L.latLngBounds(planningFocusLatLngs), fitOptions({ maxZoom: 9, animate: true }));
+    } catch {
+      /* ignore */
+    }
+  }
+  return true;
+}
+
+/** Parse thinking / answer text and update planning overlay (throttled by caller). */
+export async function syncPlanningFromText(text, { label } = {}) {
+  const placeIds = extractPlaceIdsFromText(text);
+  const roadIds = extractRoadIdsFromText(text);
+  if (placeIds.length < 1 && roadIds.length < 1) return false;
+  // Prefer the latest corridor (last 2–4 mentions) so the map follows the thought.
+  const routeIds =
+    placeIds.length >= 2 ? placeIds.slice(Math.max(0, placeIds.length - 4)) : placeIds;
+  const mode = inferPlanningMode(text);
+  return focusPlanning({
+    placeIds: routeIds,
+    roadIds,
+    mode,
+    label:
+      label ||
+      (mode === "blocked"
+        ? "思考：路段受阻"
+        : mode === "adjust"
+          ? "思考：调整路线"
+          : routeIds.length >= 2
+            ? "思考：推演路线"
+            : "思考：关注地点"),
+  });
+}
+
+export function clearPlanning({ immediate = false } = {}) {
+  const run = () => {
+    planningToken += 1;
+    planningActive = false;
+    planningFocusLatLngs = null;
+    lastPlanningKey = "";
+    try {
+      planningLayer?.clearLayers();
+    } catch {
+      /* ignore */
+    }
+    setPlanningBadge("");
+  };
+  clearTimeout(planningClearTimer);
+  if (immediate) {
+    planningClearTimer = null;
+    run();
+    if (lastCtx) applyFitForCtx(lastCtx);
+    return;
+  }
+  planningClearTimer = setTimeout(() => {
+    planningClearTimer = null;
+    run();
+    if (lastCtx) applyFitForCtx(lastCtx);
+  }, 4200);
+}
+
+/** Focus a weather / geo_key point during tool use. */
+export function focusGeoKey(geoKey, { label } = {}) {
+  const id = GEO_TO_PLACE[String(geoKey || "").toLowerCase()] || null;
+  if (id) return focusPlanning({ placeIds: [id], mode: "consider", label: label || `关注 · ${geoKey}`, force: true });
+  return false;
+}
+
+/** Focus from get_traffic_estimate (or similar) tool result. */
+export function focusTrafficResult(result, args = {}) {
+  const matched = result?.matched || result?.active_road_events || [];
+  const roadIds = matched.map((e) => e.road_id).filter(Boolean);
+  if (args.road_id) roadIds.unshift(args.road_id);
+  const placeIds = extractPlaceIdsFromText(
+    [args.query, ...(matched.map((e) => `${e.note || ""} ${e.road_name || ""}`))].join(" ")
+  );
+  const blocked = matched.some(
+    (e) =>
+      e.severity === "closed" ||
+      Number(e.active) === 1 ||
+      /封|关闭|closed|avalanche|debris/i.test(`${e.note || ""}`)
+  );
+  return focusPlanning({
+    placeIds,
+    roadIds: [...new Set(roadIds)],
+    mode: blocked ? "blocked" : "adjust",
+    label: blocked ? "工具：路况受阻" : "工具：路况查询",
+    force: true,
+  });
 }
 
 export function ensureMapContainer(panelEl) {
@@ -260,6 +561,14 @@ export function destroyMap() {
   routeLayer = null;
   activityLayer = null;
   pulseLayer = null;
+  planningLayer = null;
+  planningActive = false;
+  planningFocusLatLngs = null;
+  lastPlanningKey = "";
+  planningToken += 1;
+  clearTimeout(planningClearTimer);
+  planningClearTimer = null;
+  setPlanningBadge("");
 }
 
 function bindMapResize(host) {
@@ -467,6 +776,7 @@ function ensureLeaflet(host) {
   routeLayer = window.L.layerGroup().addTo(leafletMap);
   activityLayer = window.L.layerGroup().addTo(leafletMap);
   pulseLayer = window.L.layerGroup().addTo(leafletMap);
+  planningLayer = window.L.layerGroup().addTo(leafletMap);
 }
 
 function paintLeafletBase(ctx) {
@@ -1069,6 +1379,20 @@ function setViewInSafeArea(latlng, zoom) {
 
 function applyFitForCtx(ctx) {
   if (!leafletMap || !ctx) return;
+
+  // While agent is planning, keep the map on the thinking corridor.
+  if (planningActive && planningFocusLatLngs?.length) {
+    if (planningFocusLatLngs.length === 1) {
+      setViewInSafeArea(planningFocusLatLngs[0], 8);
+    } else {
+      try {
+        leafletMap.fitBounds(window.L.latLngBounds(planningFocusLatLngs), fitOptions({ maxZoom: 9 }));
+      } catch {
+        /* ignore */
+      }
+    }
+    return;
+  }
 
   if (ctx.isHome) {
     const home = ctx.home;
