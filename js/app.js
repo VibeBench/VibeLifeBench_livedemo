@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-14";
-import { DemoEngine } from "./engine.js?v=20260722-14";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-15";
+import { DemoEngine } from "./engine.js?v=20260722-15";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-14";
+} from "./agent.js?v=20260722-15";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-14";
+import { UI } from "./ui.js?v=20260722-15";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -393,12 +393,13 @@ async function stepOnce() {
       });
       ui.notifyEnvEvent(event);
     } else if (event.kind === "mutation") {
+      // Backend writes (not Agent tools). Show in timeline/map/chat; no phone push.
+      const detail = ui.notifyMutation(event);
       ui.appendChat({
         role: "system",
-        text: `⚙️ 静默变更已生效（${event.id}）— Agent 需主动查工具才能发现`,
+        text: `⚙️ 环境静默写入：${detail || "状态已更新"} — Agent 需主动查工具才能发现`,
         time: t,
       });
-      // No phone toast — mutations stay silent by design
     }
 
     refreshDashboard();

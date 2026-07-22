@@ -1,7 +1,7 @@
 /**
  * Dashboard + phone chat rendering
  */
-import { renderLeafletMap, destroyMap, pulseMapEvent } from "./map.js?v=20260722-14";
+import { renderLeafletMap, destroyMap, pulseMapEvent } from "./map.js?v=20260722-15";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -402,8 +402,35 @@ export class UI {
     ]);
   }
 
-  /** Phone toast for playback events that should surface on the handset. */
-  notifyEnvEvent(event) {
+  /**
+   * Silent env writes (mutations): not Agent tools.
+   * Timeline still comes from renderEventStream; here we add map toast + chat state card.
+   * Phone banner stays off (Agent must discover via tools).
+   */
+  notifyMutation(event) {
+    if (!event) return "";
+    const summary = mutationSummary(event);
+    const title = firstLine(summary) || "环境静默写入";
+    const detail = summary.replace(/（静默生效[^）]*）$/, "").trim() || title;
+
+    this.pulseMapFeedback({
+      id: `mut:${event.id}`,
+      icon: "⚙️",
+      title: `静默写入 · ${truncate(title, 36)}`,
+      detail: truncate(detail, 90),
+      kind: "mutation",
+    });
+
+    this.appendStateCard({
+      icon: "⚙️",
+      title: "环境静默写入（未通知用户）",
+      body: detail,
+      tab: null,
+      time: event.time || null,
+      kind: "mutation",
+    });
+    return detail;
+  }
     if (!event) return;
     const toast = envEventToast(event);
     if (!toast) return;
