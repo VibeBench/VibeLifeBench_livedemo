@@ -2990,6 +2990,23 @@ select {
   border-color: #bfdbfe;
 }
 
+.tool-row.budget {
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: #fcd34d;
+}
+
+.tool-row.budget .tool-row-ico {
+  font-size: 14px;
+}
+
+.tool-row.budget .tool-row-title {
+  color: #92400e;
+}
+
+.tool-row.budget .tool-row-detail {
+  color: #a16207;
+}
+
 .tool-row.error {
   background: #fef2f2;
   border-color: #fecaca;

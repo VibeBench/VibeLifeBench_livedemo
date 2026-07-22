@@ -1047,7 +1047,7 @@ export function playMapAction({
             resEl.appendChild(row);
             r += 1;
             if (r < rows.length) setTimeout(addRow, rowGapMs);
-            else finish(); // all rows in → hold 2s then hide
+            else finish(); // all rows in → hold 1s then hide
           };
           setTimeout(addRow, firstRowDelayMs);
         }

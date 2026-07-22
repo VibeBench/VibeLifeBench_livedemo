@@ -16,7 +16,7 @@ import {
   playFlightCrossing,
   isOceanFlightCrossing,
   playMapAction,
-} from "./map.js?v=20260722-51";
+} from "./map.js?v=20260722-52";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1913,12 +1913,15 @@ export class UI {
     const detail = this._mergedToolDetail(row);
     const anyError = row._calls.some((c) => c.meta?.error);
     const anyStateful = row._calls.some((c) => c.meta?.stateful);
+    const isBudget = name === "get_budget_snapshot" || /budget/i.test(name || "");
     row.classList.remove("pending");
     row.classList.add("done");
-    row.classList.toggle("stateful", anyStateful);
+    row.classList.toggle("stateful", anyStateful && !isBudget);
+    row.classList.toggle("budget", isBudget);
     row.classList.toggle("error", anyError);
+    const ico = isBudget ? "💰" : meta.icon;
     row.innerHTML = `
-      <span class="tool-row-ico">${meta.icon}</span>
+      <span class="tool-row-ico">${ico}</span>
       <div class="tool-row-main">
         <div class="tool-row-title">${escapeHtml(title)}</div>
         ${detail ? `<div class="tool-row-detail">${escapeHtml(detail)}</div>` : ""}
@@ -2145,7 +2148,7 @@ const TOOL_META = {
   },
   get_budget_snapshot: {
     icon: "💰",
-    label: "读取行程预算",
+    label: "预算",
     focus: "已花 · 总额 · 剩余",
   },
   search_web: {
@@ -2529,7 +2532,7 @@ function buildToolPulse(name, args = {}, result = null) {
       break;
     }
     case "get_budget_snapshot": {
-      title = "读取行程预算";
+      title = "预算 · 行程费用";
       const b = result?.budget;
       if (b) {
         const bits = [];
