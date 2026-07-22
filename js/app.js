@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-61";
-import { DemoEngine } from "./engine.js?v=20260722-61";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-62";
+import { DemoEngine } from "./engine.js?v=20260722-62";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,10 +7,10 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-61";
+} from "./agent.js?v=20260722-62";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-61";
-import { isOceanFlightCrossing } from "./map.js?v=20260722-61";
+import { UI } from "./ui.js?v=20260722-62";
+import { isOceanFlightCrossing } from "./map.js?v=20260722-62";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -328,16 +328,19 @@ function ensureAgent() {
       }
       // Wait for this tool's map cinematic before the next tool runs.
       await Promise.resolve(ui.focusMapFromTool(name, args || {}, result));
-      // Write / booking tools also leave a durable state card in chat history
-      if (/book|cancel|create|send|post|update|write|insert|reserve|confirm|refund/i.test(name || "")) {
-        const tab = /notion|page|block/i.test(name) ? "notes" : "trip";
+      // write_journal / calendar：工具调用卡已展示，不再重复刷状态卡
+      const isJournalOrCal = /write_journal|notion|journal|page|block|calendar|schedule/i.test(name || "");
+      // Booking tools leave a durable state card in chat history
+      if (
+        !isJournalOrCal &&
+        /book|cancel|create|send|post|update|write|insert|reserve|confirm|refund/i.test(name || "")
+      ) {
+        const tab = "trip";
         let title = "已写入行程状态";
         if (/hotel/i.test(name)) {
           title = `预订酒店${args.hotel_name || args.hotel_id || args.name ? ` · ${args.hotel_name || args.hotel_id || args.name}` : ""}`;
         } else if (/flight|air/i.test(name)) {
           title = `预订机票${args.flight_no ? ` · ${args.flight_no}` : ""}`;
-        } else if (/notion|page|journal/i.test(name)) {
-          title = args.title ? `写入游记 · ${args.title}` : "写入游记";
         } else if (/cancel/i.test(name) && /hotel/i.test(name)) {
           title = "取消酒店预订";
         } else if (/cancel/i.test(name) && /flight/i.test(name)) {
@@ -345,24 +348,21 @@ function ensureAgent() {
         } else {
           title = `已执行 · ${String(name).replace(/[_-]+/g, " ")}`;
         }
-        // Notion writes: title only — dumping content=… makes chat unreadable
-        const isNotion = /notion|page|journal/i.test(name || "");
-        const detail = isNotion
-          ? ""
-          : result?.summary ||
-            result?.note ||
-            Object.entries(args || {})
-              .filter(([, v]) => v != null && String(v).trim() !== "")
-              .map(([k, v]) => `${k}=${v}`)
-              .slice(0, 4)
-              .join(" · ");
+        const detail =
+          result?.summary ||
+          result?.note ||
+          Object.entries(args || {})
+            .filter(([, v]) => v != null && String(v).trim() !== "")
+            .map(([k, v]) => `${k}=${v}`)
+            .slice(0, 4)
+            .join(" · ");
         ui.notifyStateChange({
-          icon: tab === "notes" ? "📝" : /flight|air/i.test(name) ? "✈️" : /hotel|stay/i.test(name) ? "🏨" : "🔧",
+          icon: /flight|air/i.test(name) ? "✈️" : /hotel|stay/i.test(name) ? "🏨" : "🔧",
           text: title,
           title,
           body: detail,
           tab,
-          kind: isNotion ? "notion" : "tool-write",
+          kind: "tool-write",
           key: `tool-write:${name}:${JSON.stringify(args || {}).slice(0, 80)}`,
         });
       }

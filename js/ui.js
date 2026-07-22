@@ -19,7 +19,7 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260722-61";
+} from "./map.js?v=20260722-62";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -327,26 +327,29 @@ export class UI {
     if (!fresh.length) return;
     for (const a of fresh) {
       const tab = a.tab === "notes" ? "notes" : "trip";
-      this.bumpNavBadge(tab, 1);
-      // Keep booking / status changes visible in chat history (not only toast).
-      this.appendStateCard({
-        icon: a.icon,
-        title: a.title || a.text,
-        // Notion: title-only cards; full content is in the Notes tab
-        body: a.kind === "notion" ? "" : a.body,
-        tab,
-        time: a.time || null,
-        kind: a.kind || "ledger",
-      });
-      this.appendActivityFeed({
-        id: `ledger:${a.key}`,
-        kind: "agent_state",
-        icon: a.icon,
-        who: a.app || "账本",
-        body: a.title || a.text,
-        detail: a.kind === "notion" ? "" : a.body && a.body !== a.title ? truncate(a.body, 100) : "",
-        time: a.time || null,
-      });
+      // notion / calendar：工具调用卡已展示，聊天里不再重复刷状态卡（地图动效仍保留）
+      const skipChatCard = a.kind === "notion" || a.kind === "calendar";
+      if (!skipChatCard) {
+        this.bumpNavBadge(tab, 1);
+        // Keep booking / status changes visible in chat history (not only toast).
+        this.appendStateCard({
+          icon: a.icon,
+          title: a.title || a.text,
+          body: a.body,
+          tab,
+          time: a.time || null,
+          kind: a.kind || "ledger",
+        });
+        this.appendActivityFeed({
+          id: `ledger:${a.key}`,
+          kind: "agent_state",
+          icon: a.icon,
+          who: a.app || "账本",
+          body: a.title || a.text,
+          detail: a.body && a.body !== a.title ? truncate(a.body, 100) : "",
+          time: a.time || null,
+        });
+      }
       // Map cinematic for major writes (queued; deduped vs focusMapFromTool)
       if (a.kind === "notion") {
         this.playQueuedMapAction({
@@ -1674,21 +1677,13 @@ export class UI {
       const notionTitle = args.title || result?.title || "游记";
       const notionBody =
         args.content || result?.content || result?.preview || meta.detail || "";
-      const p = this.playQueuedMapAction({
+      // 工具调用卡已展示；只播地图动效，不再刷「已记入·笔记」状态卡
+      return this.playQueuedMapAction({
         kind: "notion",
         title: notionTitle,
         body: notionBody, // map: stream content → 已提交
         fingerprint: `notion:${String(notionTitle).slice(0, 80)}`,
       });
-      this.notifyStateChange({
-        icon: "📝",
-        title: `写入游记 · ${notionTitle}`,
-        body: "", // chat card stays title-only
-        tab: "notes",
-        kind: "notion",
-        key: `notion-write:${Date.now()}`,
-      });
-      return p;
     } else if (name === "add_calendar_event" || /calendar|schedule/i.test(name)) {
       const ev = result?.event || {};
       const calTitle = args.title || ev.title || "日程";
@@ -1699,7 +1694,8 @@ export class UI {
         { label: "标题", value: calTitle },
         calNote ? { label: "备注", value: truncate(calNote, 48) } : null,
       ].filter(Boolean);
-      const p = this.playQueuedMapAction({
+      // 工具调用卡已展示；只播地图动效，不再刷「已记入·行程」状态卡
+      return this.playQueuedMapAction({
         kind: "calendar",
         title: calTitle,
         body: [calDate, calNote, calTitle].filter(Boolean).join("\n"),
@@ -1707,15 +1703,6 @@ export class UI {
         // Unique per write so rapid successive adds each get an animation.
         fingerprint: `calendar:${calDate}:${calTitle}:${ev.id || Date.now()}`,
       });
-      this.notifyStateChange({
-        icon: "📅",
-        title: `加入日程 · ${calTitle}`,
-        body: [calDate, calNote].filter(Boolean).join(" · "),
-        tab: "trip",
-        kind: "calendar",
-        key: `cal-write:${ev.id || Date.now()}`,
-      });
-      return p;
     }
 
     // Place bubble for location lookups (weather / traffic / flight).
