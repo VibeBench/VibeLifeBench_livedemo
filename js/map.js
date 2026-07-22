@@ -848,41 +848,19 @@ function primaryStayPlaceId(day) {
   return ids[0];
 }
 
-/** Build stay markers + route hubs from case trip_days. */
-export function buildStayPlanFromTripDays(tripDays = []) {
-  const stays = [];
-  for (const d of tripDays || []) {
-    const placeId = primaryStayPlaceId(d);
-    if (!placeId) continue;
-    stays.push({
-      day: d.day,
-      date: d.date,
-      placeId,
-      label: d.label || d.place || placeId,
-    });
-  }
-  const routePlaceIds = [];
-  for (const s of stays) {
-    if (routePlaceIds[routePlaceIds.length - 1] !== s.placeId) routePlaceIds.push(s.placeId);
-  }
-  return {
-    stays,
-    routePlaceIds,
-    label: "行程规划",
-  };
-}
-
 function looksLikePlanCommit(text, toolCalls = []) {
   const blob = String(text || "");
   const places = extractPlaceIdsFromText(blob);
   const calWrites = (toolCalls || []).filter((t) =>
     /calendar|add_calendar|schedule/i.test(String(t?.name || ""))
   );
-  if (calWrites.length >= 2) return true;
+  if (calWrites.length >= 1) return true;
   if (places.length >= 4) return true;
   if (
     places.length >= 2 &&
-    /规划|行程安排|整体行程|自驾环线|过夜|住宿|营地|Day\s*\d+|第\s*\d+\s*天|路线如下|行程如下/i.test(blob)
+    /规划|行程安排|整体行程|调整行程|改路线|自驾环线|过夜|住宿|营地|Day\s*\d+|第\s*\d+\s*天|路线如下|行程如下|更新后的行程/i.test(
+      blob
+    )
   ) {
     return true;
   }
@@ -890,8 +868,139 @@ function looksLikePlanCommit(text, toolCalls = []) {
 }
 
 /**
- * After the agent commits an itinerary plan, paint the full corridor + daily stays.
- * Prefers case trip_days (demo spine); falls back to places extracted from the reply.
+ * Build a live itinerary plan from the agent's own outputs (calendar writes + reply text).
+ * Does NOT use hardcoded case trip_days — each plan commit redraws from the latest model output.
+ */
+function buildPlanFromAgentOutputs({ content = "", thinking = "", toolCalls = [], calendar = [] } = {}) {
+  const blob = `${content || ""}\n${thinking || ""}`;
+
+  // 1) Calendar events written this turn (tool args) — strongest signal for adjustments
+  const fromTools = [];
+  for (const tc of toolCalls || []) {
+    if (!/calendar|schedule/i.test(String(tc?.name || ""))) continue;
+    const args = tc.args || {};
+    const ev = tc.result?.event || {};
+    const title = String(args.title || ev.title || "").trim();
+    const note = String(args.note || ev.note || "").trim();
+    const date = String(args.date || ev.date || "").slice(0, 10);
+    const ids = extractPlaceIdsFromText(`${title} ${note}`);
+    if (!ids[0]) continue;
+    fromTools.push({
+      day: fromTools.length + 1,
+      date: date || null,
+      placeId: ids[0],
+      label: title || placeLabel(ids[0]),
+    });
+  }
+  if (fromTools.length >= 2) {
+    return staysToPlan(fromTools, "行程规划 · 日程");
+  }
+
+  // 2) Accumulated agent calendar in ledger (sorted by date)
+  const calAgent = (calendar || [])
+    .filter((c) => c?.source === "agent" || c?.kind === "plan")
+    .slice()
+    .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+  const fromCal = [];
+  for (const c of calAgent) {
+    const ids = extractPlaceIdsFromText(`${c.title || ""} ${c.note || ""} ${c.summary || ""}`);
+    if (!ids[0]) continue;
+    // Skip consecutive same hub
+    if (fromCal.length && fromCal[fromCal.length - 1].placeId === ids[0]) {
+      // keep richer label if empty
+      continue;
+    }
+    fromCal.push({
+      day: fromCal.length + 1,
+      date: c.date || null,
+      placeId: ids[0],
+      label: c.title || c.summary || placeLabel(ids[0]),
+    });
+  }
+  if (fromCal.length >= 2) {
+    return staysToPlan(fromCal, "行程规划 · 日程");
+  }
+
+  // 3) Day-structured lines in the reply (Day 2 蒂卡波 / 第3天·皇后镇)
+  const fromDays = parseDayPlaceStays(blob);
+  if (fromDays.length >= 2) {
+    return staysToPlan(fromDays, "行程规划");
+  }
+
+  // 4) Ordered place mentions in the reply/thinking
+  const ids = extractPlaceIdsFromText(blob).filter((id) => id !== "shanghai_home");
+  if (ids.length >= 2) {
+    const stays = ids.map((id, i) => ({
+      day: i + 1,
+      placeId: id,
+      label: placeLabel(id),
+    }));
+    return staysToPlan(stays, "行程规划");
+  }
+
+  return null;
+}
+
+function staysToPlan(stays, label = "行程规划") {
+  const routePlaceIds = [];
+  for (const s of stays) {
+    if (routePlaceIds[routePlaceIds.length - 1] !== s.placeId) routePlaceIds.push(s.placeId);
+  }
+  return { stays, routePlaceIds, label };
+}
+
+function placeLabel(placeId) {
+  const map = {
+    pl_chc_airport: "基督城",
+    pl_tekapo: "蒂卡波",
+    pl_mt_cook: "库克山",
+    pl_queenstown: "皇后镇",
+    pl_wanaka: "瓦纳卡",
+    pl_milford: "米尔福德",
+    pl_picton: "皮克顿",
+    pl_wellington: "惠灵顿",
+    pl_taupo: "陶波",
+    pl_rotorua: "罗托鲁阿",
+    pl_akl_airport: "奥克兰",
+  };
+  return map[placeId] || String(placeId || "").replace(/^pl_/, "");
+}
+
+/** Parse 「Day 3 皇后镇」「第4天：瓦纳卡」 style lines into ordered stays. */
+function parseDayPlaceStays(text) {
+  const s = String(text || "");
+  if (!s.trim()) return [];
+  const re =
+    /(?:Day\s*(\d+)|第\s*(\d+)\s*天|D\s*(\d+))\s*[:：.、\-\s]*([^\n。；;]{1,48})/gi;
+  const out = [];
+  const seenDay = new Set();
+  let m;
+  while ((m = re.exec(s))) {
+    const day = Number(m[1] || m[2] || m[3]) || out.length + 1;
+    const chunk = String(m[4] || "").trim();
+    const ids = extractPlaceIdsFromText(chunk);
+    if (!ids[0]) continue;
+    if (seenDay.has(day)) continue;
+    seenDay.add(day);
+    out.push({
+      day,
+      placeId: ids[0],
+      label: chunk.replace(/[（(].*$/, "").trim().slice(0, 16) || placeLabel(ids[0]),
+    });
+  }
+  out.sort((a, b) => a.day - b.day);
+  // Dedupe consecutive same place
+  const dedup = [];
+  for (const row of out) {
+    if (dedup.length && dedup[dedup.length - 1].placeId === row.placeId) continue;
+    dedup.push(row);
+  }
+  return dedup;
+}
+
+/**
+ * After the agent commits / adjusts an itinerary, paint corridor + stays from model output.
+ * Always rebuilds from the latest reply / calendar writes (never the hardcoded case spine).
  */
 export async function commitAgentItineraryPlan({
   content = "",
@@ -902,46 +1011,23 @@ export async function commitAgentItineraryPlan({
 } = {}) {
   const blob = `${content || ""}\n${thinking || ""}`;
   const calAgent = (calendar || []).filter((c) => c?.source === "agent" || c?.kind === "plan");
+  const calTools = (toolCalls || []).filter((t) => /calendar|schedule/i.test(String(t?.name || "")));
   const force =
     looksLikePlanCommit(blob, toolCalls) ||
     calAgent.length >= 2 ||
+    calTools.length >= 1 ||
     extractPlaceIdsFromText(blob).length >= 3;
   if (!force) return false;
 
-  let plan = null;
-  if ((tripDays || []).length >= 3) {
-    plan = buildStayPlanFromTripDays(tripDays);
+  let plan = buildPlanFromAgentOutputs({ content, thinking, toolCalls, calendar });
+
+  // Last-resort seed only when the model clearly planned but place extraction failed
+  if (!plan?.stays?.length && (tripDays || []).length >= 3 && looksLikePlanCommit(blob, toolCalls)) {
+    // Prefer still not hardcoding — skip rather than paint the wrong static spine.
+    return false;
   }
-  if (!plan?.stays?.length) {
-    const fromCal = [];
-    for (const c of calAgent) {
-      const ids = extractPlaceIdsFromText(`${c.title || ""} ${c.note || ""} ${c.summary || ""}`);
-      if (!ids[0]) continue;
-      fromCal.push({
-        day: fromCal.length + 1,
-        date: c.date || null,
-        placeId: ids[0],
-        label: c.title || c.summary || ids[0],
-      });
-    }
-    if (fromCal.length >= 2) {
-      const routePlaceIds = [];
-      for (const s of fromCal) {
-        if (routePlaceIds[routePlaceIds.length - 1] !== s.placeId) routePlaceIds.push(s.placeId);
-      }
-      plan = { stays: fromCal, routePlaceIds, label: "行程规划" };
-    }
-  }
-  if (!plan?.stays?.length) {
-    const ids = extractPlaceIdsFromText(blob).filter((id) => id !== "shanghai_home");
-    if (ids.length < 2) return false;
-    plan = {
-      stays: ids.map((id, i) => ({ day: i + 1, placeId: id, label: id })),
-      routePlaceIds: [...new Set(ids)],
-      label: "行程规划",
-    };
-  }
-  if ((plan.stays || []).length < 2) return false;
+
+  if ((plan?.stays || []).length < 2) return false;
   return showAgentPlan(plan, { fit: true });
 }
 
