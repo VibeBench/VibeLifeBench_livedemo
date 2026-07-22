@@ -63,6 +63,60 @@ let planningClearTimer = null;
 let flightLayer = null;
 let flightAnim = null;
 let flightCrossingActive = false;
+/** Bumped on rewind/reset — async overlays must check before painting. */
+let mapSession = 1;
+let mapActionToken = 0;
+
+export function currentMapSession() {
+  return mapSession;
+}
+
+export function isMapSession(session) {
+  return session === mapSession;
+}
+
+/** Hard-stop every in-flight map overlay / timer (call on 清空回溯). */
+export function abortMapPlayback() {
+  mapSession += 1;
+  mapActionToken += 1;
+  drawToken += 1;
+  planningToken += 1;
+  clearTimeout(mapActionTimer);
+  mapActionTimer = null;
+  hideMapActionStage();
+  clearPulseTimers();
+  clearTimeout(planningClearTimer);
+  planningClearTimer = null;
+  planningActive = false;
+  planningFocusLatLngs = null;
+  lastPlanningKey = "";
+  try {
+    planningLayer?.clearLayers();
+  } catch {
+    /* ignore */
+  }
+  setPlanningBadge("");
+  stopTravelerAnim();
+  stopFlightCrossing();
+  try {
+    pulseLayer?.clearLayers();
+  } catch {
+    /* ignore */
+  }
+  try {
+    activityLayer?.clearLayers();
+  } catch {
+    /* ignore */
+  }
+  // Remove floating status-fly cards left mid-animation.
+  for (const el of document.querySelectorAll(".status-fly")) {
+    try {
+      el.remove();
+    } catch {
+      /* ignore */
+    }
+  }
+}
 
 function clearPulseTimers() {
   for (const t of pulseTimers) clearTimeout(t);
@@ -101,6 +155,16 @@ export function pulseMapEvent({
     .slice(0, 24);
 
   const at = resolvePulseLatLng({ placeId, geoKey, roadId, latlng });
+  // Weather: emoji ping only — no place bubble / rail card.
+  if (kindCls === "weather" || /weather/i.test(String(kind || ""))) {
+    pulseTinyPin({
+      icon: icon || "🌦️",
+      durationMs: Math.min(3200, durationMs),
+      latlng: at || undefined,
+    });
+    return true;
+  }
+
   if (at) {
     pulsePlaceBubble({
       icon,
@@ -535,6 +599,7 @@ export async function focusPlanning(opts = {}) {
  * Only draws routes when the text is clearly about routing — not budget / generic place name-drops.
  */
 export async function syncPlanningFromText(text, { label, force = false } = {}) {
+  const session = mapSession;
   const raw = String(text || "");
   if (!force && isNonRouteIntent(raw)) return false;
   if (!force && !isRoutePlanningIntent(raw)) return false;
@@ -547,6 +612,7 @@ export async function syncPlanningFromText(text, { label, force = false } = {}) 
   const routeIds =
     placeIds.length >= 2 ? placeIds.slice(Math.max(0, placeIds.length - 4)) : placeIds;
   const mode = inferPlanningMode(raw);
+  if (!isMapSession(session)) return false;
   return focusPlanning({
     placeIds: routeIds,
     roadIds,
@@ -555,9 +621,13 @@ export async function syncPlanningFromText(text, { label, force = false } = {}) 
       label ||
       (mode === "blocked"
         ? "思考：路段受阻"
-        : mode === "adjust"
-          ? "思考：调整路线"
-          : "思考：推演路线"),
+        : mode === "checking"
+          ? "思考：核查路况"
+          : mode === "clear"
+            ? "思考：路况正常"
+            : mode === "adjust"
+              ? "思考：调整路线"
+              : "思考：推演路线"),
   });
 }
 
@@ -598,6 +668,7 @@ export function focusGeoKey(geoKey, { label } = {}) {
 /** Focus from get_traffic_estimate (or similar) tool result.
  *  Always paint "checking" (purple) first; red only after active+verified blockage. */
 export async function focusTrafficResult(result, args = {}) {
+  const session = mapSession;
   const status = String(result?.status || "").toLowerCase();
   const matched = result?.matched || [];
   const roadIds = matched.map((e) => e.road_id).filter(Boolean);
@@ -629,8 +700,10 @@ export async function focusTrafficResult(result, args = {}) {
     label: "工具：核查路况…",
     force: true,
   });
+  if (!isMapSession(session)) return false;
 
   await new Promise((r) => setTimeout(r, 1300));
+  if (!isMapSession(session)) return false;
 
   if (verifiedBlocked) {
     return focusPlanning({
@@ -655,14 +728,19 @@ let mapActionTimer = null;
 function ensureMapActionStage() {
   let el = document.querySelector("#mapActionStage");
   if (el) return el;
-  const mid = document.querySelector(".map-chrome-mid") || document.querySelector(".map-overlay");
-  if (!mid) return null;
+  // Prefer bottom actions slot (under 时间动态 / legend) so overlays don't cover the map.
+  const host =
+    document.querySelector(".map-chrome-actions") ||
+    document.querySelector(".map-chrome-bottom") ||
+    document.querySelector(".map-chrome-mid") ||
+    document.querySelector(".map-overlay");
+  if (!host) return null;
   el = document.createElement("div");
   el.id = "mapActionStage";
   el.className = "map-action-stage";
   el.hidden = true;
   el.setAttribute("hidden", "");
-  mid.appendChild(el);
+  host.appendChild(el);
   return el;
 }
 
@@ -688,6 +766,9 @@ export function playMapAction({
   durationMs = 8500,
 } = {}) {
   return new Promise((resolve) => {
+    const session = mapSession;
+    const actionId = ++mapActionToken;
+    const alive = () => isMapSession(session) && actionId === mapActionToken;
     const stage = ensureMapActionStage();
     if (!stage) {
       resolve(false);
@@ -718,12 +799,18 @@ export function playMapAction({
           <div class="map-action-notion-head">
             <span class="map-action-notion-ico">📝</span>
             <div>
-              <div class="map-action-notion-app">Notion</div>
+              <div class="map-action-notion-app">Notion 游记</div>
               <div class="map-action-notion-title">${escapeHtml(title || "NZ Road Trip Journal")}</div>
             </div>
-            <span class="map-action-status">写入中</span>
+            <span class="map-action-status" id="mapActionStatus">生成中</span>
           </div>
-          <div class="map-action-notion-body" id="mapActionBody"></div>
+          <div class="map-action-notion-body" id="mapActionBody">
+            <span class="map-action-notion-stream" id="mapActionStream"></span><span class="map-action-notion-caret" id="mapActionCaret">▍</span>
+          </div>
+          <div class="map-action-notion-foot" id="mapActionFoot" hidden>
+            <span class="map-action-notion-check">✓</span>
+            <span>已提交 · 记入游记</span>
+          </div>
         </div>`;
     } else if (kind === "calendar") {
       stage.innerHTML = `
@@ -743,24 +830,44 @@ export function playMapAction({
       return;
     }
 
+    if (!alive()) {
+      resolve(false);
+      return;
+    }
+
     stage.hidden = false;
     stage.removeAttribute("hidden");
-    requestAnimationFrame(() => stage.classList.add("show"));
+    requestAnimationFrame(() => {
+      if (alive()) stage.classList.add("show");
+    });
 
     let finished = false;
     const finish = (ok = true) => {
       if (finished) return;
       finished = true;
+      if (!alive()) {
+        resolve(false);
+        return;
+      }
       stage.classList.add("is-done");
-      const st = stage.querySelector(".map-action-status");
-      if (st) st.textContent = kind === "search" ? "完成" : "已写入";
-      const caret = stage.querySelector(".map-action-caret");
+      const st = stage.querySelector(".map-action-status") || stage.querySelector("#mapActionStatus");
+      if (st) {
+        st.textContent =
+          kind === "search" ? "完成" : kind === "notion" ? "已提交" : "已写入";
+      }
+      const caret = stage.querySelector(".map-action-caret, #mapActionCaret");
       if (caret) caret.hidden = true;
-      // Search: hold full results ~2s then dismiss. Other kinds: short done beat.
-      const holdMs = kind === "search" ? 2000 : 1100;
+      const foot = stage.querySelector("#mapActionFoot");
+      if (foot) {
+        foot.hidden = false;
+        foot.removeAttribute("hidden");
+        foot.classList.add("show");
+      }
+      // Search: hold full results ~2s. Notion/calendar: slightly longer hold (readable).
+      const holdMs = kind === "search" ? 2000 : kind === "notion" ? 2400 : 1500;
       mapActionTimer = setTimeout(() => {
-        hideMapActionStage();
-        resolve(ok);
+        if (alive()) hideMapActionStage();
+        resolve(Boolean(ok) && alive());
       }, holdMs);
     };
 
@@ -774,6 +881,11 @@ export function playMapAction({
       const rowGapMs = 420;
       const firstRowDelayMs = 280;
       const typeTimer = setInterval(() => {
+        if (!alive()) {
+          clearInterval(typeTimer);
+          finish(false);
+          return;
+        }
         i += 1;
         if (qEl) qEl.textContent = q.slice(0, i);
         if (i >= q.length) {
@@ -791,7 +903,7 @@ export function playMapAction({
           }
           let r = 0;
           const addRow = () => {
-            if (!resEl || finished) return;
+            if (!alive() || !resEl || finished) return finish(false);
             const item = rows[r];
             const row = document.createElement("div");
             row.className = "map-action-search-row";
@@ -812,26 +924,62 @@ export function playMapAction({
       return;
     }
 
-    // notion / calendar — type body lines
+    if (kind === "notion") {
+      // Stream journal content onto the map, then mark as submitted/recorded.
+      const streamEl = stage.querySelector("#mapActionStream");
+      const statusEl = stage.querySelector("#mapActionStatus");
+      const raw = text
+        .replace(/\r/g, "")
+        .split(/\n+/)
+        .map((s) => s.replace(/^#+\s*/, "").trim())
+        .filter(Boolean)
+        .slice(0, 6)
+        .join("\n");
+      const streamText = (raw || "正在整理行程要点…").slice(0, 320);
+      let i = 0;
+      const chunk = () => {
+        if (!alive() || finished || !streamEl) return finish(false);
+        // Slightly slower stream than search (search pace is already OK).
+        const step = 2 + Math.floor(Math.random() * 2);
+        i = Math.min(streamText.length, i + step);
+        streamEl.textContent = streamText.slice(0, i);
+        const bodyWrap = stage.querySelector("#mapActionBody");
+        if (bodyWrap) bodyWrap.scrollTop = bodyWrap.scrollHeight;
+        if (i > streamText.length * 0.55 && statusEl && statusEl.textContent === "生成中") {
+          statusEl.textContent = "写入中";
+        }
+        if (i >= streamText.length) {
+          if (statusEl) statusEl.textContent = "提交中";
+          setTimeout(() => finish(), 480);
+          return;
+        }
+        setTimeout(chunk, 42);
+      };
+      setTimeout(chunk, 300);
+      mapActionTimer = setTimeout(() => finish(), Math.max(durationMs, 9000));
+      return;
+    }
+
+    // calendar — type body lines (slightly slower)
     const bodyEl = stage.querySelector("#mapActionBody");
     const lines = text
       ? text.split(/\n+/).map((s) => s.trim()).filter(Boolean).slice(0, 5)
       : rows.map((x) => (typeof x === "string" ? x : x.title || x.text || "")).filter(Boolean);
-    if (!lines.length) lines.push(kind === "calendar" ? "已加入今日行程" : "已更新游记内容");
+    if (!lines.length) lines.push("已加入今日行程");
     let li = 0;
     const paintLine = () => {
       if (!bodyEl) return finish();
       if (li >= lines.length) return finish();
       const p = document.createElement("div");
-      p.className = kind === "calendar" ? "map-action-cal-line" : "map-action-notion-line";
+      p.className = "map-action-cal-line";
       p.textContent = lines[li];
       bodyEl.appendChild(p);
       li += 1;
-      if (li < lines.length) setTimeout(paintLine, 420);
+      if (li < lines.length) setTimeout(paintLine, 580);
       else finish();
     };
-    setTimeout(paintLine, 280);
-    mapActionTimer = setTimeout(() => finish(), Math.max(durationMs, 4200));
+    setTimeout(paintLine, 360);
+    mapActionTimer = setTimeout(() => finish(), Math.max(durationMs, 5600));
   });
 }
 
@@ -917,9 +1065,11 @@ function updateLegend(panel, ctx) {
 }
 
 export function destroyMap() {
+  abortMapPlayback();
   clearTimeout(tileWatch);
   clearTimeout(mapResizeTimer);
-  clearPulseTimers();
+  clearTimeout(fitPassTimer);
+  fitPassTimer = null;
   if (mapResizeObs) {
     try {
       mapResizeObs.disconnect();
@@ -928,10 +1078,6 @@ export function destroyMap() {
     }
     mapResizeObs = null;
   }
-  drawToken += 1;
-  stopTravelerAnim();
-  clearTimeout(fitPassTimer);
-  fitPassTimer = null;
   if (leafletMap) {
     try {
       leafletMap.remove();
@@ -945,15 +1091,8 @@ export function destroyMap() {
   activityLayer = null;
   pulseLayer = null;
   planningLayer = null;
-  stopFlightCrossing();
   flightLayer = null;
-  planningActive = false;
-  planningFocusLatLngs = null;
-  lastPlanningKey = "";
-  planningToken += 1;
-  clearTimeout(planningClearTimer);
-  planningClearTimer = null;
-  setPlanningBadge("");
+  lastCtx = null;
 }
 
 function bindMapResize(host) {
@@ -1194,18 +1333,22 @@ function paintLeafletBase(ctx) {
     const road = ctx.roadById[ev.road_id];
     const latlngs = parseRoadGeom(road?.geom || road?.geom_json);
     if (latlngs.length < 2) continue;
-    // Anchor near mid-road but nudge label aside so it doesn't sit on place/activity pills.
-    const mid = latlngs[Math.floor(latlngs.length / 2)];
     const shortName = shortRoadName(road?.name || ev.road_id || "路段");
-    window.L.marker(mid, {
+    const here = placeLatLng(ctx);
+    // Pick a point along the closed road farthest from the live "现在" marker,
+    // so the pink pill never sits on top of the camping/drive orb + caption.
+    const anchor = pickClosureLabelAnchor(latlngs, here);
+    const side = closureLabelSide(anchor, here);
+    window.L.marker(anchor, {
       icon: window.L.divIcon({
-        className: "map-emoji-icon closure-tag",
+        className: `map-emoji-icon closure-tag closure-tag-${side}`,
         html: `<span class="closure-pill">封闭 · ${escapeHtml(shortName)}</span>`,
-        iconSize: [0, 0],
-        iconAnchor: [-12, 8],
+        iconSize: [128, 28],
+        // Float above the road; shift left/right away from "here".
+        iconAnchor: side === "left" ? [118, 34] : [10, 34],
       }),
-      // Keep closure tags above the live "现在" marker so status caption never covers them.
-      zIndexOffset: 1600,
+      // Under the live "现在" marker so the orb/caption stay readable.
+      zIndexOffset: 700,
       interactive: true,
     })
       .addTo(leafletLayer)
@@ -1638,6 +1781,7 @@ export function playFlightCrossing({
   durationMs = 6800,
 } = {}) {
   return new Promise((resolve) => {
+    const session = mapSession;
     if (!leafletMap || !window.L) {
       resolve(false);
       return;
@@ -1650,6 +1794,10 @@ export function playFlightCrossing({
     }
 
     stopFlightCrossing();
+    if (!isMapSession(session) || !leafletMap) {
+      resolve(false);
+      return;
+    }
     if (!flightLayer) flightLayer = window.L.layerGroup().addTo(leafletMap);
     flightLayer.clearLayers();
     flightCrossingActive = true;
@@ -1701,10 +1849,11 @@ export function playFlightCrossing({
       .addTo(flightLayer)
       .bindTooltip(outbound ? "基督城 CHC" : "上海浦东 PVG", { direction: "top" });
 
+    const initialBrg = bearingDeg(a, b);
     const plane = window.L.marker(a, {
       icon: window.L.divIcon({
         className: "map-flight-plane-wrap",
-        html: `<span class="map-flight-plane" style="--brg:90deg">✈️</span>`,
+        html: `<span class="map-flight-plane" style="--brg:${initialBrg.toFixed(1)}deg">✈️</span>`,
         iconSize: [44, 44],
         iconAnchor: [22, 22],
       }),
@@ -1722,14 +1871,18 @@ export function playFlightCrossing({
     const dur = Math.max(4200, Number(durationMs) || 6800);
 
     function frame(now) {
+      if (!isMapSession(session) || !flightCrossingActive) {
+        flightAnim = null;
+        resolve(false);
+        return;
+      }
       const u = Math.min(1, (now - t0) / dur);
       const pos = pointAlong(arc, lengths, total, u);
-      // Look-ahead for bearing
-      const look = pointAlong(arc, lengths, total, Math.min(1, u + 0.02));
-      const brg = bearingDeg(pos, look);
+      // Nose always toward destination (stable near the end of the arc).
+      const brg = bearingDeg(pos, b);
       plane.setLatLng(pos);
       const el = plane.getElement()?.querySelector(".map-flight-plane");
-      if (el) el.style.setProperty("--brg", `${brg}deg`);
+      if (el) el.style.setProperty("--brg", `${brg.toFixed(1)}deg`);
 
       const idx = Math.max(1, Math.floor(u * (arc.length - 1)));
       flown.setLatLngs(arc.slice(0, idx + 1));
@@ -1737,8 +1890,16 @@ export function playFlightCrossing({
       if (u >= 1) {
         flightAnim = null;
         flightCrossingActive = false;
+        if (!isMapSession(session)) {
+          resolve(false);
+          return;
+        }
         setPlanningBadge(outbound ? "已落地 · 基督城" : "已落地 · 上海", "consider");
         setTimeout(() => {
+          if (!isMapSession(session)) {
+            resolve(false);
+            return;
+          }
           setPlanningBadge("");
           try {
             flightLayer?.clearLayers();
@@ -2213,19 +2374,19 @@ function hereMarkerIcon(emoji, label = "") {
     className: "map-here-wrap",
     html: `
       <div class="map-here-marker" title="${tip}">
+        <span class="map-here-tag">现在</span>
         <div class="map-here-orb">
           <span class="map-here-pulse" aria-hidden="true"></span>
           <span class="map-here-pulse map-here-pulse-late" aria-hidden="true"></span>
           <span class="map-here-core">
             <span class="map-here-emoji">${emoji || "📍"}</span>
           </span>
-          <span class="map-here-tag">现在</span>
         </div>
         ${short ? `<div class="map-here-caption">${short}</div>` : ""}
       </div>`,
-    // Narrow footprint: orb centered, caption tucked directly underneath.
-    iconSize: [88, 92],
-    iconAnchor: [44, 36],
+    // Tall footprint: tag above + orb + caption below; anchor at orb center.
+    iconSize: [96, 110],
+    iconAnchor: [48, 52],
   });
 }
 
@@ -2336,6 +2497,33 @@ function escapeHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/** Prefer a road sample farthest from the live "here" pin to avoid label stacking. */
+function pickClosureLabelAnchor(latlngs, here) {
+  if (!latlngs?.length) return null;
+  if (!here) return latlngs[Math.floor(latlngs.length / 2)];
+  const samples = [0.28, 0.42, 0.55, 0.68, 0.82].map((t) => {
+    const i = Math.min(latlngs.length - 1, Math.max(0, Math.floor(t * (latlngs.length - 1))));
+    return latlngs[i];
+  });
+  let best = samples[0];
+  let bestD = -1;
+  for (const p of samples) {
+    const d = haversineKm(p, here);
+    if (d > bestD) {
+      bestD = d;
+      best = p;
+    }
+  }
+  return best;
+}
+
+/** Put the closure pill on the side opposite the "here" marker. */
+function closureLabelSide(anchor, here) {
+  if (!anchor || !here) return "right";
+  // here east of anchor → label left; otherwise right
+  return here[1] >= anchor[1] ? "left" : "right";
 }
 
 function shortRoadName(name) {

@@ -215,19 +215,43 @@ export class TravelAgent {
     this.onStream = onStream || (() => {});
     this.onTool = onTool || (() => {});
     this.maxToolRounds = 6;
+    this._aborted = false;
+    this._abortController = null;
   }
 
   resetConversation(workspace, meta) {
+    this.abort();
     this.messages = [{ role: "system", content: buildSystemPrompt(workspace, meta) }];
+  }
+
+  /** Cancel in-flight LLM stream / tool loop (清空回溯). */
+  abort() {
+    this._aborted = true;
+    try {
+      this._abortController?.abort();
+    } catch {
+      /* ignore */
+    }
+    this._abortController = null;
+  }
+
+  _throwIfAborted() {
+    if (this._aborted) {
+      const err = new Error("aborted");
+      err.name = "AbortError";
+      throw err;
+    }
   }
 
   async handleEnvEvent(agentText) {
     if (!agentText) return { content: "", thinking: "", toolCalls: [], usage: null };
+    this._aborted = false;
     this.messages.push({ role: "user", content: agentText });
     return this._runLoop();
   }
 
   async handleUserChat(text) {
+    this._aborted = false;
     const state = this.engine.currentState;
     const prefix = state
       ? `[Live user message | location=${state.location || ""} | status=${state.demo_action || ""}]\n`
@@ -241,11 +265,14 @@ export class TravelAgent {
     let usage = null;
     let thinkingAcc = "";
     let contentAcc = "";
+    this._abortController = new AbortController();
 
     for (let round = 0; round < this.maxToolRounds; round++) {
+      this._throwIfAborted();
       const priorThinking = thinkingAcc;
       const result = await this._chatCompletionStream({
         onDelta: ({ thinking, content, phase, toolHint }) => {
+          if (this._aborted) return;
           const displayThinking =
             thinking && priorThinking ? `${priorThinking}\n\n${thinking}` : thinking || priorThinking;
           if (displayThinking) thinkingAcc = displayThinking;
@@ -258,6 +285,7 @@ export class TravelAgent {
           });
         },
       });
+      this._throwIfAborted();
 
       usage = result.usage || usage;
       if (result.thinking) {
@@ -277,6 +305,7 @@ export class TravelAgent {
 
       if (result.tool_calls?.length) {
         for (const tc of result.tool_calls) {
+          this._throwIfAborted();
           const name = tc.function?.name;
           let args = {};
           try {
@@ -292,7 +321,9 @@ export class TravelAgent {
           });
           const toolResult = this.executeTool(name, args);
           allToolCalls.push({ name, args, result: toolResult });
-          this.onTool({ name, args, result: toolResult });
+          // Await tool cinematic so overlays play one-by-one (search → notion → …).
+          await Promise.resolve(this.onTool({ name, args, result: toolResult }));
+          this._throwIfAborted();
           this.messages.push({
             role: "tool",
             tool_call_id: tc.id,
@@ -382,6 +413,7 @@ export class TravelAgent {
       method: "POST",
       headers: this._requestHeaders(),
       body: JSON.stringify(this._requestBody()),
+      signal: this._abortController?.signal,
     });
     if (!res.ok) {
       const errText = await res.text();
@@ -399,6 +431,7 @@ export class TravelAgent {
     let phase = "thinking";
 
     while (true) {
+      this._throwIfAborted();
       const { done, value } = await reader.read();
       if (done) break;
       buf += decoder.decode(value, { stream: true });

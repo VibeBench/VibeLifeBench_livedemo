@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-31";
-import { DemoEngine } from "./engine.js?v=20260722-31";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-39";
+import { DemoEngine } from "./engine.js?v=20260722-39";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,10 +7,10 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-31";
+} from "./agent.js?v=20260722-39";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-31";
-import { isOceanFlightCrossing } from "./map.js?v=20260722-31";
+import { UI } from "./ui.js?v=20260722-39";
+import { isOceanFlightCrossing } from "./map.js?v=20260722-39";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -80,6 +80,8 @@ let trajectory = null;
 let autoplay = false;
 let busy = false;
 let autoplayTimer = null;
+/** Bumped on 清空回溯 — in-flight step/agent work must stop applying UI. */
+let playbackEpoch = 1;
 /** Last geo_key after a step — used to detect China↔NZ flight jumps. */
 let lastSceneGeo = null;
 /** Play ocean-flight cutscene at most once per from→to pair per run. */
@@ -237,9 +239,16 @@ function clearAndRewind({ confirm: needConfirm = true } = {}) {
     const ok = window.confirm("清空对话、Agent 记忆与 trajectory，并回溯到行程起点？");
     if (!ok) return;
   }
+  // Invalidate every in-flight step / stream / map cinematic first.
+  playbackEpoch += 1;
   stopAutoplay();
   busy = false;
   setBusyUI(false);
+  try {
+    agent?.abort?.();
+  } catch {
+    /* ignore */
+  }
   ui._streamBubble = null;
   lastSceneGeo = null;
   flightPlayed = new Set();
@@ -297,10 +306,12 @@ function ensureAgent() {
     meta: caseData.meta,
     thinking: settings.thinking !== false,
     onStream: (payload) => {
+      if (agent?._aborted) return;
       if (ui._streamBubble) ui.updateAgentTurn(ui._streamBubble, payload);
       if (payload?.thinking) ui.syncMapPlanningFromThinking(payload.thinking);
     },
-    onTool: ({ name, args, result }) => {
+    onTool: async ({ name, args, result }) => {
+      if (agent?._aborted) return;
       console.debug("tool", name, args, result);
       if (ui._streamBubble) {
         ui.appendToolCall(ui._streamBubble, {
@@ -310,7 +321,8 @@ function ensureAgent() {
           status: "done",
         });
       }
-      ui.focusMapFromTool(name, args || {}, result);
+      // Wait for this tool's map cinematic before the next tool runs.
+      await Promise.resolve(ui.focusMapFromTool(name, args || {}, result));
       // Write / booking tools also leave a durable state card in chat history
       if (/book|cancel|create|send|post|update|write|insert|reserve|confirm|refund/i.test(name || "")) {
         const tab = /notion|page|block/i.test(name) ? "notes" : "trip";
@@ -319,8 +331,8 @@ function ensureAgent() {
           title = `预订酒店${args.hotel_name || args.hotel_id || args.name ? ` · ${args.hotel_name || args.hotel_id || args.name}` : ""}`;
         } else if (/flight|air/i.test(name)) {
           title = `预订机票${args.flight_no ? ` · ${args.flight_no}` : ""}`;
-        } else if (/notion|page/i.test(name)) {
-          title = "写入游记 / Notion";
+        } else if (/notion|page|journal/i.test(name)) {
+          title = args.title ? `写入游记 · ${args.title}` : "写入游记";
         } else if (/cancel/i.test(name) && /hotel/i.test(name)) {
           title = "取消酒店预订";
         } else if (/cancel/i.test(name) && /flight/i.test(name)) {
@@ -328,21 +340,24 @@ function ensureAgent() {
         } else {
           title = `已执行 · ${String(name).replace(/[_-]+/g, " ")}`;
         }
-        const detail =
-          result?.summary ||
-          result?.note ||
-          Object.entries(args || {})
-            .filter(([, v]) => v != null && String(v).trim() !== "")
-            .map(([k, v]) => `${k}=${v}`)
-            .slice(0, 4)
-            .join(" · ");
+        // Notion writes: title only — dumping content=… makes chat unreadable
+        const isNotion = /notion|page|journal/i.test(name || "");
+        const detail = isNotion
+          ? ""
+          : result?.summary ||
+            result?.note ||
+            Object.entries(args || {})
+              .filter(([, v]) => v != null && String(v).trim() !== "")
+              .map(([k, v]) => `${k}=${v}`)
+              .slice(0, 4)
+              .join(" · ");
         ui.notifyStateChange({
           icon: tab === "notes" ? "📝" : /flight|air/i.test(name) ? "✈️" : /hotel|stay/i.test(name) ? "🏨" : "🔧",
           text: title,
           title,
           body: detail,
           tab,
-          kind: "tool-write",
+          kind: isNotion ? "notion" : "tool-write",
           key: `tool-write:${name}:${JSON.stringify(args || {}).slice(0, 80)}`,
         });
       }
@@ -409,12 +424,14 @@ async function stepOnce() {
     return;
   }
 
+  const epoch = playbackEpoch;
   busy = true;
   setBusyUI(true);
   try {
     const prevGeo = currentSceneGeo();
     const result = engine.step();
     if (!result) return;
+    if (epoch !== playbackEpoch) return;
     const { event, agentText, feedToAgent, mutationResult } = result;
     trajectory.pushEnvEvent(event, { mutationResult, feedToAgent });
 
@@ -457,8 +474,10 @@ async function stepOnce() {
       });
     }
 
+    if (epoch !== playbackEpoch) return;
     refreshDashboard();
     await maybePlayFlightCrossing(prevGeo, nextGeo, { event, time: t });
+    if (epoch !== playbackEpoch) return;
     lastSceneGeo = nextGeo || prevGeo || lastSceneGeo;
 
     if (feedToAgent && agentText) {
@@ -473,6 +492,7 @@ async function stepOnce() {
         ui._streamBubble = ui.beginAgentTurn({ time: t });
         try {
           const turn = await a.handleEnvEvent(agentText);
+          if (epoch !== playbackEpoch) return;
           ui.finishAgentTurn(ui._streamBubble, {
             thinking: turn.thinking,
             content: turn.content || "（空回复）",
@@ -487,20 +507,25 @@ async function stepOnce() {
             usage: turn.usage,
           });
         } catch (err) {
+          if (err?.name === "AbortError" || epoch !== playbackEpoch) return;
           console.error(err);
           ui.finishAgentTurn(ui._streamBubble, { error: err.message });
           stopAutoplay();
         } finally {
-          ui._streamBubble = null;
+          if (epoch === playbackEpoch) ui._streamBubble = null;
         }
       }
     }
 
-    // Auto-scroll day ribbon to current
+    if (epoch !== playbackEpoch) return;
+    // Wait until all tool / status cinematics finish before ending this stage.
     refreshDashboard();
+    await ui.waitCinematicsIdle();
   } finally {
-    busy = false;
-    setBusyUI(false);
+    if (epoch === playbackEpoch) {
+      busy = false;
+      setBusyUI(false);
+    }
   }
 }
 
@@ -513,6 +538,7 @@ async function sendUserChat(text) {
     openConsole(true);
     return;
   }
+  const epoch = playbackEpoch;
   busy = true;
   setBusyUI(true);
   const simTime = engine?.simNow?.() || null;
@@ -522,6 +548,7 @@ async function sendUserChat(text) {
   ui._streamBubble = ui.beginAgentTurn({ time: simTime });
   try {
     const turn = await a.handleUserChat(text);
+    if (epoch !== playbackEpoch) return;
     ui.finishAgentTurn(ui._streamBubble, {
       thinking: turn.thinking,
       content: turn.content || "（空回复）",
@@ -536,11 +563,16 @@ async function sendUserChat(text) {
       usage: turn.usage,
     });
   } catch (err) {
+    if (err?.name === "AbortError" || epoch !== playbackEpoch) return;
     ui.finishAgentTurn(ui._streamBubble, { error: err.message });
   } finally {
-    ui._streamBubble = null;
-    busy = false;
-    setBusyUI(false);
+    if (epoch === playbackEpoch) {
+      ui._streamBubble = null;
+      refreshDashboard();
+      await ui.waitCinematicsIdle();
+      busy = false;
+      setBusyUI(false);
+    }
   }
 }
 

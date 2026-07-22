@@ -4,6 +4,7 @@
 import {
   renderLeafletMap,
   destroyMap,
+  abortMapPlayback,
   pulseMapEvent,
   syncPlanningFromText,
   clearPlanning,
@@ -15,7 +16,7 @@ import {
   playFlightCrossing,
   isOceanFlightCrossing,
   playMapAction,
-} from "./map.js?v=20260722-31";
+} from "./map.js?v=20260722-39";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -132,6 +133,111 @@ export class UI {
     this._onTabChange = fn;
   }
 
+  /**
+   * Global cinematic queue: map tool overlays + status landings play one-by-one.
+   * Call waitCinematicsIdle() before advancing to the next demo stage.
+   */
+  enqueueCinematic(fn, { fingerprint = null } = {}) {
+    if (typeof fn !== "function") return Promise.resolve(false);
+    if (fingerprint && this._wasCinematicPlayed(fingerprint)) {
+      return Promise.resolve(false);
+    }
+    if (fingerprint) this._markCinematicPlayed(fingerprint);
+    if (!this._cineQueue) this._cineQueue = [];
+    return new Promise((resolve, reject) => {
+      this._cineQueue.push({ fn, resolve, reject });
+      this._drainCinematics();
+    });
+  }
+
+  _markCinematicPlayed(fp) {
+    if (!this._cinePlayed) this._cinePlayed = new Map();
+    this._cinePlayed.set(fp, Date.now());
+  }
+
+  _wasCinematicPlayed(fp, withinMs = 12000) {
+    const t = this._cinePlayed?.get(fp);
+    return Boolean(t && Date.now() - t < withinMs);
+  }
+
+  async _drainCinematics() {
+    if (this._cineBusy) return;
+    this._cineBusy = true;
+    try {
+      while (this._cineQueue?.length) {
+        const { fn, resolve, reject } = this._cineQueue.shift();
+        try {
+          resolve(await fn());
+        } catch (err) {
+          reject(err);
+        }
+      }
+    } finally {
+      this._cineBusy = false;
+      if (this._cineQueue?.length) {
+        this._drainCinematics();
+        return;
+      }
+      const waiters = this._cineIdleWaiters || [];
+      this._cineIdleWaiters = [];
+      for (const w of waiters) w();
+    }
+  }
+
+  /** Resolves when the cinematic queue is empty (all tool/status anims done). */
+  waitCinematicsIdle() {
+    if (!this._cineBusy && !(this._cineQueue?.length)) return Promise.resolve();
+    return new Promise((resolve) => {
+      if (!this._cineIdleWaiters) this._cineIdleWaiters = [];
+      this._cineIdleWaiters.push(resolve);
+    });
+  }
+
+  /** Hard-stop queued/in-flight map cinematics (清空回溯). */
+  abortCinematics() {
+    clearTimeout(this._planThinkTimer);
+    this._planThinkTimer = null;
+    this._lastPlanThinkLen = 0;
+    const queue = this._cineQueue || [];
+    this._cineQueue = [];
+    this._cineBusy = false;
+    this._cinePlayed = new Map();
+    for (const item of queue) {
+      try {
+        item.resolve?.(false);
+      } catch {
+        /* ignore */
+      }
+    }
+    const waiters = this._cineIdleWaiters || [];
+    this._cineIdleWaiters = [];
+    for (const w of waiters) {
+      try {
+        w();
+      } catch {
+        /* ignore */
+      }
+    }
+    for (const el of document.querySelectorAll(".status-fly")) {
+      try {
+        el.remove();
+      } catch {
+        /* ignore */
+      }
+    }
+    abortMapPlayback();
+    clearPlanning({ immediate: true });
+  }
+
+  /** Enqueue a map action (search / notion / calendar) on the global queue. */
+  playQueuedMapAction(opts = {}) {
+    const kind = opts.kind || "search";
+    const fp =
+      opts.fingerprint ||
+      `${kind}:${String(opts.title || opts.query || "").slice(0, 80)}`;
+    return this.enqueueCinematic(() => playMapAction(opts), { fingerprint: fp });
+  }
+
   _bindPhoneNav() {
     const nav = this.els.phoneNav;
     if (!nav || nav.dataset.bound) return;
@@ -225,7 +331,8 @@ export class UI {
       this.appendStateCard({
         icon: a.icon,
         title: a.title || a.text,
-        body: a.body,
+        // Notion: title-only cards; full content is in the Notes tab
+        body: a.kind === "notion" ? "" : a.body,
         tab,
         time: a.time || null,
         kind: a.kind || "ledger",
@@ -236,21 +343,23 @@ export class UI {
         icon: a.icon,
         who: a.app || "账本",
         body: a.title || a.text,
-        detail: a.body && a.body !== a.title ? truncate(a.body, 100) : "",
+        detail: a.kind === "notion" ? "" : a.body && a.body !== a.title ? truncate(a.body, 100) : "",
         time: a.time || null,
       });
-      // Map cinematic for major writes
+      // Map cinematic for major writes (queued; deduped vs focusMapFromTool)
       if (a.kind === "notion") {
-        playMapAction({
+        this.playQueuedMapAction({
           kind: "notion",
           title: a.title || "游记更新",
-          body: a.body || a.text || "",
+          body: a.mapBody || "", // stream on map; chat card stays title-only
+          fingerprint: `notion:${String(a.title || "游记更新").slice(0, 80)}`,
         }).catch(() => {});
       } else if (a.kind === "calendar") {
-        playMapAction({
+        this.playQueuedMapAction({
           kind: "calendar",
           title: a.title || "日程",
           body: a.body || a.text || "",
+          fingerprint: `calendar:${String(a.title || "日程").slice(0, 80)}`,
         }).catch(() => {});
       }
     }
@@ -337,7 +446,7 @@ export class UI {
   }
 
   /**
-   * In-phone notification. Stays until user taps × or the card (no auto-dismiss).
+   * In-phone notification. Auto-fades after 5s (tap × / card still dismisses early).
    * Tapping the card opens 邮件 and focuses the archived item.
    */
   showPhoneBanner(change) {
@@ -347,6 +456,8 @@ export class UI {
     this._phoneToastShowing = true;
     clearTimeout(this._phoneToastTimer);
     this._phoneToastTimer = null;
+    clearTimeout(this._phoneToastFadeTimer);
+    this._phoneToastFadeTimer = null;
 
     const icon = change.icon || "🔔";
     const text = change.text || "有新通知";
@@ -356,6 +467,7 @@ export class UI {
 
     el.hidden = false;
     el.removeAttribute("hidden");
+    el.classList.remove("is-leaving");
     el.className = "phone-toast show";
     el.innerHTML = `
       <div class="phone-toast-top">
@@ -378,6 +490,12 @@ export class UI {
       if (ev.target.closest(".phone-toast-close")) return;
       dismiss(true);
     };
+
+    // Default: auto fade-out after 5s
+    this._phoneToastTimer = setTimeout(() => {
+      this._phoneToastTimer = null;
+      this.hidePhoneBanner({ advanceQueue: true });
+    }, 5000);
   }
 
   /** Explicit notify from tool writes / mutations / env events. */
@@ -455,6 +573,31 @@ export class UI {
     if (!toast) return;
     const body = String(event.body || "").trim();
     const title = firstLine(body) || toast.text;
+
+    // Weather: map emoji only — no chat/phone big cards.
+    if (event.kind === "weather") {
+      const geoKey = event.user_state?.geo_key || null;
+      const blob = `${event.user_state?.weather || ""} ${title} ${body}`;
+      this.pulseMapFeedback({
+        id: `env:${event.id}`,
+        icon: weatherEmojiFromText(blob),
+        title: "",
+        detail: "",
+        kind: "weather",
+        placeId: extractPlaceIdsFromText(blob)[0] || null,
+        geoKey,
+      });
+      this.archiveToInbox({
+        ...toast,
+        key: `event:${event.id}`,
+        title,
+        body: body || toast.text,
+        time: event.time || null,
+        from: toast.from || toast.app,
+      });
+      return;
+    }
+
     this.notifyStateChange({
       ...toast,
       tab: "mail",
@@ -582,22 +725,40 @@ export class UI {
 
   hidePhoneBanner({ advanceQueue = false } = {}) {
     const el = this.els.phoneToast || $("#phoneToast");
-    if (el) {
-      el.classList.remove("show");
-      el.hidden = true;
-      el.setAttribute("hidden", "");
-      el.replaceChildren();
-      el.onclick = null;
-    }
     clearTimeout(this._phoneToastTimer);
     this._phoneToastTimer = null;
-    this._phoneToastShowing = false;
-    if (advanceQueue && this._phoneToastQueue?.length) {
-      this._phoneToastTimer = setTimeout(() => {
-        this._phoneToastTimer = null;
-        this._drainPhoneBannerQueue();
-      }, 200);
+    clearTimeout(this._phoneToastFadeTimer);
+    this._phoneToastFadeTimer = null;
+
+    const finishHide = () => {
+      if (el) {
+        el.classList.remove("show", "is-leaving");
+        el.hidden = true;
+        el.setAttribute("hidden", "");
+        el.replaceChildren();
+        el.onclick = null;
+      }
+      this._phoneToastShowing = false;
+      if (advanceQueue && this._phoneToastQueue?.length) {
+        this._phoneToastTimer = setTimeout(() => {
+          this._phoneToastTimer = null;
+          this._drainPhoneBannerQueue();
+        }, 220);
+      }
+    };
+
+    if (!el || el.hidden || !el.classList.contains("show")) {
+      finishHide();
+      return;
     }
+
+    // Fade out, then fully remove from layout
+    el.classList.remove("show");
+    el.classList.add("is-leaving");
+    this._phoneToastFadeTimer = setTimeout(() => {
+      this._phoneToastFadeTimer = null;
+      finishHide();
+    }, 320);
   }
 
   resetLedgerAlerts() {
@@ -722,8 +883,9 @@ export class UI {
       : "选定机票后更新";
 
     const cards = [
-      { icon: "📍", label: "当前位置", value: state?.location || "—", sub: state?.geo_key || "" },
+      { key: "location", icon: "📍", label: "当前位置", value: state?.location || "—", sub: state?.geo_key || "" },
       {
+        key: "activity",
         icon: "🧭",
         label: "当前活动",
         value: !state
@@ -735,14 +897,16 @@ export class UI {
             : state.demo_action,
         sub: state?.trip_node || (state ? "" : "开启自动播放开始"),
       },
-      { icon: "☀️", label: "天气", value: shortWeather(state?.weather), sub: weatherSub(state) },
+      { key: "weather", icon: "☀️", label: "天气", value: shortWeather(state?.weather), sub: weatherSub(state) },
       {
+        key: "budget",
         icon: "💰",
         label: "预算状态",
         value: budgetValue,
         sub: budgetSub,
       },
       {
+        key: "flight",
         icon: "✈️",
         label: "下一航班",
         value: flightStatus,
@@ -750,15 +914,174 @@ export class UI {
       },
     ];
 
+    const prev = this._statusSnap || {};
+    const nextSnap = { budget: budgetValue, flight: flightStatus };
+    const budgetChanged =
+      prev.budget != null && prev.budget !== nextSnap.budget && nextSnap.budget !== "待确定";
+    const flightChanged =
+      prev.flight != null && prev.flight !== nextSnap.flight && nextSnap.flight !== "待预订";
+
     this.els.statusGrid.innerHTML = cards
       .map(
         (c) => `
-      <div class="status-chip" title="${escapeHtml(c.label)}${c.sub ? " · " + escapeHtml(c.sub) : ""}">
+      <div class="status-chip" data-status="${c.key}" title="${escapeHtml(c.label)}${
+          c.sub ? " · " + escapeHtml(c.sub) : ""
+        }">
         <span class="status-chip-ico">${c.icon}</span>
         <span class="status-chip-val">${escapeHtml(c.value)}</span>
       </div>`
       )
       .join("");
+
+    // Fly-in from map → land on status chip (skip first paint)
+    if (budgetChanged) {
+      this.enqueueStatusLanding({
+        kind: "budget",
+        icon: "💰",
+        title: "费用更新",
+        fromText: prev.budget,
+        toText: nextSnap.budget,
+        detail: budgetSub || "状态栏已同步",
+      });
+    }
+    if (flightChanged) {
+      this.enqueueStatusLanding({
+        kind: "flight",
+        icon: "✈️",
+        title: "航班状态更新",
+        fromText: prev.flight,
+        toText: nextSnap.flight,
+        detail: flightSub || "状态栏已同步",
+      });
+    }
+    this._statusSnap = nextSnap;
+  }
+
+  /** Queue status-bar landing on the global cinematic queue (after tool overlays). */
+  enqueueStatusLanding(item) {
+    if (!item) return;
+    const fp = `status:${item.kind}:${String(item.toText || "").slice(0, 60)}`;
+    this.enqueueCinematic(() => this.playStatusLandingAnim(item), { fingerprint: fp }).catch(
+      () => {}
+    );
+  }
+
+  /**
+   * Big map-center card → flies up and lands into the matching status chip.
+   */
+  playStatusLandingAnim({
+    kind = "budget",
+    icon = "💰",
+    title = "状态更新",
+    fromText = "",
+    toText = "",
+    detail = "",
+  } = {}) {
+    return new Promise((resolve) => {
+      const chip = this.els.statusGrid?.querySelector(`[data-status="${kind}"]`);
+      const mapPanel =
+        document.querySelector("#mapPanel") ||
+        document.querySelector(".map-stage-canvas") ||
+        document.querySelector(".map-overlay");
+      if (!chip || !mapPanel) {
+        resolve(false);
+        return;
+      }
+
+      const fly = document.createElement("div");
+      fly.className = `status-fly status-fly-${kind}`;
+      fly.innerHTML = `
+        <div class="status-fly-inner">
+          <div class="status-fly-head">
+            <span class="status-fly-ico">${icon}</span>
+            <span class="status-fly-title">${escapeHtml(title)}</span>
+            <span class="status-fly-badge">同步中</span>
+          </div>
+          <div class="status-fly-body">
+            ${
+              fromText && fromText !== toText
+                ? `<div class="status-fly-from">${escapeHtml(fromText)}</div>
+                   <div class="status-fly-arrow">↓</div>`
+                : ""
+            }
+            <div class="status-fly-to">${escapeHtml(toText)}</div>
+            ${detail ? `<div class="status-fly-detail">${escapeHtml(detail)}</div>` : ""}
+          </div>
+        </div>`;
+      document.body.appendChild(fly);
+
+      const startBox = mapPanel.getBoundingClientRect();
+      const measure = () => fly.getBoundingClientRect();
+      // Place near lower-center of the map (above bottom docks)
+      const startX = startBox.left + startBox.width / 2 - measure().width / 2;
+      const startY = startBox.top + startBox.height * 0.42 - measure().height / 2;
+      fly.style.transform = `translate(${Math.max(8, startX)}px, ${Math.max(8, startY)}px) scale(0.86)`;
+      fly.style.opacity = "0";
+
+      const run = async () => {
+        try {
+          await fly.animate(
+            [
+              { opacity: 0, transform: `translate(${startX}px, ${startY + 18}px) scale(0.86)` },
+              { opacity: 1, transform: `translate(${startX}px, ${startY}px) scale(1)` },
+            ],
+            { duration: 520, easing: "cubic-bezier(0.2, 0.9, 0.2, 1)", fill: "forwards" }
+          ).finished;
+
+          const badge = fly.querySelector(".status-fly-badge");
+          await new Promise((r) => setTimeout(r, 980));
+          if (badge) badge.textContent = "写入状态栏";
+
+          const end = chip.getBoundingClientRect();
+          const flyBox = measure();
+          const endX = end.left + end.width / 2 - flyBox.width / 2;
+          const endY = end.top + end.height / 2 - flyBox.height / 2;
+
+          await fly.animate(
+            [
+              {
+                opacity: 1,
+                transform: `translate(${startX}px, ${startY}px) scale(1)`,
+                offset: 0,
+              },
+              {
+                opacity: 1,
+                transform: `translate(${(startX + endX) / 2}px, ${Math.min(startY, endY) - 24}px) scale(0.78)`,
+                offset: 0.45,
+              },
+              {
+                opacity: 0.15,
+                transform: `translate(${endX}px, ${endY}px) scale(0.28)`,
+                offset: 1,
+              },
+            ],
+            { duration: 980, easing: "cubic-bezier(0.4, 0.0, 0.2, 1)", fill: "forwards" }
+          ).finished;
+        } catch {
+          /* ignore abort */
+        } finally {
+          fly.remove();
+          const chipNow =
+            this.els.statusGrid?.querySelector(`[data-status="${kind}"]`) || chip;
+          if (chipNow) {
+            chipNow.classList.add("status-chip-landed");
+            chipNow.classList.add(
+              kind === "flight" ? "status-chip-landed-flight" : "status-chip-landed-budget"
+            );
+            clearTimeout(chipNow._landTimer);
+            chipNow._landTimer = setTimeout(() => {
+              chipNow.classList.remove(
+                "status-chip-landed",
+                "status-chip-landed-flight",
+                "status-chip-landed-budget"
+              );
+            }, 1400);
+          }
+          resolve(true);
+        }
+      };
+      requestAnimationFrame(() => requestAnimationFrame(run));
+    });
   }
 
   renderTripLedger(ledger, { expandDate } = {}) {
@@ -1052,6 +1375,7 @@ export class UI {
   }
 
   resetMap() {
+    this.abortCinematics();
     destroyMap();
     if (this.els.mapPanel) this.els.mapPanel.innerHTML = "";
   }
@@ -1290,6 +1614,19 @@ export class UI {
     } else if (name === "get_current_weather" || name === "get_forecast_daily") {
       const geo = args.geo_key || result?.geo_key;
       if (geo) focusGeoKey(geo, { label: `工具：天气 · ${geoLabel(geo) || geo}` });
+      // Weather: map emoji only — no big place bubble.
+      this.pulseMapFeedback({
+        id: `tool-weather:${name}:${geo || anchor.geoKey || ""}`,
+        icon: weatherEmojiFromText(
+          `${meta.detail || ""} ${result?.condition || ""} ${result?.summary || ""} ${result?.weather || ""}`
+        ),
+        title: "",
+        detail: "",
+        kind: "weather",
+        placeId: anchor.placeId,
+        geoKey: geo || anchor.geoKey,
+      });
+      return;
     } else if (name === "get_flight_status") {
       focusPlanning({
         placeIds: ["pl_chc_airport"],
@@ -1299,7 +1636,8 @@ export class UI {
       }).catch(() => {});
     } else if (name === "search_web") {
       const items = result?.results || [];
-      playMapAction({
+      // Return promise so agent can await one tool cinematic before the next.
+      return this.playQueuedMapAction({
         kind: "search",
         query: args.query || result?.query || meta.title,
         items: items.map((r) => ({
@@ -1307,32 +1645,38 @@ export class UI {
           snippet: r.snippet,
           url: r.url,
         })),
-      }).catch(() => {});
-      return;
+        fingerprint: `search:${String(args.query || result?.query || meta.title || "").slice(0, 80)}`,
+      });
     } else if (name === "write_journal" || /notion|journal|write_page/i.test(name)) {
-      playMapAction({
+      const notionTitle = args.title || result?.title || "游记";
+      const notionBody =
+        args.content || result?.content || result?.preview || meta.detail || "";
+      const p = this.playQueuedMapAction({
         kind: "notion",
-        title: args.title || result?.title || "游记",
-        body: args.content || result?.content || result?.preview || meta.detail,
-      }).catch(() => {});
+        title: notionTitle,
+        body: notionBody, // map: stream content → 已提交
+        fingerprint: `notion:${String(notionTitle).slice(0, 80)}`,
+      });
       this.notifyStateChange({
         icon: "📝",
-        title: `写入游记 · ${args.title || result?.title || "Journal"}`,
-        body: args.content || result?.preview || "",
+        title: `写入游记 · ${notionTitle}`,
+        body: "", // chat card stays title-only
         tab: "notes",
         kind: "notion",
         key: `notion-write:${Date.now()}`,
       });
-      return;
+      return p;
     } else if (name === "add_calendar_event" || /calendar|schedule/i.test(name)) {
       const ev = result?.event || {};
-      playMapAction({
+      const calTitle = args.title || ev.title || "日程";
+      const p = this.playQueuedMapAction({
         kind: "calendar",
-        title: args.title || ev.title || "日程",
+        title: calTitle,
         body: [args.date || ev.date, args.note || ev.note, args.title || ev.title]
           .filter(Boolean)
           .join(" · "),
-      }).catch(() => {});
+        fingerprint: `calendar:${String(calTitle).slice(0, 80)}`,
+      });
       this.notifyStateChange({
         icon: "📅",
         title: `加入日程 · ${args.title || ev.title || "行程"}`,
@@ -1341,7 +1685,7 @@ export class UI {
         kind: "calendar",
         key: `cal-write:${Date.now()}`,
       });
-      return;
+      return p;
     }
 
     // Place bubble for location lookups (weather / traffic / flight).
@@ -1915,6 +2259,20 @@ function weatherConditionLabel(c) {
   return map[s] || s;
 }
 
+/** Pick a compact weather emoji from free text / condition. */
+function weatherEmojiFromText(text) {
+  const s = String(text || "").toLowerCase();
+  if (/暴雨|大雨|雷暴|thunderstorm|heavy\s*rain|⚡/.test(s)) return "⛈️";
+  if (/雪|blizzard|snow/.test(s)) return "🌨️";
+  if (/雨|阵雨|降水|rain|shower|drizzle/.test(s)) return "🌧️";
+  if (/雾|fog|mist|haze/.test(s)) return "🌫️";
+  if (/大风|强风|gale|windy|storm/.test(s)) return "💨";
+  if (/阴|overcast/.test(s)) return "☁️";
+  if (/多云|cloudy|cloud/.test(s)) return "⛅";
+  if (/晴|clear|sunny|日照/.test(s)) return "☀️";
+  return "🌦️";
+}
+
 /** Core title + detail for tool rows / map toast / activity feed. */
 function buildToolPulse(name, args = {}, result = null) {
   const base = TOOL_META[name] || {
@@ -2050,7 +2408,7 @@ function buildToolPulse(name, args = {}, result = null) {
     case "write_journal": {
       const sec = args.section || result?.section || "journal";
       title = args.title ? `写入游记 · ${args.title}` : "写入游记";
-      detail = truncate(args.content || result?.preview || result?.content || `已写入 ${sec}`, 90);
+      detail = `已记入 · ${sec === "safety" ? "安全备注" : sec === "expense" ? "费用" : "游记"}`;
       break;
     }
     case "add_calendar_event": {
@@ -2197,7 +2555,8 @@ function collectLedgerAlerts(ledger) {
       icon: "📝",
       text: label,
       title: label,
-      body: truncate(text, 120),
+      body: "", // chat/toast: title only
+      mapBody: text, // map overlay: stream then mark submitted
       kind: "notion",
     });
   }
