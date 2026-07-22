@@ -1297,6 +1297,27 @@ select {
   display: none !important;
 }
 
+.map-agent-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #1d4ed8;
+  pointer-events: none;
+}
+
+.map-agent-plan-badge[hidden] {
+  display: none !important;
+}
+
 .map-planning-badge[data-mode="adjust"] {
   border-color: rgba(217, 119, 6, 0.4);
   color: #9a3412;
@@ -1352,6 +1373,60 @@ select {
   background: transparent;
   border-top: 2px dashed #2563eb;
   height: 0;
+}
+
+.map-legend .lg-stay {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.45);
+}
+
+.map-stay-wrap {
+  background: transparent !important;
+  border: none !important;
+}
+
+.map-stay-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transform: translateY(-2px);
+}
+
+.map-stay-day {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: linear-gradient(160deg, #3b82f6, #1d4ed8);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  border: 2px solid #fff;
+}
+
+.map-stay-name {
+  max-width: 72px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  color: #1e3a8a;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
 }
 
 /* —— Map action overlays: search / notion / calendar —— */

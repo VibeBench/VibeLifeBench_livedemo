@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-59";
-import { DemoEngine } from "./engine.js?v=20260722-59";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-60";
+import { DemoEngine } from "./engine.js?v=20260722-60";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,10 +7,10 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-59";
+} from "./agent.js?v=20260722-60";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-59";
-import { isOceanFlightCrossing } from "./map.js?v=20260722-59";
+import { UI } from "./ui.js?v=20260722-60";
+import { isOceanFlightCrossing } from "./map.js?v=20260722-60";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -119,6 +119,13 @@ function bootCase(data) {
   lastSceneGeo = engine.currentState?.geo_key || "shanghai_home";
   ensureAgent();
   showEntryGuide();
+}
+
+function agentPlanContext() {
+  return {
+    tripDays: engine?.meta?.trip_days || [],
+    calendar: engine?.env?.ledger?.calendar || engine?.ledgerView?.()?.calendar || [],
+  };
 }
 
 function currentSceneGeo() {
@@ -481,6 +488,7 @@ async function stepOnce() {
             thinking: turn.thinking,
             content: turn.content || "（空回复）",
             toolCalls: turn.toolCalls || [],
+            planContext: agentPlanContext(),
           });
           trajectory.pushAgentTurn({
             eventId: event.id,
@@ -537,6 +545,7 @@ async function sendUserChat(text) {
       thinking: turn.thinking,
       content: turn.content || "（空回复）",
       toolCalls: turn.toolCalls || [],
+      planContext: agentPlanContext(),
     });
     trajectory.pushAgentTurn({
       eventId: null,

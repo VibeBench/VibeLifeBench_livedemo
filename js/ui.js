@@ -17,7 +17,9 @@ import {
   isOceanFlightCrossing,
   playMapAction,
   hideMapActionStage,
-} from "./map.js?v=20260722-59";
+  commitAgentItineraryPlan,
+  clearAgentPlan,
+} from "./map.js?v=20260722-60";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -224,6 +226,7 @@ export class UI {
       }
     }
     abortMapPlayback();
+    clearAgentPlan();
     clearPlanning({ immediate: true });
   }
 
@@ -1952,7 +1955,7 @@ export class UI {
     this._scrollChatToBottom();
   }
 
-  finishAgentTurn(wrap, { thinking, content, error, toolCalls = [] } = {}) {
+  finishAgentTurn(wrap, { thinking, content, error, toolCalls = [], planContext = null } = {}) {
     if (!wrap) return;
     wrap.classList.remove("streaming");
     const thinkBlock = wrap.querySelector("[data-think]");
@@ -1981,13 +1984,25 @@ export class UI {
       phase: "done",
     });
 
-    // Final thinking pass then ease map back after a beat.
+    // Final thinking pass then ease ephemeral overlay; commit full itinerary if this was a plan.
+    const afterPlan = () => {
+      this.endMapPlanning();
+      if (planContext) {
+        commitAgentItineraryPlan({
+          content: content || "",
+          thinking: thinking || "",
+          toolCalls: toolCalls || [],
+          tripDays: planContext.tripDays || [],
+          calendar: planContext.calendar || [],
+        }).catch(() => {});
+      }
+    };
     if (thinking) {
       syncPlanningFromText(thinking)
         .catch(() => {})
-        .finally(() => this.endMapPlanning());
+        .finally(afterPlan);
     } else {
-      this.endMapPlanning();
+      afterPlan();
     }
 
     if (content && !wrap._activityReplyPushed) {

@@ -66,6 +66,10 @@ let flightCrossingActive = false;
 /** Bumped on rewind/reset — async overlays must check before painting. */
 let mapSession = 1;
 let mapActionToken = 0;
+/** Persistent post-plan itinerary overlay (stays + corridor). */
+let agentPlanLayer = null;
+/** @type {null | { stays: object[], routePlaceIds: string[], label?: string }} */
+let lastAgentPlan = null;
 
 export function currentMapSession() {
   return mapSession;
@@ -105,6 +109,12 @@ export function abortMapPlayback() {
   }
   try {
     activityLayer?.clearLayers();
+  } catch {
+    /* ignore */
+  }
+  // Keep lastAgentPlan so a map rebuild can repaint; explicit clearAgentPlan on rewind.
+  try {
+    agentPlanLayer?.clearLayers();
   } catch {
     /* ignore */
   }
@@ -770,8 +780,249 @@ export function clearPlanning({ immediate = false } = {}) {
   planningClearTimer = setTimeout(() => {
     planningClearTimer = null;
     run();
-    if (lastCtx) applyFitForCtx(lastCtx);
+    // Prefer fitting the committed agent plan if present.
+    if (lastAgentPlan?.stays?.length) {
+      fitAgentPlanBounds();
+    } else if (lastCtx) {
+      applyFitForCtx(lastCtx);
+    }
   }, 4200);
+}
+
+/** Clear the committed itinerary plan overlay (清空回溯). */
+export function clearAgentPlan() {
+  lastAgentPlan = null;
+  try {
+    agentPlanLayer?.clearLayers();
+  } catch {
+    /* ignore */
+  }
+  setAgentPlanBadge("");
+}
+
+function setAgentPlanBadge(text) {
+  const el = document.querySelector("#mapAgentPlanBadge");
+  if (!el) return;
+  if (!text) {
+    el.hidden = true;
+    el.setAttribute("hidden", "");
+    el.textContent = "";
+    return;
+  }
+  el.hidden = false;
+  el.removeAttribute("hidden");
+  el.textContent = text;
+}
+
+function primaryStayPlaceId(day) {
+  const ids = placeIdsForTripDay(day);
+  if (!ids.length) return null;
+  const key = `${day.label || ""} ${day.place || ""}`;
+  if (/cook|库克/.test(key) && !/海峡/.test(key)) return "pl_mt_cook";
+  if (/queenstown|皇后/.test(key)) return "pl_queenstown";
+  if (/wanaka|瓦纳卡/.test(key)) return "pl_wanaka";
+  if (/ferry|渡轮|海峡/.test(key)) return "pl_picton";
+  if (/wellington|惠灵顿/.test(key)) return "pl_wellington";
+  if (/depart|基督|christchurch|\bchc\b/i.test(key)) return "pl_chc_airport";
+  if (/auckland|奥克兰|返程|return/i.test(key)) return "pl_akl_airport";
+  if (/milford|峡湾|fiord|游船|蒂阿瑙|te anau/i.test(key)) return "pl_milford";
+  if (/picton|皮克顿/.test(key)) return "pl_picton";
+  if (/taupo|陶波/.test(key)) return "pl_taupo";
+  if (/rotorua|罗托鲁阿/.test(key)) return "pl_rotorua";
+  if (/tekapo|蒂卡波/.test(key)) return "pl_tekapo";
+  return ids[0];
+}
+
+/** Build stay markers + route hubs from case trip_days. */
+export function buildStayPlanFromTripDays(tripDays = []) {
+  const stays = [];
+  for (const d of tripDays || []) {
+    const placeId = primaryStayPlaceId(d);
+    if (!placeId) continue;
+    stays.push({
+      day: d.day,
+      date: d.date,
+      placeId,
+      label: d.label || d.place || placeId,
+    });
+  }
+  const routePlaceIds = [];
+  for (const s of stays) {
+    if (routePlaceIds[routePlaceIds.length - 1] !== s.placeId) routePlaceIds.push(s.placeId);
+  }
+  return {
+    stays,
+    routePlaceIds,
+    label: "行程规划",
+  };
+}
+
+function looksLikePlanCommit(text, toolCalls = []) {
+  const blob = String(text || "");
+  const places = extractPlaceIdsFromText(blob);
+  const calWrites = (toolCalls || []).filter((t) =>
+    /calendar|add_calendar|schedule/i.test(String(t?.name || ""))
+  );
+  if (calWrites.length >= 2) return true;
+  if (places.length >= 4) return true;
+  if (
+    places.length >= 2 &&
+    /规划|行程安排|整体行程|自驾环线|过夜|住宿|营地|Day\s*\d+|第\s*\d+\s*天|路线如下|行程如下/i.test(blob)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * After the agent commits an itinerary plan, paint the full corridor + daily stays.
+ * Prefers case trip_days (demo spine); falls back to places extracted from the reply.
+ */
+export async function commitAgentItineraryPlan({
+  content = "",
+  thinking = "",
+  toolCalls = [],
+  tripDays = [],
+  calendar = [],
+} = {}) {
+  const blob = `${content || ""}\n${thinking || ""}`;
+  const calAgent = (calendar || []).filter((c) => c?.source === "agent" || c?.kind === "plan");
+  const force =
+    looksLikePlanCommit(blob, toolCalls) ||
+    calAgent.length >= 2 ||
+    extractPlaceIdsFromText(blob).length >= 3;
+  if (!force) return false;
+
+  let plan = null;
+  if ((tripDays || []).length >= 3) {
+    plan = buildStayPlanFromTripDays(tripDays);
+  }
+  if (!plan?.stays?.length) {
+    const fromCal = [];
+    for (const c of calAgent) {
+      const ids = extractPlaceIdsFromText(`${c.title || ""} ${c.note || ""} ${c.summary || ""}`);
+      if (!ids[0]) continue;
+      fromCal.push({
+        day: fromCal.length + 1,
+        date: c.date || null,
+        placeId: ids[0],
+        label: c.title || c.summary || ids[0],
+      });
+    }
+    if (fromCal.length >= 2) {
+      const routePlaceIds = [];
+      for (const s of fromCal) {
+        if (routePlaceIds[routePlaceIds.length - 1] !== s.placeId) routePlaceIds.push(s.placeId);
+      }
+      plan = { stays: fromCal, routePlaceIds, label: "行程规划" };
+    }
+  }
+  if (!plan?.stays?.length) {
+    const ids = extractPlaceIdsFromText(blob).filter((id) => id !== "shanghai_home");
+    if (ids.length < 2) return false;
+    plan = {
+      stays: ids.map((id, i) => ({ day: i + 1, placeId: id, label: id })),
+      routePlaceIds: [...new Set(ids)],
+      label: "行程规划",
+    };
+  }
+  if ((plan.stays || []).length < 2) return false;
+  return showAgentPlan(plan, { fit: true });
+}
+
+/** Paint / refresh the committed agent itinerary plan on the map. */
+export async function showAgentPlan(plan, { fit = true } = {}) {
+  if (!plan?.stays?.length) return false;
+  lastAgentPlan = plan;
+  return repaintAgentPlan({ fit });
+}
+
+function fitAgentPlanBounds() {
+  if (!leafletMap || !window.L || !lastAgentPlan || !lastCtx) return;
+  const pts = [];
+  for (const s of lastAgentPlan.stays || []) {
+    const p = lastCtx.placeById?.[s.placeId];
+    if (p) pts.push(window.L.latLng(p.lat, p.lng));
+  }
+  if (pts.length === 1) {
+    setViewInSafeArea(pts[0], 7);
+  } else if (pts.length > 1) {
+    try {
+      leafletMap.fitBounds(window.L.latLngBounds(pts), fitOptions({ maxZoom: 7, animate: true }));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+async function repaintAgentPlan({ fit = false } = {}) {
+  if (!leafletMap || !window.L || !lastAgentPlan || !lastCtx) return false;
+  if (!agentPlanLayer) agentPlanLayer = window.L.layerGroup().addTo(leafletMap);
+  agentPlanLayer.clearLayers();
+
+  const stays = (lastAgentPlan.stays || []).filter((s) => lastCtx.placeById?.[s.placeId]);
+  if (!stays.length) return false;
+
+  const routeIds =
+    lastAgentPlan.routePlaceIds?.length >= 2
+      ? lastAgentPlan.routePlaceIds.filter((id) => lastCtx.placeById?.[id])
+      : [...new Set(stays.map((s) => s.placeId))];
+
+  let path = [];
+  if (routeIds.length >= 2) {
+    try {
+      path = await buildDrivingPath(lastCtx, routeIds);
+    } catch {
+      path = routeIds.map((id) => {
+        const p = lastCtx.placeById[id];
+        return p ? [p.lat, p.lng] : null;
+      }).filter(Boolean);
+    }
+  }
+
+  if (path.length >= 2) {
+    window.L.polyline(path, {
+      color: "#2563eb",
+      weight: 4,
+      opacity: 0.72,
+      dashArray: "10 8",
+      lineCap: "round",
+      lineJoin: "round",
+      className: "map-agent-plan-route",
+    })
+      .addTo(agentPlanLayer)
+      .bindTooltip(lastAgentPlan.label || "行程规划路线");
+  }
+
+  // Deduplicate markers by place; keep first day's label if multi-night.
+  const seen = new Set();
+  for (const s of stays) {
+    if (seen.has(s.placeId)) continue;
+    seen.add(s.placeId);
+    const p = lastCtx.placeById[s.placeId];
+    if (!p) continue;
+    const dayNum = s.day != null ? `D${s.day}` : "Stay";
+    const tip = [s.label, s.date ? String(s.date).slice(5) : null].filter(Boolean).join(" · ");
+    window.L.marker([p.lat, p.lng], {
+      icon: window.L.divIcon({
+        className: "map-stay-wrap",
+        html: `<div class="map-stay-marker" title="${escapeHtml(tip)}">
+          <span class="map-stay-day">${escapeHtml(dayNum)}</span>
+          <span class="map-stay-name">${escapeHtml(String(s.label || "").slice(0, 8))}</span>
+        </div>`,
+        iconSize: [72, 44],
+        iconAnchor: [36, 44],
+      }),
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: 700,
+    }).addTo(agentPlanLayer);
+  }
+
+  const n = seen.size;
+  setAgentPlanBadge(`行程规划 · ${n} 个住宿点`);
+  if (fit) fitAgentPlanBounds();
+  return true;
 }
 
 /** Focus a weather / geo_key point during tool use. */
@@ -1274,10 +1525,14 @@ export function renderLeafletMap(engine) {
     loadPrecomputedRoutes("./data/routes.json").finally(() => {
       if (!leafletMap) return;
       paintLeafletRoutes(lastCtx || ctx);
+      if (lastAgentPlan?.stays?.length) {
+        repaintAgentPlan({ fit: false }).catch(() => {});
+      }
       requestAnimationFrame(() => {
         if (!leafletMap) return;
         leafletMap.invalidateSize(true);
-        fitLeaflet(lastCtx || ctx);
+        if (lastAgentPlan?.stays?.length) fitAgentPlanBounds();
+        else fitLeaflet(lastCtx || ctx);
       });
     });
   } catch (err) {
@@ -1335,6 +1590,7 @@ export function destroyMap() {
   pulseLayer = null;
   planningLayer = null;
   flightLayer = null;
+  agentPlanLayer = null;
   lastCtx = null;
 }
 
@@ -1546,6 +1802,7 @@ function ensureLeaflet(host) {
   pulseLayer = window.L.layerGroup().addTo(leafletMap);
   planningLayer = window.L.layerGroup().addTo(leafletMap);
   flightLayer = window.L.layerGroup().addTo(leafletMap);
+  agentPlanLayer = window.L.layerGroup().addTo(leafletMap);
 }
 
 function paintLeafletBase(ctx) {
