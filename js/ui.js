@@ -14,7 +14,8 @@ import {
   extractRoadIdsFromText,
   playFlightCrossing,
   isOceanFlightCrossing,
-} from "./map.js?v=20260722-25";
+  playMapAction,
+} from "./map.js?v=20260722-26";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -238,6 +239,20 @@ export class UI {
         detail: a.body && a.body !== a.title ? truncate(a.body, 100) : "",
         time: a.time || null,
       });
+      // Map cinematic for major writes
+      if (a.kind === "notion") {
+        playMapAction({
+          kind: "notion",
+          title: a.title || "游记更新",
+          body: a.body || a.text || "",
+        }).catch(() => {});
+      } else if (a.kind === "calendar") {
+        playMapAction({
+          kind: "calendar",
+          title: a.title || "日程",
+          body: a.body || a.text || "",
+        }).catch(() => {});
+      }
     }
     this.enqueuePhoneBanners(fresh.map((a) => ({ ...a, openTab: "mail" })));
   }
@@ -1282,6 +1297,51 @@ export class UI {
         label: args.flight_no ? `工具：航班 ${args.flight_no}` : "工具：航班动态",
         force: true,
       }).catch(() => {});
+    } else if (name === "search_web") {
+      const items = result?.results || [];
+      playMapAction({
+        kind: "search",
+        query: args.query || result?.query || meta.title,
+        items: items.map((r) => ({
+          title: r.title,
+          snippet: r.snippet,
+          url: r.url,
+        })),
+      }).catch(() => {});
+      return;
+    } else if (name === "write_journal" || /notion|journal|write_page/i.test(name)) {
+      playMapAction({
+        kind: "notion",
+        title: args.title || result?.title || "游记",
+        body: args.content || result?.content || result?.preview || meta.detail,
+      }).catch(() => {});
+      this.notifyStateChange({
+        icon: "📝",
+        title: `写入游记 · ${args.title || result?.title || "Journal"}`,
+        body: args.content || result?.preview || "",
+        tab: "notes",
+        kind: "notion",
+        key: `notion-write:${Date.now()}`,
+      });
+      return;
+    } else if (name === "add_calendar_event" || /calendar|schedule/i.test(name)) {
+      const ev = result?.event || {};
+      playMapAction({
+        kind: "calendar",
+        title: args.title || ev.title || "日程",
+        body: [args.date || ev.date, args.note || ev.note, args.title || ev.title]
+          .filter(Boolean)
+          .join(" · "),
+      }).catch(() => {});
+      this.notifyStateChange({
+        icon: "📅",
+        title: `加入日程 · ${args.title || ev.title || "行程"}`,
+        body: [args.date || ev.date, args.note || ev.note].filter(Boolean).join(" · "),
+        tab: "trip",
+        kind: "calendar",
+        key: `cal-write:${Date.now()}`,
+      });
+      return;
     }
 
     // Place bubble for location lookups (weather / traffic / flight).
@@ -1671,6 +1731,21 @@ const TOOL_META = {
     label: "读取行程预算",
     focus: "已花 · 总额 · 剩余",
   },
+  search_web: {
+    icon: "🔍",
+    label: "网页搜索",
+    focus: "路况 · 营地 · 签证资讯",
+  },
+  write_journal: {
+    icon: "📝",
+    label: "写入游记",
+    focus: "Notion 章节更新",
+  },
+  add_calendar_event: {
+    icon: "📅",
+    label: "加入日程",
+    focus: "日期 · 行程节点",
+  },
   book_hotel: { icon: "🏨", label: "预订酒店", focus: "入住日期 · 房价 · 确认状态" },
   book_flight: { icon: "✈️", label: "预订机票", focus: "航班号 · 航线 · 出票状态" },
   cancel_hotel: { icon: "🏨", label: "取消酒店", focus: "取消确认" },
@@ -1690,6 +1765,9 @@ function humanizeToolName(name) {
     get_flight_status: "查询航班动态",
     list_active_alerts: "列出生效告警",
     get_budget_snapshot: "读取行程预算",
+    search_web: "网页搜索",
+    write_journal: "写入游记",
+    add_calendar_event: "加入日程",
     book_hotel: "预订酒店",
     book_flight: "预订机票",
     reserve_hotel: "预订酒店",
@@ -1949,6 +2027,32 @@ function buildToolPulse(name, args = {}, result = null) {
         if (result.location) bits.push(`当前位置 ${result.location}`);
         detail = bits.join(" · ");
       } else detail = result?.location ? `位置 ${result.location} · 预算尚未确定` : "预算尚未写入";
+      break;
+    }
+    case "search_web": {
+      const q = args.query || result?.query || "";
+      title = q ? `搜索 · ${truncate(q, 28)}` : "网页搜索";
+      const rows = result?.results || [];
+      if (error) detail = result?.error || "搜索失败";
+      else if (rows.length) {
+        detail = rows
+          .slice(0, 2)
+          .map((r) => r.title)
+          .join("； ");
+        if (rows.length > 2) detail += ` 等 ${rows.length} 条`;
+      } else detail = error ? "无结果" : "检索中…";
+      break;
+    }
+    case "write_journal": {
+      const sec = args.section || result?.section || "journal";
+      title = args.title ? `写入游记 · ${args.title}` : "写入游记";
+      detail = truncate(args.content || result?.preview || result?.content || `已写入 ${sec}`, 90);
+      break;
+    }
+    case "add_calendar_event": {
+      const ev = result?.event || {};
+      title = args.title || ev.title ? `加入日程 · ${args.title || ev.title}` : "加入日程";
+      detail = [args.date || ev.date, args.note || ev.note].filter(Boolean).join(" · ") || "已写入行程日历";
       break;
     }
     default: {

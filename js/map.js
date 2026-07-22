@@ -361,6 +361,12 @@ function planningStyle(mode) {
   if (mode === "blocked") {
     return { color: "#e11d48", weight: 6, opacity: 0.92, dashArray: "10 8", className: "route-planning-line route-planning-blocked" };
   }
+  if (mode === "checking") {
+    return { color: "#7c3aed", weight: 5, opacity: 0.9, dashArray: "8 10", className: "route-planning-line route-planning-checking" };
+  }
+  if (mode === "clear") {
+    return { color: "#16a34a", weight: 5, opacity: 0.88, dashArray: "10 8", className: "route-planning-line route-planning-clear" };
+  }
   if (mode === "adjust") {
     return { color: "#d97706", weight: 6, opacity: 0.95, dashArray: "12 10", className: "route-planning-line route-planning-adjust" };
   }
@@ -438,7 +444,18 @@ export async function focusPlanning(opts = {}) {
   if (path.length >= 2) {
     window.L.polyline(path, style)
       .addTo(planningLayer)
-      .bindTooltip(opts.label || (mode === "blocked" ? "受阻路段" : mode === "adjust" ? "调整后路线" : "推演路线"));
+      .bindTooltip(
+        opts.label ||
+          (mode === "blocked"
+            ? "确认受阻"
+            : mode === "checking"
+              ? "核查路况中"
+              : mode === "clear"
+                ? "路况正常"
+                : mode === "adjust"
+                  ? "调整后路线"
+                  : "推演路线")
+      );
     for (const ll of path) focus.push(window.L.latLng(ll[0], ll[1]));
   } else if (roadIds.length && lastCtx) {
     for (const rid of roadIds) {
@@ -479,13 +496,17 @@ export async function focusPlanning(opts = {}) {
   const badge =
     opts.label ||
     (mode === "blocked"
-      ? "路况受阻 · 地图已切换"
-      : mode === "adjust"
-        ? "路线调整中"
-        : placeIds.length >= 2
-          ? "路线推演中"
-          : "地图聚焦中");
-  setPlanningBadge(badge, mode);
+      ? "确认受阻 · 地图已标记"
+      : mode === "checking"
+        ? "核查路况中"
+        : mode === "clear"
+          ? "路况正常"
+          : mode === "adjust"
+            ? "路线调整中"
+            : placeIds.length >= 2
+              ? "路线推演中"
+              : "地图聚焦中");
+  setPlanningBadge(badge, mode === "clear" ? "consider" : mode);
 
   if (planningFocusLatLngs?.length === 1) {
     setViewInSafeArea(planningFocusLatLngs[0], 8);
@@ -564,26 +585,224 @@ export function focusGeoKey(geoKey, { label } = {}) {
   return false;
 }
 
-/** Focus from get_traffic_estimate (or similar) tool result. */
-export function focusTrafficResult(result, args = {}) {
+/** Focus from get_traffic_estimate (or similar) tool result.
+ *  Always paint "checking" first; only turn red after verified blockage. */
+export async function focusTrafficResult(result, args = {}) {
   const matched = result?.matched || result?.active_road_events || [];
   const roadIds = matched.map((e) => e.road_id).filter(Boolean);
   if (args.road_id) roadIds.unshift(args.road_id);
+  const uniqRoads = [...new Set(roadIds)];
   const placeIds = extractPlaceIdsFromText(
-    [args.query, ...(matched.map((e) => `${e.note || ""} ${e.road_name || ""}`))].join(" ")
+    [args.query, args.road_id, ...(matched.map((e) => `${e.note || ""} ${e.road_name || ""}`))].join(" ")
   );
-  const blocked = matched.some(
-    (e) =>
+
+  // Strict verification — active alone is not enough to paint red.
+  const verifiedBlocked = matched.some((e) => {
+    const note = `${e.note || ""} ${e.severity || ""} ${e.kind || ""}`;
+    return (
       e.severity === "closed" ||
-      Number(e.active) === 1 ||
-      /封|关闭|closed|avalanche|debris/i.test(`${e.note || ""}`)
-  );
+      /封路|封闭|关闭|closed|avalanche|debris|落石|雪崩|不可通行|暂缓/i.test(note)
+    );
+  });
+
+  await focusPlanning({
+    placeIds,
+    roadIds: uniqRoads,
+    mode: "checking",
+    label: "工具：核查路况…",
+    force: true,
+  });
+
+  await new Promise((r) => setTimeout(r, 1300));
+
+  if (verifiedBlocked) {
+    return focusPlanning({
+      placeIds,
+      roadIds: uniqRoads,
+      mode: "blocked",
+      label: "确认：路段受阻",
+      force: true,
+    });
+  }
+  if (matched.length) {
+    return focusPlanning({
+      placeIds,
+      roadIds: uniqRoads,
+      mode: "adjust",
+      label: "工具：发现相关事件",
+      force: true,
+    });
+  }
   return focusPlanning({
     placeIds,
-    roadIds: [...new Set(roadIds)],
-    mode: blocked ? "blocked" : "adjust",
-    label: blocked ? "工具：路况受阻" : "工具：路况查询",
+    roadIds: uniqRoads,
+    mode: "clear",
+    label: "工具：路况正常",
     force: true,
+  });
+}
+
+let mapActionTimer = null;
+
+function ensureMapActionStage() {
+  let el = document.querySelector("#mapActionStage");
+  if (el) return el;
+  const mid = document.querySelector(".map-chrome-mid") || document.querySelector(".map-overlay");
+  if (!mid) return null;
+  el = document.createElement("div");
+  el.id = "mapActionStage";
+  el.className = "map-action-stage";
+  el.hidden = true;
+  el.setAttribute("hidden", "");
+  mid.appendChild(el);
+  return el;
+}
+
+function hideMapActionStage() {
+  const el = document.querySelector("#mapActionStage");
+  if (!el) return;
+  el.classList.remove("show");
+  el.hidden = true;
+  el.setAttribute("hidden", "");
+  el.innerHTML = "";
+}
+
+/**
+ * Cinematic overlay for major agent actions on the map:
+ * kind: 'search' | 'notion' | 'calendar'
+ */
+export function playMapAction({
+  kind = "search",
+  title = "",
+  query = "",
+  body = "",
+  items = [],
+  durationMs = 5200,
+} = {}) {
+  return new Promise((resolve) => {
+    const stage = ensureMapActionStage();
+    if (!stage) {
+      resolve(false);
+      return;
+    }
+    clearTimeout(mapActionTimer);
+    const rows = (items || []).filter(Boolean).slice(0, 5);
+    const q = String(query || title || "").trim();
+    const text = String(body || "").trim();
+
+    if (kind === "search") {
+      stage.innerHTML = `
+        <div class="map-action-card map-action-search">
+          <div class="map-action-search-bar">
+            <span class="map-action-search-logo">Vibe<span>Search</span></span>
+            <div class="map-action-search-input">
+              <span class="map-action-search-ico">🔍</span>
+              <span class="map-action-search-query" id="mapActionQuery"></span>
+              <span class="map-action-caret">|</span>
+            </div>
+          </div>
+          <div class="map-action-search-meta">正在检索相关结果…</div>
+          <div class="map-action-search-results" id="mapActionResults"></div>
+        </div>`;
+    } else if (kind === "notion") {
+      stage.innerHTML = `
+        <div class="map-action-card map-action-notion">
+          <div class="map-action-notion-head">
+            <span class="map-action-notion-ico">📝</span>
+            <div>
+              <div class="map-action-notion-app">Notion</div>
+              <div class="map-action-notion-title">${escapeHtml(title || "NZ Road Trip Journal")}</div>
+            </div>
+            <span class="map-action-status">写入中</span>
+          </div>
+          <div class="map-action-notion-body" id="mapActionBody"></div>
+        </div>`;
+    } else if (kind === "calendar") {
+      stage.innerHTML = `
+        <div class="map-action-card map-action-calendar">
+          <div class="map-action-cal-head">
+            <span class="map-action-cal-ico">📅</span>
+            <div>
+              <div class="map-action-cal-app">日程</div>
+              <div class="map-action-cal-title">${escapeHtml(title || "行程日程")}</div>
+            </div>
+            <span class="map-action-status">添加中</span>
+          </div>
+          <div class="map-action-cal-event" id="mapActionBody"></div>
+        </div>`;
+    } else {
+      resolve(false);
+      return;
+    }
+
+    stage.hidden = false;
+    stage.removeAttribute("hidden");
+    requestAnimationFrame(() => stage.classList.add("show"));
+
+    const finish = (ok = true) => {
+      stage.classList.add("is-done");
+      const st = stage.querySelector(".map-action-status");
+      if (st) st.textContent = kind === "search" ? "完成" : "已写入";
+      mapActionTimer = setTimeout(() => {
+        hideMapActionStage();
+        resolve(ok);
+      }, 1100);
+    };
+
+    if (kind === "search") {
+      const qEl = stage.querySelector("#mapActionQuery");
+      const resEl = stage.querySelector("#mapActionResults");
+      const meta = stage.querySelector(".map-action-search-meta");
+      let i = 0;
+      const typeTimer = setInterval(() => {
+        i += 1;
+        if (qEl) qEl.textContent = q.slice(0, i);
+        if (i >= q.length) {
+          clearInterval(typeTimer);
+          if (meta) meta.textContent = `约 ${Math.max(rows.length, 1)} 条结果`;
+          let r = 0;
+          const addRow = () => {
+            if (!resEl) return finish();
+            if (r >= rows.length) return finish();
+            const item = rows[r];
+            const row = document.createElement("div");
+            row.className = "map-action-search-row";
+            row.innerHTML = `
+              <div class="map-action-search-row-title">${escapeHtml(item.title || item)}</div>
+              ${item.snippet ? `<div class="map-action-search-row-snip">${escapeHtml(item.snippet)}</div>` : ""}
+              ${item.url ? `<div class="map-action-search-row-url">${escapeHtml(item.url)}</div>` : ""}`;
+            resEl.appendChild(row);
+            r += 1;
+            if (r < rows.length) setTimeout(addRow, 380);
+            else finish();
+          };
+          setTimeout(addRow, 280);
+        }
+      }, 42);
+      mapActionTimer = setTimeout(() => finish(), Math.max(durationMs, 4800));
+      return;
+    }
+
+    // notion / calendar — type body lines
+    const bodyEl = stage.querySelector("#mapActionBody");
+    const lines = text
+      ? text.split(/\n+/).map((s) => s.trim()).filter(Boolean).slice(0, 5)
+      : rows.map((x) => (typeof x === "string" ? x : x.title || x.text || "")).filter(Boolean);
+    if (!lines.length) lines.push(kind === "calendar" ? "已加入今日行程" : "已更新游记内容");
+    let li = 0;
+    const paintLine = () => {
+      if (!bodyEl) return finish();
+      if (li >= lines.length) return finish();
+      const p = document.createElement("div");
+      p.className = kind === "calendar" ? "map-action-cal-line" : "map-action-notion-line";
+      p.textContent = lines[li];
+      bodyEl.appendChild(p);
+      li += 1;
+      if (li < lines.length) setTimeout(paintLine, 420);
+      else finish();
+    };
+    setTimeout(paintLine, 280);
+    mapActionTimer = setTimeout(() => finish(), Math.max(durationMs, 4200));
   });
 }
 

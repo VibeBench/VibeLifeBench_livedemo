@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Noto+Sans+SC:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./css/styles.css?v=20260722-25" />
+    <link rel="stylesheet" href="./css/styles.css?v=20260722-26" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
@@ -45,6 +45,7 @@
               <span class="map-planning-dot" aria-hidden="true"></span>
               <span id="mapPlanningBadgeText">路线推演中</span>
             </div>
+            <div class="map-action-stage" id="mapActionStage" hidden></div>
             <div class="map-toast-rail" id="mapToastRail" aria-live="polite"></div>
           </div>
 
@@ -63,9 +64,10 @@
                 <span><i class="lg-route"></i>规划未走</span>
                 <span><i class="lg-live"></i>当前路段</span>
                 <span><i class="lg-plan"></i>推演/调整</span>
+                <span><i class="lg-check"></i>核查中</span>
                 <span data-leg="flight"><i class="lg-flight"></i>确认后航线</span>
                 <span><i class="lg-ferry"></i>渡轮</span>
-                <span><i class="lg-close"></i>封闭/暂缓</span>
+                <span><i class="lg-close"></i>确认受阻</span>
               </div>
               <div class="float-info-plan" id="planDock">
                 <h3>原计划</h3>
@@ -220,6 +222,6 @@
 
     <div class="toast" id="toast" hidden></div>
 
-    <script type="module" src="./js/app.js?v=20260722-25"></script>
+    <script type="module" src="./js/app.js?v=20260722-26"></script>
   </body>
 </html>

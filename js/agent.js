@@ -50,7 +50,8 @@ export function buildSystemPrompt(workspace, meta) {
     "当前 demo case：" + (meta.title || meta.case_id),
     "请用中文与用户沟通。金额同时标注 CNY 与 NZD（约 1 NZD ≈ 4.2 CNY）。",
     "安全第一：靠左驾驶、疲劳驾驶、天气路况。赵梅有轻度关节炎，活动安排须低强度。",
-    "遇到静默变更（mutation）相关线索时，请主动调用工具查询天气/路况/航班/酒店，不要假设一切正常。",
+    "遇到静默变更（mutation）相关线索时，请主动调用工具查询天气/路况/航班，不要假设一切正常。",
+    "需要外部资讯时用 search_web；确认的行程要点可 write_journal / add_calendar_event 写入游记与日程。",
     "重大不可退或单笔超过 ¥3000 的预订先征询用户；医疗结论绝不代下。",
     "回复使用标准 Markdown。对比/清单用 GFM 表格（必须含表头分隔行），例如：",
     "| 项目 | 金额 |\n| --- | --- |\n| 已花 | ¥33,000 |\n| 剩余 | ¥17,000 |",
@@ -139,6 +140,52 @@ export function buildTools() {
         name: "get_budget_snapshot",
         description: "读取当前行程预算快照（来自最新 user_state）",
         parameters: { type: "object", properties: {} },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "search_web",
+        description: "搜索行程相关资讯（路况公告、景点、签证、营地评价等），返回摘要结果",
+        parameters: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "搜索词，如 SH80 落石 / Tekapo 营地评价" },
+          },
+          required: ["query"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "write_journal",
+        description: "把要点写入游记 / Notion 笔记（演示写入）",
+        parameters: {
+          type: "object",
+          properties: {
+            title: { type: "string", description: "小节标题或章节名" },
+            content: { type: "string", description: "要写入的正文要点" },
+            section: { type: "string", description: "journal / safety / expense，默认 journal" },
+          },
+          required: ["content"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "add_calendar_event",
+        description: "把行程节点加入日程（演示写入）",
+        parameters: {
+          type: "object",
+          properties: {
+            title: { type: "string", description: "日程标题" },
+            date: { type: "string", description: "YYYY-MM-DD" },
+            note: { type: "string", description: "补充说明" },
+          },
+          required: ["title"],
+        },
       },
     },
   ];
@@ -494,10 +541,118 @@ export class TravelAgent {
       case "get_budget_snapshot": {
         return { ok: true, budget: state.budget || null, location: state.location || null };
       }
+      case "search_web": {
+        const query = String(args.query || "").trim();
+        const results = mockSearchResults(query, env, state);
+        return { ok: true, query, results, count: results.length };
+      }
+      case "write_journal": {
+        const section = String(args.section || "journal").toLowerCase();
+        const title = String(args.title || "行程游记").trim();
+        const content = String(args.content || "").trim();
+        env.ledger = env.ledger || {};
+        env.ledger.notion = env.ledger.notion || {
+          title: "NZ Road Trip 2026 — Journal",
+          sections: { journal: "", expense: "", safety: "" },
+        };
+        const prev = env.ledger.notion.sections[section] || "";
+        const stamp = state.__date || String(this.engine.latestDate() || "");
+        const block = [`## ${title}${stamp ? ` · ${stamp}` : ""}`, content].filter(Boolean).join("\n");
+        env.ledger.notion.sections[section] = prev ? `${prev}\n\n${block}` : block;
+        return {
+          ok: true,
+          written: true,
+          section,
+          title,
+          content,
+          preview: content.slice(0, 160),
+        };
+      }
+      case "add_calendar_event": {
+        const title = String(args.title || "行程节点").trim();
+        const date = String(args.date || state.__date || this.engine.latestDate() || "").slice(0, 10);
+        const note = String(args.note || "").trim();
+        env.ledger = env.ledger || {};
+        env.ledger.calendar = env.ledger.calendar || [];
+        const item = {
+          id: `cal_agent_${Date.now()}`,
+          date,
+          title,
+          note,
+          kind: "plan",
+          source: "agent",
+        };
+        env.ledger.calendar.push(item);
+        return { ok: true, written: true, event: item };
+      }
       default:
         return { ok: false, error: `unknown tool ${name}` };
     }
   }
+}
+
+function mockSearchResults(query, env, state) {
+  const q = String(query || "").toLowerCase();
+  const loc = state?.location || "";
+  const out = [];
+  if (/sh80|库克|mt\s*cook|落石|封/i.test(q)) {
+    out.push({
+      title: "NZTA：Aoraki/Mt Cook Highway (SH80) 临时管控",
+      snippet: "落石风险路段实行间歇性封闭，建议出发前查询实时路况，并预留改道缓冲。",
+      url: "nzta.govt.nz/traffic/sh80-mt-cook",
+    });
+  }
+  if (/sh94|milford|米尔福德/i.test(q)) {
+    out.push({
+      title: "Milford Road (SH94) 天气与通行提示",
+      snippet: "峡湾天气多变，浓雾/结冰时可能短时封闭。当日自驾请预留折返时间。",
+      url: "milfordroad.co.nz/status",
+    });
+  }
+  if (/营地|holiday|park|tekapo|蒂卡波|住宿/i.test(q)) {
+    out.push({
+      title: "Tekapo / Lakeview 营地评价摘要",
+      snippet: "星空与湖景评分高；旺季建议提前确认 powered site 与取消政策。",
+      url: "holidayparks.co.nz/tekapo",
+    });
+  }
+  if (/签证|eta|入境/i.test(q)) {
+    out.push({
+      title: "新西兰 NZeTA 办理要点",
+      snippet: "多数访客需 NZeTA + IVL；建议出行前 72 小时确认批准状态。",
+      url: "immigration.govt.nz/nzeta",
+    });
+  }
+  if (/渡轮|ferry|库克海峡/i.test(q)) {
+    out.push({
+      title: "Interislander 库克海峡渡轮动态",
+      snippet: "大风浪时可能延误或改班；房车登船请按航次提前到达码头。",
+      url: "interislander.co.nz/status",
+    });
+  }
+  if (!out.length) {
+    out.push({
+      title: `检索：${query || "新西兰自驾"}`,
+      snippet: loc
+        ? `围绕「${loc}」整理了路况、天气与停留建议，可供行程决策参考。`
+        : "已汇总官方路况、营地与签证相关公开信息摘要。",
+      url: "vibelifebench.local/search",
+    });
+    out.push({
+      title: "AA Traveller · South Island driving tips",
+      snippet: "南岛山路弯多、补给点稀疏；单日驾驶建议控制在 4–5 小时内。",
+      url: "aa.co.nz/travel",
+    });
+  }
+  // Surface any currently active road notes
+  for (const e of (env?.maps?.road_events || []).filter((x) => Number(x.active) === 1).slice(0, 2)) {
+    out.push({
+      title: `路况快讯 · ${e.road_id || "road"}`,
+      snippet: e.note || "有生效中的道路事件，请结合工具复核。",
+      url: `maps.local/${e.road_id || "event"}`,
+    });
+  }
+  return out.slice(0, 5);
 }
 
 export { DEFAULT_MODEL, DEFAULT_BASE, DEFAULT_PROVIDER };

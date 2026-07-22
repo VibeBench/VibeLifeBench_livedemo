@@ -866,6 +866,12 @@ select {
   background: #e11d48;
 }
 
+.map-legend .lg-check {
+  background: transparent;
+  border-top: 2px dashed #7c3aed;
+  height: 0;
+}
+
 .map-legend .lg-live {
   background: #16a34a;
   height: 4px;
@@ -903,6 +909,15 @@ select {
 
 .route-planning-blocked {
   filter: drop-shadow(0 0 4px rgba(225, 29, 72, 0.5));
+}
+
+.route-planning-checking {
+  filter: drop-shadow(0 0 4px rgba(124, 58, 237, 0.5));
+  animation: route-dash 1.6s linear infinite;
+}
+
+.route-planning-clear {
+  filter: drop-shadow(0 0 4px rgba(22, 163, 74, 0.45));
 }
 
 .flight-plan-line {
@@ -969,6 +984,11 @@ select {
   color: #9f1239;
 }
 
+.map-planning-badge[data-mode="checking"] {
+  border-color: rgba(124, 58, 237, 0.4);
+  color: #5b21b6;
+}
+
 .map-planning-dot {
   width: 8px;
   height: 8px;
@@ -984,6 +1004,10 @@ select {
 
 .map-planning-badge[data-mode="blocked"] .map-planning-dot {
   background: #e11d48;
+}
+
+.map-planning-badge[data-mode="checking"] .map-planning-dot {
+  background: #7c3aed;
 }
 
 @keyframes planning-dot {
@@ -1002,6 +1026,209 @@ select {
   background: transparent;
   border-top: 2px dashed #2563eb;
   height: 0;
+}
+
+/* —— Map action overlays: search / notion / calendar —— */
+.map-action-stage {
+  width: min(420px, 86%);
+  max-height: min(52vh, 380px);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(10px) scale(0.97);
+  transition: opacity 0.28s ease, transform 0.28s ease;
+  z-index: 5;
+}
+
+.map-action-stage.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.map-action-stage[hidden] {
+  display: none !important;
+}
+
+.map-action-card {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.2);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  overflow: hidden;
+  padding: 12px 14px 14px;
+}
+
+.map-action-status {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: #2563eb;
+  background: #eff6ff;
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.map-action-stage.is-done .map-action-status {
+  color: #15803d;
+  background: #ecfdf5;
+}
+
+.map-action-search-logo {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.map-action-search-logo span {
+  color: #2563eb;
+}
+
+.map-action-search-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.map-action-search-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  border: 1px solid #dbe3f0;
+  background: #f8fafc;
+  min-height: 38px;
+}
+
+.map-action-search-ico {
+  font-size: 14px;
+}
+
+.map-action-search-query {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.map-action-caret {
+  color: #2563eb;
+  animation: blink 1s step-end infinite;
+}
+
+.map-action-search-meta {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.map-action-search-results {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.map-action-search-row {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  animation: map-action-row-in 0.35s ease both;
+}
+
+.map-action-search-row-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.map-action-search-row-snip {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.map-action-search-row-url {
+  margin-top: 2px;
+  font-size: 10px;
+  color: #16a34a;
+}
+
+.map-action-notion-head,
+.map-action-cal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.map-action-notion-ico,
+.map-action-cal-ico {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #f1f5f9;
+  font-size: 18px;
+}
+
+.map-action-notion-app,
+.map-action-cal-app {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.map-action-notion-title,
+.map-action-cal-title {
+  font-size: 13px;
+  font-weight: 750;
+  color: #0f172a;
+}
+
+.map-action-notion-body,
+.map-action-cal-event {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 48px;
+}
+
+.map-action-notion-line,
+.map-action-cal-line {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #334155;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border-left: 3px solid #2563eb;
+  animation: map-action-row-in 0.35s ease both;
+}
+
+.map-action-cal-line {
+  border-left-color: #d97706;
+}
+
+@keyframes map-action-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .map-emoji-icon {
