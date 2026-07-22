@@ -16,7 +16,7 @@ import {
   playFlightCrossing,
   isOceanFlightCrossing,
   playMapAction,
-} from "./map.js?v=20260722-42";
+} from "./map.js?v=20260722-43";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -58,8 +58,6 @@ export class UI {
       statusGrid: $("#statusGrid"),
       eventStream: $("#eventStream"),
       mapPanel: $("#mapPanel"),
-      planList: $("#planList"),
-      impactBox: $("#impactBox"),
       footerStats: $("#footerStats"),
       chatMessages: $("#chatMessages"),
       chatInput: $("#chatInput"),
@@ -1345,31 +1343,6 @@ export class UI {
     const result = renderLeafletMap(engine);
     if (!result.ok) {
       this.els.mapPanel.innerHTML = `<div class="map-canvas map-fallback">地图加载失败：${escapeHtml(result.reason || "unknown")}<br/><small>请检查网络是否可访问 OpenStreetMap / Leaflet CDN</small></div>`;
-    }
-
-    const active = engine.activeRoadEvents();
-    const today = engine.eventsForCurrentDay().filter((e) => e.kind !== "mutation");
-    const planItems = today
-      .filter((e) => e.kind === "app_notification" || e.kind === "routine")
-      .slice(0, 4)
-      .map((e) => truncate(e.body, 80));
-    const reached = typeof engine.reachedDate === "function" ? engine.reachedDate() : null;
-    const defaults = reached
-      ? ["按已揭晓行程推进", "关注天气与路况", "控制单日驾驶时长"]
-      : ["行程规划将随日程推进逐步揭晓", "先完成行前准备", "关注签证 / 机票 / 房车"];
-    this.els.planList.innerHTML = (planItems.length ? planItems : defaults)
-      .map((t) => `<li>${escapeHtml(t)}</li>`)
-      .join("");
-
-    if (active.length) {
-      this.els.impactBox.innerHTML = `
-        <div class="impact-title">当前影响</div>
-        <ul>${active.map((a) => `<li>${escapeHtml(a.note || a.event_id)}</li>`).join("")}</ul>
-        <p class="impact-hint">建议：主动查路况工具，必要时调整当日行程（留缓冲 / 改景点）。</p>`;
-      this.els.impactBox.hidden = false;
-    } else {
-      this.els.impactBox.hidden = true;
-      this.els.impactBox.innerHTML = "";
     }
   }
 
