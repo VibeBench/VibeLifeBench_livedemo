@@ -246,6 +246,8 @@ export function destroyMap() {
   }
   drawToken += 1;
   stopTravelerAnim();
+  clearTimeout(fitPassTimer);
+  fitPassTimer = null;
   if (leafletMap) {
     try {
       leafletMap.remove();
@@ -276,8 +278,9 @@ function bindMapResize(host) {
     clearTimeout(mapResizeTimer);
     mapResizeTimer = setTimeout(() => {
       if (!leafletMap) return;
-      leafletMap.invalidateSize(true);
-    }, 80);
+      leafletMap.invalidateSize(false);
+      if (lastCtx) applyFitForCtx(lastCtx);
+    }, 120);
   });
   const frame = host.closest(".map-frame") || host;
   mapResizeObs.observe(frame);
@@ -288,8 +291,9 @@ function onViewportResize() {
   clearTimeout(mapResizeTimer);
   mapResizeTimer = setTimeout(() => {
     if (!leafletMap) return;
-    leafletMap.invalidateSize(true);
-  }, 100);
+    leafletMap.invalidateSize(false);
+    if (lastCtx) applyFitForCtx(lastCtx);
+  }, 120);
 }
 
 function watchTiles(host) {
@@ -997,8 +1001,74 @@ function isRoadClosed(ctx, roadId) {
   return (ctx.activeRoads || []).some((e) => e.road_id === roadId && Number(e.active) === 1);
 }
 
-function fitLeaflet(ctx) {
+/**
+ * Pixel insets for map chrome so fitBounds / setView keep pins in the clear band
+ * between the top ribbon+status and the bottom docks.
+ */
+function measureChromePadding() {
+  const mapH = leafletMap?.getSize()?.y || leafletMap?.getContainer()?.clientHeight || 720;
+  const mapW = leafletMap?.getSize()?.x || leafletMap?.getContainer()?.clientWidth || 960;
+  const gutter = 14;
+
+  const topEl = document.querySelector(".map-chrome-top");
+  const bottomEl = document.querySelector(".map-chrome-bottom");
+  const overlay = document.querySelector(".map-overlay");
+  const overlayPad = overlay ? parseFloat(getComputedStyle(overlay).paddingTop) || 12 : 12;
+
+  let top = Math.ceil((topEl?.offsetHeight || 0) + overlayPad + gutter);
+  let bottom = Math.ceil((bottomEl?.offsetHeight || 0) + overlayPad + gutter);
+
+  const events = document.querySelector("#eventDock");
+  const info = document.querySelector("#infoDock");
+  let left = gutter + 8;
+  let right = gutter + 8;
+  if (events) {
+    left = Math.max(left, Math.min(events.offsetWidth + 16, Math.floor(mapW * 0.28)));
+  }
+  if (info) {
+    right = Math.max(right, Math.min(info.offsetWidth + 16, Math.floor(mapW * 0.32)));
+  }
+
+  const maxTop = Math.floor(mapH * 0.42);
+  const maxBottom = Math.floor(mapH * 0.38);
+  const maxSide = Math.floor(mapW * 0.34);
+  top = Math.max(56, Math.min(top, maxTop));
+  bottom = Math.max(48, Math.min(bottom, maxBottom));
+  left = Math.max(16, Math.min(left, maxSide));
+  right = Math.max(16, Math.min(right, maxSide));
+
+  if (top + bottom > mapH * 0.72) {
+    bottom = Math.max(40, Math.floor(mapH * 0.72 - top));
+  }
+
+  return { top, bottom, left, right };
+}
+
+function fitOptions(extra = {}) {
+  const pad = measureChromePadding();
+  return {
+    paddingTopLeft: [pad.left, pad.top],
+    paddingBottomRight: [pad.right, pad.bottom],
+    animate: false,
+    ...extra,
+  };
+}
+
+/** Center a single point in the chrome-safe viewport (not geometric map center). */
+function setViewInSafeArea(latlng, zoom) {
   if (!leafletMap) return;
+  const pad = measureChromePadding();
+  const size = leafletMap.getSize();
+  const safeCx = pad.left + (size.x - pad.left - pad.right) / 2;
+  const safeCy = pad.top + (size.y - pad.top - pad.bottom) / 2;
+  const target = window.L.latLng(latlng);
+  leafletMap.setView(target, zoom, { animate: false });
+  const cur = leafletMap.latLngToContainerPoint(target);
+  leafletMap.panBy([cur.x - safeCx, cur.y - safeCy], { animate: false });
+}
+
+function applyFitForCtx(ctx) {
+  if (!leafletMap || !ctx) return;
 
   if (ctx.isHome) {
     const home = ctx.home;
@@ -1009,13 +1079,11 @@ function fitLeaflet(ctx) {
           [home.lat, home.lng],
           [chc.lat, chc.lng],
         ],
-        { padding: [48, 48], maxZoom: ctx.flags?.showOutboundFlightArc ? 4 : 3.5 }
+        fitOptions({ maxZoom: ctx.flags?.showOutboundFlightArc ? 4 : 3.5 })
       );
     } else {
-      // Pre-booking: stay on Shanghai, do not preview NZ
-      leafletMap.setView([home.lat, home.lng], 10);
+      setViewInSafeArea([home.lat, home.lng], 10);
     }
-    setTimeout(() => leafletMap && leafletMap.invalidateSize(true), 60);
     return;
   }
 
@@ -1025,7 +1093,7 @@ function fitLeaflet(ctx) {
     const p = ctx.placeById[id];
     if (p) focus.push([p.lat, p.lng]);
   }
-  for (const ev of ctx.activeRoads) {
+  for (const ev of ctx.activeRoads || []) {
     for (const ll of parseRoadGeom(ctx.roadById[ev.road_id]?.geom || ctx.roadById[ev.road_id]?.geom_json)) {
       focus.push(ll);
     }
@@ -1037,15 +1105,41 @@ function fitLeaflet(ctx) {
     }
   }
   if (!focus.length) {
-    leafletMap.setView([-41.2, 172.5], 5);
-    setTimeout(() => leafletMap && leafletMap.invalidateSize(true), 60);
+    setViewInSafeArea([-41.2, 172.5], 5);
     return;
   }
-  leafletMap.fitBounds(focus, {
-    padding: [36, 36],
-    maxZoom: ctx.herePlaceId ? 9 : 5.5,
-  });
-  setTimeout(() => leafletMap && leafletMap.invalidateSize(true), 60);
+  if (focus.length === 1) {
+    setViewInSafeArea(focus[0], ctx.herePlaceId ? 9 : 5.5);
+  } else {
+    leafletMap.fitBounds(focus, fitOptions({ maxZoom: ctx.herePlaceId ? 9 : 5.5 }));
+  }
+}
+
+let fitPassTimer = null;
+
+function fitLeaflet(ctx) {
+  if (!leafletMap || !ctx) return;
+
+  try {
+    leafletMap.invalidateSize(false);
+  } catch {
+    /* ignore */
+  }
+
+  applyFitForCtx(ctx);
+
+  // One follow-up pass after chrome layout (ribbon/status heights) settles.
+  clearTimeout(fitPassTimer);
+  fitPassTimer = setTimeout(() => {
+    fitPassTimer = null;
+    if (!leafletMap || !lastCtx) return;
+    try {
+      leafletMap.invalidateSize(false);
+    } catch {
+      /* ignore */
+    }
+    applyFitForCtx(lastCtx);
+  }, 100);
 }
 
 function highlightPlaceIds(ctxOrId) {
