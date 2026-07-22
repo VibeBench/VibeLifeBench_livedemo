@@ -497,27 +497,36 @@ export class TravelAgent {
         return { ok: true, geo_key: geo, forecast: rows };
       }
       case "get_traffic_estimate": {
-        const q = `${args.road_id || ""} ${args.query || ""}`.toLowerCase();
+        const q = `${args.road_id || ""} ${args.query || ""}`.toLowerCase().trim();
         const events = env.maps.road_events || [];
         const roads = env.maps.roads || [];
         const roadById = Object.fromEntries(roads.map((r) => [r.road_id, r]));
-        const hit = events.filter((e) => {
+        const matchesQuery = (e) => {
+          if (!q) return Number(e.active) === 1;
           const road = roadById[e.road_id] || {};
-          const blob = `${e.event_id} ${e.road_id} ${e.note} ${road.name || ""}`.toLowerCase();
-          if (q.trim()) return q.split(/\s+/).some((t) => t && blob.includes(t.toLowerCase()));
-          return Number(e.active) === 1;
-        });
+          const blob = `${e.event_id} ${e.road_id} ${e.note || ""} ${road.name || ""}`.toLowerCase();
+          return q.split(/\s+/).some((t) => t && blob.includes(t.toLowerCase()));
+        };
+        const hitAll = events.filter(matchesQuery);
+        // Only currently active events count as blockage for the map.
+        const hitActive = hitAll.filter((e) => Number(e.active) === 1);
         const active = events.filter((e) => Number(e.active) === 1);
         const transit = (env.maps.transit_events || []).filter((e) => Number(e.active) === 1);
+        // Specific road query with no active hit → clear (do not fall back to other closures).
+        const matched = hitActive.length ? hitActive : q ? [] : active;
+        const enrich = (e) => ({
+          ...e,
+          road_name: roadById[e.road_id]?.name || null,
+          geom: roadById[e.road_id]?.geom || roadById[e.road_id]?.geom_json || null,
+        });
         return {
           ok: true,
-          matched: (hit.length ? hit : active).map((e) => ({
-            ...e,
-            road_name: roadById[e.road_id]?.name || null,
-            geom: roadById[e.road_id]?.geom || roadById[e.road_id]?.geom_json || null,
-          })),
+          query: q || null,
+          status: matched.length ? "blocked" : "clear",
+          matched: matched.map(enrich),
+          mentioned_inactive: hitAll.filter((e) => Number(e.active) !== 1).map(enrich),
           roads: roads.map((r) => ({ road_id: r.road_id, name: r.name, city: r.city })),
-          active_road_events: active,
+          active_road_events: active.map(enrich),
           active_transit_events: transit,
           transit_stops: env.maps.transit_stops || [],
         };

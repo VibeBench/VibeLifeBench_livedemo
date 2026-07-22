@@ -15,7 +15,7 @@ import {
   playFlightCrossing,
   isOceanFlightCrossing,
   playMapAction,
-} from "./map.js?v=20260722-30";
+} from "./map.js?v=20260722-31";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1270,7 +1270,7 @@ export class UI {
         return;
       }
       if (roads.length) {
-        focusTrafficResult({ matched: roads }, {}).catch(() => {});
+        focusTrafficResult({ matched: roads, status: "blocked" }, {}).catch(() => {});
       }
       this.pulseMapFeedback({
         id: `tool-place:${name}:${anchor.roadId || roads[0]?.road_id || "alerts"}`,
@@ -1967,20 +1967,24 @@ function buildToolPulse(name, args = {}, result = null) {
     case "get_traffic_estimate": {
       const road = roadLabel(args.road_id || args.query || result?.matched?.[0]?.road_id);
       title = `查询路况 · ${road}`;
-      const matched = result?.matched || result?.active_road_events || [];
+      const matched = result?.matched || [];
+      const status = String(result?.status || "").toLowerCase();
       if (error) detail = result?.error || result?.note || "路况查询失败";
-      else if (matched.length) {
+      else if (status === "clear" || !matched.length) {
+        detail = "未发现生效封路 · 路段可通行";
+      } else {
         const top = matched[0];
         const closed =
-          top.severity === "closed" ||
-          Number(top.active) === 1 && /封|关闭|closed|avalanche|debris/i.test(`${top.note || ""}`);
-        const status = closed ? "⚠ 封闭/暂缓" : Number(top.active) === 1 ? "⚠ 有事件" : "可通行";
-        detail = [status, top.note || top.road_name || roadLabel(top.road_id)]
+          Number(top.active) === 1 &&
+          (top.severity === "closed" ||
+            /封|关闭|closed|avalanche|debris|落石|雪崩/i.test(`${top.note || ""}`));
+        const label = closed ? "⚠ 已确认封闭" : "⚠ 有生效事件";
+        detail = [label, top.note || top.road_name || roadLabel(top.road_id)]
           .filter(Boolean)
           .join(" · ")
           .slice(0, 100);
         if (matched.length > 1) detail += `；另有 ${matched.length - 1} 条相关事件`;
-      } else detail = "未发现封路事件 · 路段可通行";
+      }
       break;
     }
     case "get_flight_status": {

@@ -331,11 +331,21 @@ export function extractRoadIdsFromText(text) {
 
 function inferPlanningMode(text) {
   const s = String(text || "");
-  if (/封闭|封路|落石|雪崩|无法通行|cancelled|closed|暂缓前往|取消.*库克|defer/i.test(s)) {
+  // Confirmed blockage only — speculative "是否封闭 / 查一下" stays in checking (purple).
+  if (/确认(?:了|为)?(?:受阻|封闭|封路)|已经封闭|目前仍?在?封闭|验证为|确实(?:封闭|无法通行)|仍在封闭/i.test(s)) {
     return "blocked";
+  }
+  if (/核查|查询路况|确认是否|是否封闭|检查路况|查一下.*(?:路|封)|看看.*封|路况如何/i.test(s)) {
+    return "checking";
+  }
+  if (/封闭|封路|落石|雪崩|无法通行|cancelled|closed|暂缓前往|取消.*库克|defer/i.test(s)) {
+    return "checking";
   }
   if (/改道|绕行|避开|调整路线|改走|改经|替代|alternate|reroute|via\s+wanaka|经瓦纳卡/i.test(s)) {
     return "adjust";
+  }
+  if (/通行正常|路况正常|可以通行|未封闭|无封路/i.test(s)) {
+    return "clear";
   }
   return "consider";
 }
@@ -586,24 +596,31 @@ export function focusGeoKey(geoKey, { label } = {}) {
 }
 
 /** Focus from get_traffic_estimate (or similar) tool result.
- *  Always paint "checking" first; only turn red after verified blockage. */
+ *  Always paint "checking" (purple) first; red only after active+verified blockage. */
 export async function focusTrafficResult(result, args = {}) {
-  const matched = result?.matched || result?.active_road_events || [];
+  const status = String(result?.status || "").toLowerCase();
+  const matched = result?.matched || [];
   const roadIds = matched.map((e) => e.road_id).filter(Boolean);
   if (args.road_id) roadIds.unshift(args.road_id);
+  // Also focus roads mentioned in the query even when clear.
+  const qRoads = extractRoadIdsFromText(`${args.query || ""} ${args.road_id || ""}`);
+  for (const id of qRoads) roadIds.push(id);
   const uniqRoads = [...new Set(roadIds)];
   const placeIds = extractPlaceIdsFromText(
     [args.query, args.road_id, ...(matched.map((e) => `${e.note || ""} ${e.road_name || ""}`))].join(" ")
   );
 
-  // Strict verification — active alone is not enough to paint red.
-  const verifiedBlocked = matched.some((e) => {
+  // Strict verification — inactive historical notes (with "closed" in text) must NOT paint red.
+  const isBlockedEvent = (e) => {
+    if (Number(e.active) !== 1) return false;
     const note = `${e.note || ""} ${e.severity || ""} ${e.kind || ""}`;
     return (
       e.severity === "closed" ||
       /封路|封闭|关闭|closed|avalanche|debris|落石|雪崩|不可通行|暂缓/i.test(note)
     );
-  });
+  };
+  const verifiedBlocked =
+    status === "blocked" || (status !== "clear" && matched.some(isBlockedEvent));
 
   await focusPlanning({
     placeIds,
@@ -621,15 +638,6 @@ export async function focusTrafficResult(result, args = {}) {
       roadIds: uniqRoads,
       mode: "blocked",
       label: "确认：路段受阻",
-      force: true,
-    });
-  }
-  if (matched.length) {
-    return focusPlanning({
-      placeIds,
-      roadIds: uniqRoads,
-      mode: "adjust",
-      label: "工具：发现相关事件",
       force: true,
     });
   }
