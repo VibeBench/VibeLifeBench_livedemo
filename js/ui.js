@@ -19,7 +19,7 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260722-62";
+} from "./map.js?v=20260722-63";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1760,14 +1760,14 @@ export class UI {
       if (row._calls.length) return row;
       const meta = describeToolCall(name, args, null);
       row.classList.add("pending");
-      row.classList.remove("done", "error");
+      row.classList.remove("done", "error", "stateful", "budget");
       row.innerHTML = `
-        <span class="tool-row-ico">${meta.icon}</span>
+        <span class="tool-row-ico" aria-hidden="true">${meta.icon}</span>
         <div class="tool-row-main">
           <div class="tool-row-title">${escapeHtml(meta.title)}</div>
           <div class="tool-row-detail">调用中…</div>
         </div>
-        <span class="tool-row-status">…</span>`;
+        <span class="tool-row-status">进行中</span>`;
       this._scrollChatToBottom();
       return row;
     }
@@ -1856,7 +1856,8 @@ export class UI {
     const n = row._calls.length;
     const baseLabel =
       (TOOL_META[name] && TOOL_META[name].label) || humanizeToolName(name);
-    const title = n > 1 ? `${baseLabel} · ${n} 次` : meta.title;
+    // Count lives in the status pill — don't repeat "· n 次" in the title.
+    const title = n > 1 ? baseLabel : meta.title;
     const detail = this._mergedToolDetail(row);
     const anyError = row._calls.some((c) => c.meta?.error);
     const anyStateful = row._calls.some((c) => c.meta?.stateful);
@@ -1867,13 +1868,14 @@ export class UI {
     row.classList.toggle("budget", isBudget);
     row.classList.toggle("error", anyError);
     const ico = isBudget ? "💰" : meta.icon;
+    const status = anyError ? "失败" : n > 1 ? `×${n}` : "完成";
     row.innerHTML = `
-      <span class="tool-row-ico">${ico}</span>
+      <span class="tool-row-ico" aria-hidden="true">${ico}</span>
       <div class="tool-row-main">
-        <div class="tool-row-title">${escapeHtml(title)}</div>
+        <div class="tool-row-title" title="${escapeHtml(title)}">${escapeHtml(title)}</div>
         ${detail ? `<div class="tool-row-detail">${escapeHtml(detail)}</div>` : ""}
       </div>
-      <span class="tool-row-status">${anyError ? "失败" : n > 1 ? `${n} 次` : "完成"}</span>`;
+      <span class="tool-row-status">${status}</span>`;
   }
 
   /** Ensure every completed tool call from the turn is present in the log. */
