@@ -1749,6 +1749,72 @@ select {
   animation: map-pulse-ring 1.2s ease-out infinite;
 }
 
+/* Weather tool: emoji floats above the place pin / here-orb */
+.map-weather-emoji-wrap {
+  background: transparent !important;
+  border: none !important;
+}
+
+.map-weather-emoji {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  transform-origin: 50% 100%;
+  animation: map-weather-pop 0.45s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.map-weather-emoji.is-leaving {
+  animation: map-weather-leave 0.4s ease forwards;
+}
+
+.map-weather-emoji-ico {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
+  font-size: 26px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.12));
+}
+
+.map-weather-emoji-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 50%;
+  border: 2px solid rgba(56, 189, 248, 0.55);
+  animation: map-pulse-ring 1.15s ease-out infinite;
+}
+
+@keyframes map-weather-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes map-weather-leave {
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.85);
+  }
+}
+
 .map-pulse-card {
   position: relative;
   display: inline-flex;

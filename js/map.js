@@ -155,11 +155,11 @@ export function pulseMapEvent({
     .slice(0, 24);
 
   const at = resolvePulseLatLng({ placeId, geoKey, roadId, latlng });
-  // Weather: emoji ping only — no place bubble / rail card.
+  // Weather: float a clear emoji ABOVE the place (not under the 「现在」 orb).
   if (kindCls === "weather" || /weather/i.test(String(kind || ""))) {
-    pulseTinyPin({
+    pulseWeatherEmoji({
       icon: icon || "🌦️",
-      durationMs: Math.min(3200, durationMs),
+      durationMs: Math.max(3800, Math.min(5200, durationMs)),
       latlng: at || undefined,
     });
     return true;
@@ -205,6 +205,13 @@ function resolvePulseLatLng({ placeId = null, geoKey = null, roadId = null, latl
     }
     if (lastCtx?.home && geo === "shanghai_home") {
       return window.L.latLng(lastCtx.home.lat, lastCtx.home.lng);
+    }
+    // Fallback: weather.locations lat/lng (covers te_anau / manapouri etc.)
+    const loc = (lastCtx?.locations || []).find(
+      (l) => String(l.geo_key || "").toLowerCase() === geo
+    );
+    if (loc && Number.isFinite(Number(loc.lat)) && Number.isFinite(Number(loc.lng))) {
+      return window.L.latLng(Number(loc.lat), Number(loc.lng));
     }
   }
 
@@ -282,6 +289,52 @@ function pulseTinyPin({ icon = "📌", durationMs = 2400, latlng = null } = {}) 
     }
   }, durationMs);
   pulseTimers.push(t);
+}
+
+/** Weather result: large emoji floating above the place (clear of 「现在」 orb). */
+function pulseWeatherEmoji({ icon = "🌦️", durationMs = 4200, latlng = null } = {}) {
+  if (!leafletMap || !window.L) return;
+  if (!pulseLayer) pulseLayer = window.L.layerGroup().addTo(leafletMap);
+
+  const here = lastCtx ? placeLatLng(lastCtx) : null;
+  const center = leafletMap.getCenter();
+  const at =
+    latlng ||
+    window.L.latLng(here?.[0] ?? center.lat, here?.[1] ?? center.lng);
+
+  const marker = window.L.marker(at, {
+    icon: window.L.divIcon({
+      className: "map-weather-emoji-wrap",
+      html: `
+        <div class="map-weather-emoji" aria-hidden="true">
+          <span class="map-weather-emoji-ring"></span>
+          <span class="map-weather-emoji-ico">${icon || "🌦️"}</span>
+        </div>`,
+      iconSize: [56, 56],
+      // Anchor below the emoji so it sits clearly ABOVE the pin / here-orb.
+      iconAnchor: [28, 72],
+    }),
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: 1800,
+  }).addTo(pulseLayer);
+
+  const fadeAt = Math.max(2200, durationMs - 500);
+  const t1 = setTimeout(() => {
+    try {
+      marker.getElement()?.querySelector(".map-weather-emoji")?.classList.add("is-leaving");
+    } catch {
+      /* ignore */
+    }
+  }, fadeAt);
+  const t2 = setTimeout(() => {
+    try {
+      pulseLayer?.removeLayer(marker);
+    } catch {
+      /* ignore */
+    }
+  }, durationMs);
+  pulseTimers.push(t1, t2);
 }
 
 /** Message bubble anchored next to a place / road on the map. */

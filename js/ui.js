@@ -16,7 +16,7 @@ import {
   playFlightCrossing,
   isOceanFlightCrossing,
   playMapAction,
-} from "./map.js?v=20260722-48";
+} from "./map.js?v=20260722-49";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1643,21 +1643,24 @@ export class UI {
     if (name === "get_traffic_estimate") {
       focusTrafficResult(result || {}, args || {}).catch(() => {});
     } else if (name === "get_current_weather" || name === "get_forecast_daily") {
-      const geo = args.geo_key || result?.geo_key;
-      if (geo) focusGeoKey(geo, { label: `工具：天气 · ${geoLabel(geo) || geo}` });
-      // Weather: map emoji only — no big place bubble.
-      this.pulseMapFeedback({
-        id: `tool-weather:${name}:${geo || anchor.geoKey || ""}`,
-        icon: weatherEmojiFromText(
-          `${meta.detail || ""} ${result?.condition || ""} ${result?.summary || ""} ${result?.weather || ""}`
-        ),
-        title: "",
-        detail: "",
-        kind: "weather",
-        placeId: anchor.placeId,
-        geoKey: geo || anchor.geoKey,
+      const geo = args.geo_key || result?.geo_key || anchor.geoKey;
+      // Pan first, then float weather emoji above the place (no bubble).
+      return Promise.resolve(
+        geo ? focusGeoKey(geo, { label: `工具：天气 · ${geoLabel(geo) || geo}` }) : false
+      ).then(() => {
+        this.pulseMapFeedback({
+          id: `tool-weather:${name}:${geo || ""}`,
+          icon: weatherEmojiFromText(
+            `${meta.detail || ""} ${result?.condition || ""} ${result?.summary || ""} ${result?.weather || ""}`
+          ),
+          title: "",
+          detail: "",
+          kind: "weather",
+          placeId: anchor.placeId,
+          geoKey: geo || null,
+        });
+        return true;
       });
-      return;
     } else if (name === "get_flight_status") {
       focusPlanning({
         placeIds: ["pl_chc_airport"],
@@ -1822,10 +1825,12 @@ export class UI {
     });
 
     // If onTool didn't run focus yet (e.g. syncToolCalls), still drop a place bubble —
-    // except tools that already have their own bottom cinematic (search / budget / writes).
+    // except tools with their own map feedback (search / budget / weather / writes).
     const hasOwnCinematic =
       name === "search_web" ||
       name === "get_budget_snapshot" ||
+      name === "get_current_weather" ||
+      name === "get_forecast_daily" ||
       name === "write_journal" ||
       name === "add_calendar_event" ||
       /notion|journal|write_page|calendar|schedule/i.test(name || "");
