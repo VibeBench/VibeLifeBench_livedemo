@@ -19,7 +19,7 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260722-77";
+} from "./map.js?v=20260722-78";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1500,21 +1500,26 @@ export class UI {
       <div class="bubble-name">Agent</div>
       <div class="turn-header-bar" data-turn-header hidden></div>
       <div class="agent-rail" data-agent-rail hidden>
-        <div class="rail-step rail-think" data-think hidden>
+        <div class="rail-step rail-think is-collapsed" data-think hidden>
           <div class="rail-gutter">
             <span class="rail-dot think" aria-hidden="true"></span>
             <span class="rail-line" aria-hidden="true"></span>
           </div>
           <div class="rail-body">
-            <div class="rail-think-meta">
-              <span class="rail-think-label">Thinking</span>
-              <span class="rail-think-secs" data-think-secs></span>
+            <button type="button" class="rail-think-head" data-think-toggle aria-expanded="false">
+              <span class="rail-think-meta">
+                <span class="rail-think-label">Thinking</span>
+                <span class="rail-think-secs" data-think-secs></span>
+              </span>
+              <span class="rail-think-chevron" aria-hidden="true"></span>
+            </button>
+            <div class="rail-think-body" data-think-body>
+              <blockquote class="rail-think-quote">
+                <p class="rail-think-summary" data-think-summary></p>
+                <div class="rail-think-full" data-think-full hidden></div>
+              </blockquote>
+              <button type="button" class="rail-think-more" data-think-more hidden>展开全文</button>
             </div>
-            <blockquote class="rail-think-quote">
-              <p class="rail-think-summary" data-think-summary></p>
-              <div class="rail-think-full" data-think-full hidden></div>
-            </blockquote>
-            <button type="button" class="rail-think-more" data-think-more hidden>展开全文</button>
           </div>
         </div>
         <div class="tool-panel" data-tool-panel hidden>
@@ -1538,6 +1543,14 @@ export class UI {
       if (open) full.removeAttribute("hidden");
       else full.setAttribute("hidden", "");
       moreBtn.textContent = open ? "收起" : "展开全文";
+    });
+
+    const thinkToggle = wrap.querySelector("[data-think-toggle]");
+    thinkToggle?.addEventListener("click", () => {
+      const think = wrap.querySelector("[data-think]");
+      if (!think) return;
+      const collapsed = think.classList.toggle("is-collapsed");
+      thinkToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
     });
 
     const panelToggle = wrap.querySelector("[data-tool-panel-toggle]");

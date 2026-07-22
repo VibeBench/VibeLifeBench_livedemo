@@ -3319,16 +3319,31 @@ select {
   padding: 2px 0 10px;
 }
 
-/* Thinking quote on the rail */
+/* Thinking — collapsed by default; click header to expand quote */
 .rail-think .rail-body {
-  padding-bottom: 10px;
+  padding-bottom: 6px;
+}
+
+.rail-think-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: 0;
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
 }
 
 .rail-think-meta {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 
 .rail-think-label {
@@ -3342,6 +3357,29 @@ select {
 .rail-think-secs {
   font-size: 10.5px;
   color: #cbd5e1;
+}
+
+.rail-think-chevron {
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  margin-left: 8px;
+  border-left: 3.5px solid transparent;
+  border-right: 3.5px solid transparent;
+  border-top: 4.5px solid #cbd5e1;
+  transition: transform 0.15s ease;
+}
+
+.rail-think.is-collapsed .rail-think-chevron {
+  transform: rotate(-90deg);
+}
+
+.rail-think-body {
+  margin-top: 4px;
+}
+
+.rail-think.is-collapsed .rail-think-body {
+  display: none !important;
 }
 
 .rail-think-quote {
@@ -3391,8 +3429,8 @@ select {
   display: none !important;
 }
 
-.rail-think.thinking .rail-think-summary {
-  background: linear-gradient(90deg, #334155 0%, #94a3b8 45%, #334155 90%);
+.rail-think.thinking .rail-think-label {
+  background: linear-gradient(90deg, #94a3b8 0%, #cbd5e1 45%, #94a3b8 90%);
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
