@@ -677,7 +677,7 @@ export function playMapAction({
   query = "",
   body = "",
   items = [],
-  durationMs = 5200,
+  durationMs = 8500,
 } = {}) {
   return new Promise((resolve) => {
     const stage = ensureMapActionStage();
@@ -739,14 +739,19 @@ export function playMapAction({
     stage.removeAttribute("hidden");
     requestAnimationFrame(() => stage.classList.add("show"));
 
+    let finished = false;
     const finish = (ok = true) => {
+      if (finished) return;
+      finished = true;
       stage.classList.add("is-done");
       const st = stage.querySelector(".map-action-status");
       if (st) st.textContent = kind === "search" ? "完成" : "已写入";
+      const caret = stage.querySelector(".map-action-caret");
+      if (caret) caret.hidden = true;
       mapActionTimer = setTimeout(() => {
         hideMapActionStage();
         resolve(ok);
-      }, 1100);
+      }, 1600);
     };
 
     if (kind === "search") {
@@ -754,6 +759,10 @@ export function playMapAction({
       const resEl = stage.querySelector("#mapActionResults");
       const meta = stage.querySelector(".map-action-search-meta");
       let i = 0;
+      // Slower typing + staggered results so the search beat is readable.
+      const typeMs = 95;
+      const rowGapMs = 780;
+      const firstRowDelayMs = 650;
       const typeTimer = setInterval(() => {
         i += 1;
         if (qEl) qEl.textContent = q.slice(0, i);
@@ -773,13 +782,15 @@ export function playMapAction({
               ${item.url ? `<div class="map-action-search-row-url">${escapeHtml(item.url)}</div>` : ""}`;
             resEl.appendChild(row);
             r += 1;
-            if (r < rows.length) setTimeout(addRow, 380);
+            if (r < rows.length) setTimeout(addRow, rowGapMs);
             else finish();
           };
-          setTimeout(addRow, 280);
+          setTimeout(addRow, firstRowDelayMs);
         }
-      }, 42);
-      mapActionTimer = setTimeout(() => finish(), Math.max(durationMs, 4800));
+      }, typeMs);
+      const minHold =
+        q.length * typeMs + firstRowDelayMs + Math.max(rows.length, 1) * rowGapMs + 2200;
+      mapActionTimer = setTimeout(() => finish(), Math.max(durationMs, minHold));
       return;
     }
 
@@ -1735,14 +1746,7 @@ function paintHomeActivity(ctx) {
     icon: hereMarkerIcon(emoji, label),
     zIndexOffset: 1200,
     interactive: false,
-  })
-    .addTo(activityLayer)
-    .bindTooltip(`现在 · ${label}`, {
-      permanent: true,
-      direction: "right",
-      offset: [28, -4],
-      className: "map-here-tooltip",
-    });
+  }).addTo(activityLayer);
 }
 
 async function paintLiveActivity(ctx, token) {
@@ -1784,14 +1788,7 @@ async function paintLiveActivity(ctx, token) {
     icon: hereMarkerIcon(act.emoji, act.label),
     zIndexOffset: 1200,
     interactive: false,
-  })
-    .addTo(activityLayer)
-    .bindTooltip(`现在 · ${act.label}`, {
-      permanent: true,
-      direction: "right",
-      offset: [28, -4],
-      className: "map-here-tooltip",
-    });
+  }).addTo(activityLayer);
 }
 
 async function liveSegmentPath(ctx) {
@@ -2187,22 +2184,27 @@ function emojiIcon(emoji, extraClass = "") {
   });
 }
 
-/** Distinct "you are here" marker — stands out among place/hotel pins. */
+/** Distinct "you are here" marker — status caption sits under the icon (no side tooltip). */
 function hereMarkerIcon(emoji, label = "") {
-  const tip = escapeHtml(String(label || "").trim());
+  const raw = String(label || "").trim();
+  const tip = escapeHtml(raw);
+  const short = escapeHtml(raw.length > 10 ? `${raw.slice(0, 9)}…` : raw);
   return window.L.divIcon({
     className: "map-here-wrap",
     html: `
       <div class="map-here-marker" title="${tip}">
-        <span class="map-here-pulse" aria-hidden="true"></span>
-        <span class="map-here-pulse map-here-pulse-late" aria-hidden="true"></span>
-        <span class="map-here-core">
-          <span class="map-here-emoji">${emoji || "📍"}</span>
-        </span>
-        <span class="map-here-tag">现在</span>
+        <div class="map-here-orb">
+          <span class="map-here-pulse" aria-hidden="true"></span>
+          <span class="map-here-pulse map-here-pulse-late" aria-hidden="true"></span>
+          <span class="map-here-core">
+            <span class="map-here-emoji">${emoji || "📍"}</span>
+          </span>
+          <span class="map-here-tag">现在</span>
+        </div>
+        ${short ? `<div class="map-here-caption">${short}</div>` : ""}
       </div>`,
-    iconSize: [72, 72],
-    iconAnchor: [36, 40],
+    iconSize: [120, 86],
+    iconAnchor: [60, 36],
   });
 }
 
@@ -2215,14 +2217,6 @@ function startTravelerAnim(latlngs, emoji, label) {
     zIndexOffset: 1200,
     interactive: false,
   }).addTo(activityLayer);
-  if (label) {
-    marker.bindTooltip(`现在 · ${label}`, {
-      permanent: true,
-      direction: "right",
-      offset: [28, -4],
-      className: "map-here-tooltip",
-    });
-  }
 
   const lengths = segmentLengths(latlngs);
   const total = lengths.reduce((a, b) => a + b, 0) || 1;
