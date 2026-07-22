@@ -49,12 +49,12 @@ select {
 
 .app {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
   grid-template-rows: auto minmax(0, 1fr);
   align-items: stretch;
   gap: clamp(10px, 1.2vw, 16px);
   width: 100%;
-  max-width: 1600px;
+  max-width: 1680px;
   margin: 0 auto;
   padding: clamp(8px, 1vw, 14px);
   box-sizing: border-box;
