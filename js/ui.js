@@ -16,7 +16,7 @@ import {
   playFlightCrossing,
   isOceanFlightCrossing,
   playMapAction,
-} from "./map.js?v=20260722-49";
+} from "./map.js?v=20260722-50";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -905,7 +905,7 @@ export class UI {
             : state.demo_action,
         sub: state?.trip_node || (state ? "" : "开启自动播放开始"),
       },
-      { key: "weather", icon: "☀️", label: "天气", value: shortWeather(state?.weather), sub: weatherSub(state) },
+      { key: "weather", icon: weatherEmojiFromText(state?.weather) || "☀️", label: "天气", value: shortWeather(state?.weather), sub: weatherSub(state) },
       {
         key: "budget",
         icon: "💰",
@@ -923,11 +923,16 @@ export class UI {
     ];
 
     const prev = this._statusSnap || {};
-    const nextSnap = { budget: budgetValue, flight: flightStatus };
+    const weatherValue = shortWeather(state?.weather);
+    const nextSnap = { budget: budgetValue, flight: flightStatus, weather: weatherValue };
     const budgetChanged =
       prev.budget != null && prev.budget !== nextSnap.budget && nextSnap.budget !== "待确定";
     const flightChanged =
       prev.flight != null && prev.flight !== nextSnap.flight && nextSnap.flight !== "待预订";
+    const weatherChanged =
+      prev.weather != null &&
+      prev.weather !== nextSnap.weather &&
+      nextSnap.weather !== "—";
 
     this.els.statusGrid.innerHTML = cards
       .map(
@@ -960,6 +965,16 @@ export class UI {
         fromText: prev.flight,
         toText: nextSnap.flight,
         detail: flightSub || "状态栏已同步",
+      });
+    }
+    if (weatherChanged) {
+      this.enqueueStatusLanding({
+        kind: "weather",
+        icon: weatherEmojiFromText(state?.weather) || "🌦️",
+        title: "天气已更新",
+        fromText: prev.weather,
+        toText: nextSnap.weather,
+        detail: weatherSub(state) || "状态栏已同步",
       });
     }
     this._statusSnap = nextSnap;
@@ -1074,14 +1089,19 @@ export class UI {
           if (chipNow) {
             chipNow.classList.add("status-chip-landed");
             chipNow.classList.add(
-              kind === "flight" ? "status-chip-landed-flight" : "status-chip-landed-budget"
+              kind === "flight"
+                ? "status-chip-landed-flight"
+                : kind === "weather"
+                  ? "status-chip-landed-weather"
+                  : "status-chip-landed-budget"
             );
             clearTimeout(chipNow._landTimer);
             chipNow._landTimer = setTimeout(() => {
               chipNow.classList.remove(
                 "status-chip-landed",
                 "status-chip-landed-flight",
-                "status-chip-landed-budget"
+                "status-chip-landed-budget",
+                "status-chip-landed-weather"
               );
             }, 1400);
           }
@@ -1644,23 +1664,53 @@ export class UI {
       focusTrafficResult(result || {}, args || {}).catch(() => {});
     } else if (name === "get_current_weather" || name === "get_forecast_daily") {
       const geo = args.geo_key || result?.geo_key || anchor.geoKey;
-      // Pan first, then float weather emoji above the place (no bubble).
+      const place = geoLabel(geo) || geo || "";
+      const weatherBlob = `${meta.detail || ""} ${result?.condition || ""} ${result?.summary || ""} ${result?.weather || ""}`;
+      const wIcon = weatherEmojiFromText(weatherBlob);
+      const statusText = formatObservedWeatherText(name, args, result);
+      const rows = buildWeatherActionRows(name, args, result);
+
+      // Pan + place emoji, then bottom weather card → status bar (like budget).
       return Promise.resolve(
-        geo ? focusGeoKey(geo, { label: `工具：天气 · ${geoLabel(geo) || geo}` }) : false
-      ).then(() => {
-        this.pulseMapFeedback({
-          id: `tool-weather:${name}:${geo || ""}`,
-          icon: weatherEmojiFromText(
-            `${meta.detail || ""} ${result?.condition || ""} ${result?.summary || ""} ${result?.weather || ""}`
-          ),
-          title: "",
-          detail: "",
-          kind: "weather",
-          placeId: anchor.placeId,
-          geoKey: geo || null,
+        geo ? focusGeoKey(geo, { label: `工具：天气 · ${place || geo}` }) : false
+      )
+        .then(() => {
+          this.pulseMapFeedback({
+            id: `tool-weather:${name}:${geo || ""}`,
+            icon: wIcon,
+            title: "",
+            detail: "",
+            kind: "weather",
+            placeId: anchor.placeId,
+            geoKey: geo || null,
+          });
+          return this.playQueuedMapAction({
+            kind: "weather",
+            title: place ? `${place} · 天气` : name === "get_forecast_daily" ? "多日预报" : "当日天气",
+            query: wIcon,
+            items: rows,
+            fingerprint: `weather:${name}:${geo || ""}:${statusText.slice(0, 40)}`,
+          });
+        })
+        .then(() => {
+          if (statusText && typeof this.onWeatherObserved === "function") {
+            this.onWeatherObserved({
+              weather: statusText,
+              geo_key: geo || null,
+              icon: wIcon,
+              detail: meta.detail || statusText,
+            });
+          }
+          this.enqueueStatusLanding({
+            kind: "weather",
+            icon: wIcon,
+            title: place ? `${place}天气` : "天气已同步",
+            fromText: "查询中…",
+            toText: shortWeather(statusText) || statusText || "已更新",
+            detail: statusText || meta.detail || "",
+          });
+          return true;
         });
-        return true;
-      });
     } else if (name === "get_flight_status") {
       focusPlanning({
         placeIds: ["pl_chc_airport"],
@@ -2308,6 +2358,85 @@ function weatherEmojiFromText(text) {
   if (/多云|cloudy|cloud/.test(s)) return "⛅";
   if (/晴|clear|sunny|日照/.test(s)) return "☀️";
   return "🌦️";
+}
+
+/** Compact weather string for status bar / sticky state. */
+function formatObservedWeatherText(name, args = {}, result = null) {
+  if (!result) return "";
+  if (name === "get_forecast_daily") {
+    const rows = result.forecast || [];
+    if (!rows.length) return "";
+    const place = geoLabel(args.geo_key || result.geo_key);
+    const bits = rows.slice(0, 3).map((r) => {
+      const d = String(r.date || "").slice(5) || "?";
+      const cond = weatherConditionLabel(r.condition) || r.condition || "?";
+      return `${d} ${cond} ${r.tmin ?? "?"}~${r.tmax ?? "?"}℃`;
+    });
+    return `${place ? `${place} · ` : ""}${bits.join("； ")}`;
+  }
+  if (result.summary) {
+    return String(result.summary).replace(/^([A-Za-z ]+)/, (_, w) => weatherConditionLabel(w.trim()) || w);
+  }
+  if (result.condition != null) {
+    const bits = [
+      weatherConditionLabel(result.condition) || result.condition,
+      `${result.tmin ?? "?"}~${result.tmax ?? "?"}℃`,
+    ];
+    if (result.wind_kmh != null) bits.push(`风 ${result.wind_kmh} km/h`);
+    if (result.precip_mm != null && Number(result.precip_mm) > 0) bits.push(`降水 ${result.precip_mm} mm`);
+    return bits.join(" · ");
+  }
+  if (result.weather) return String(result.weather).slice(0, 80);
+  return "";
+}
+
+/** Rows for the bottom weather cinematic card. */
+function buildWeatherActionRows(name, args = {}, result = null) {
+  const place = geoLabel(args.geo_key || result?.geo_key) || args.geo_key || result?.geo_key || "";
+  const date = args.date || result?.date || "";
+  if (name === "get_forecast_daily") {
+    const rows = result?.forecast || [];
+    if (!rows.length) {
+      return [
+        { label: "地点", value: place || "—" },
+        { label: "预报", value: "暂无数据" },
+      ];
+    }
+    return rows.slice(0, 4).map((r) => {
+      const d = String(r.date || "").slice(5) || "日期";
+      const cond = weatherConditionLabel(r.condition) || r.condition || "—";
+      return {
+        label: d,
+        value: `${cond} · ${r.tmin ?? "?"}~${r.tmax ?? "?"}℃`,
+      };
+    });
+  }
+  const rows = [];
+  if (place) rows.push({ label: "地点", value: place });
+  if (date) rows.push({ label: "日期", value: String(date).slice(0, 10) });
+  if (result?.condition != null) {
+    rows.push({
+      label: "天气",
+      value: weatherConditionLabel(result.condition) || String(result.condition),
+    });
+  } else if (result?.weather) {
+    rows.push({ label: "天气", value: String(result.weather).slice(0, 40) });
+  } else if (result?.summary) {
+    rows.push({
+      label: "概况",
+      value: String(result.summary)
+        .replace(/^([A-Za-z ]+)/, (_, w) => weatherConditionLabel(w.trim()) || w)
+        .slice(0, 48),
+    });
+  }
+  if (result?.tmin != null || result?.tmax != null) {
+    rows.push({ label: "气温", value: `${result.tmin ?? "?"}~${result.tmax ?? "?"}℃` });
+  }
+  if (result?.wind_kmh != null) rows.push({ label: "风力", value: `${result.wind_kmh} km/h` });
+  if (result?.precip_mm != null) rows.push({ label: "降水", value: `${result.precip_mm} mm` });
+  if (result?.precip_prob != null) rows.push({ label: "降水概率", value: `${result.precip_prob}%` });
+  if (!rows.length) rows.push({ label: "结果", value: result?.note || "查询完成" });
+  return rows.slice(0, 5);
 }
 
 /** Core title + detail for tool rows / map toast / activity feed. */

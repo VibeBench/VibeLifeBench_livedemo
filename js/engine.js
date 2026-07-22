@@ -250,6 +250,34 @@ export class DemoEngine {
     return base;
   }
 
+  /** Persist weather observed via agent tools into sticky state + status bar. */
+  setObservedWeather(weatherText, { impact = null, geo_key = null, date = null } = {}) {
+    const text = String(weatherText || "").trim();
+    if (!text) return null;
+    const stamp = date || this.latestDate() || null;
+    this.lastWeather = {
+      weather: text,
+      weather_impact: impact || null,
+      geo_key: geo_key || null,
+      __date: stamp,
+    };
+    if (this.currentState) {
+      this.currentState = {
+        ...this.currentState,
+        weather: text,
+        weather_impact: impact || null,
+      };
+    } else {
+      this.currentState = {
+        weather: text,
+        weather_impact: impact || null,
+        geo_key: geo_key || null,
+        __date: stamp,
+      };
+    }
+    return this.lastWeather;
+  }
+
   /** Rebuild env.ledger from revealed events (and focused slice via mapView env). */
   refreshLedger() {
     this.env.ledger = buildLedger({

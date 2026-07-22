@@ -422,6 +422,11 @@ select {
   box-shadow: 0 18px 40px rgba(37, 99, 235, 0.22);
 }
 
+.status-fly-weather .status-fly-inner {
+  border-color: #bae6fd;
+  box-shadow: 0 18px 40px rgba(14, 165, 233, 0.22);
+}
+
 .status-fly-head {
   display: flex;
   align-items: center;
@@ -496,6 +501,10 @@ select {
 
 .status-chip.status-chip-landed-flight {
   background: linear-gradient(180deg, #eff6ff 0%, rgba(255, 255, 255, 0.55) 100%);
+}
+
+.status-chip.status-chip-landed-weather {
+  background: linear-gradient(180deg, #e0f2fe 0%, rgba(255, 255, 255, 0.55) 100%);
 }
 
 @keyframes status-chip-land {
@@ -1557,6 +1566,85 @@ select {
 }
 
 .map-action-budget-foot.show {
+  display: flex;
+}
+
+/* —— Weather service cinematic —— */
+.map-action-weather-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.map-action-weather-ico {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, #e0f2fe, #bae6fd);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.map-action-weather-app {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0369a1;
+  letter-spacing: 0.02em;
+}
+
+.map-action-weather-title {
+  font-size: 13.5px;
+  font-weight: 750;
+  color: #0f172a;
+}
+
+.map-action-weather-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.map-action-weather-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #f0f9ff 0%, #f8fafc 100%);
+  border: 1px solid #bae6fd;
+  animation: map-action-row-in 0.35s ease both;
+}
+
+.map-action-weather-label {
+  font-size: 12px;
+  font-weight: 650;
+  color: #64748b;
+}
+
+.map-action-weather-value {
+  font-size: 13px;
+  font-weight: 750;
+  color: #0c4a6e;
+  text-align: right;
+}
+
+.map-action-weather-foot {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #bae6fd;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0369a1;
+}
+
+.map-action-weather-foot.show {
   display: flex;
 }
 

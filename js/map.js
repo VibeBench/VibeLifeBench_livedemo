@@ -840,7 +840,7 @@ function hideMapActionStage() {
 
 /**
  * Cinematic overlay for major agent actions on the map:
- * kind: 'search' | 'notion' | 'calendar' | 'budget'
+ * kind: 'search' | 'notion' | 'calendar' | 'budget' | 'weather'
  */
 export function playMapAction({
   kind = "search",
@@ -927,6 +927,24 @@ export function playMapAction({
             <span>已同步到状态栏</span>
           </div>
         </div>`;
+    } else if (kind === "weather") {
+      const wIcon = String(query || "🌦️").trim() || "🌦️";
+      stage.innerHTML = `
+        <div class="map-action-card map-action-weather">
+          <div class="map-action-weather-head">
+            <span class="map-action-weather-ico">${escapeHtml(wIcon)}</span>
+            <div>
+              <div class="map-action-weather-app">天气服务</div>
+              <div class="map-action-weather-title">${escapeHtml(title || "当日天气")}</div>
+            </div>
+            <span class="map-action-status" id="mapActionStatus">查询中</span>
+          </div>
+          <div class="map-action-weather-rows" id="mapActionBody"></div>
+          <div class="map-action-weather-foot" id="mapActionFoot" hidden>
+            <span class="map-action-notion-check">✓</span>
+            <span>已同步到状态栏</span>
+          </div>
+        </div>`;
     } else {
       resolve(false);
       return;
@@ -959,7 +977,7 @@ export function playMapAction({
             ? "完成"
             : kind === "notion"
               ? "已提交"
-              : kind === "budget"
+              : kind === "budget" || kind === "weather"
                 ? "已同步"
                 : "已写入";
       }
@@ -971,9 +989,13 @@ export function playMapAction({
         foot.removeAttribute("hidden");
         foot.classList.add("show");
       }
-      // Search/budget: hold full card ~2s. Notion: slightly longer. Calendar: shorter.
+      // Search/budget/weather: hold full card ~2s. Notion: slightly longer. Calendar: shorter.
       const holdMs =
-        kind === "search" || kind === "budget" ? 2000 : kind === "notion" ? 2400 : 1500;
+        kind === "search" || kind === "budget" || kind === "weather"
+          ? 2000
+          : kind === "notion"
+            ? 2400
+            : 1500;
       mapActionTimer = setTimeout(() => {
         if (alive()) hideMapActionStage();
         resolve(Boolean(ok) && alive());
@@ -1101,6 +1123,42 @@ export function playMapAction({
         }
       };
       setTimeout(addBudgetRow, 280);
+      mapActionTimer = setTimeout(() => finish(), 12000);
+      return;
+    }
+
+    if (kind === "weather") {
+      const bodyEl = stage.querySelector("#mapActionBody");
+      const statusEl = stage.querySelector("#mapActionStatus");
+      const weatherRows = rows.length
+        ? rows
+        : [
+            { label: "概况", value: "查询中…" },
+            { label: "气温", value: "—" },
+          ];
+      let wi = 0;
+      const addWeatherRow = () => {
+        if (!alive() || !bodyEl || finished) return finish(false);
+        if (wi >= weatherRows.length) {
+          if (statusEl) statusEl.textContent = "写入状态栏";
+          return finish();
+        }
+        const item = weatherRows[wi];
+        const row = document.createElement("div");
+        row.className = "map-action-weather-row";
+        row.style.animationDelay = `${wi * 0.06}s`;
+        row.innerHTML = `
+          <span class="map-action-weather-label">${escapeHtml(item.label || item.title || "")}</span>
+          <span class="map-action-weather-value">${escapeHtml(item.value || item.snippet || item)}</span>`;
+        bodyEl.appendChild(row);
+        wi += 1;
+        if (wi < weatherRows.length) setTimeout(addWeatherRow, 400);
+        else {
+          if (statusEl) statusEl.textContent = "写入状态栏";
+          setTimeout(() => finish(), 380);
+        }
+      };
+      setTimeout(addWeatherRow, 260);
       mapActionTimer = setTimeout(() => finish(), 12000);
       return;
     }
