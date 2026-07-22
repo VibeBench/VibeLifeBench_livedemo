@@ -10,7 +10,9 @@ import {
   focusTrafficResult,
   focusGeoKey,
   focusPlanning,
-} from "./map.js?v=20260722-21";
+  extractPlaceIdsFromText,
+  extractRoadIdsFromText,
+} from "./map.js?v=20260722-22";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -446,6 +448,24 @@ export class UI {
       kind: event.kind,
       from: toast.from || toast.app,
     });
+
+    // Location-related env messages: show near the place on the map.
+    const blob = `${title} ${body} ${event.user_state?.location || ""}`;
+    const placeIds = extractPlaceIdsFromText(blob);
+    const roadIds = extractRoadIdsFromText(blob);
+    const geoKey = event.user_state?.geo_key || null;
+    if (placeIds.length || roadIds.length || geoKey) {
+      this.pulseMapFeedback({
+        id: `env:${event.id}`,
+        icon: toast.icon || "📌",
+        title: truncate(title, 42),
+        detail: truncate(body && body !== title ? body : toast.text || "", 72),
+        kind: event.kind || "",
+        placeId: placeIds[0] || null,
+        geoKey,
+        roadId: roadIds[0] || null,
+      });
+    }
   }
 
   /** Archive a banner/notification into the mail inbox (deduped by key). */
@@ -886,7 +906,7 @@ export class UI {
     }
   }
 
-  /** Brief map toast — used for merged tool calls only. */
+  /** Brief map toast — prefer anchoring near the related place. */
   pulseMapFeedback({
     id = null,
     icon = "📌",
@@ -894,21 +914,40 @@ export class UI {
     title = "",
     detail = "",
     kind = "",
+    placeId = null,
+    geoKey = null,
+    roadId = null,
+    latlng = null,
   } = {}) {
     if (!this._mapPulseSeen) this._mapPulseSeen = new Set();
-    // Allow one map toast per logical id (merged tools update in timeline, not spam map).
-    const key = id || `${kind}:${title || label}`;
+    const key = id || `${kind}:${placeId || geoKey || roadId || ""}:${title || label}`;
     if (this._mapPulseSeen.has(key)) return;
     this._mapPulseSeen.add(key);
     if (this._mapPulseSeen.size > 200) {
       this._mapPulseSeen = new Set([...this._mapPulseSeen].slice(-100));
     }
+
+    let resolvedPlace = placeId;
+    let resolvedGeo = geoKey;
+    let resolvedRoad = roadId;
+    if (!resolvedPlace && !resolvedGeo && !resolvedRoad && !latlng) {
+      const blob = `${title || label || ""} ${detail || ""}`;
+      const places = extractPlaceIdsFromText(blob);
+      const roads = extractRoadIdsFromText(blob);
+      resolvedPlace = places[0] || null;
+      resolvedRoad = roads[0] || null;
+    }
+
     pulseMapEvent({
       icon,
       title: title || label,
       detail,
       kind,
-      durationMs: 5200,
+      durationMs: 5600,
+      placeId: resolvedPlace,
+      geoKey: resolvedGeo,
+      roadId: resolvedRoad,
+      latlng,
     });
   }
 
@@ -1175,25 +1214,22 @@ export class UI {
 
   focusMapFromTool(name, args = {}, result = null) {
     if (!name) return;
+    const meta = describeToolCall(name, args, result);
+    const anchor = resolveToolMapAnchor(name, args, result);
+
     if (name === "get_traffic_estimate") {
       focusTrafficResult(result || {}, args || {}).catch(() => {});
-      return;
-    }
-    if (name === "get_current_weather" || name === "get_forecast_daily") {
+    } else if (name === "get_current_weather" || name === "get_forecast_daily") {
       const geo = args.geo_key || result?.geo_key;
-      if (geo) focusGeoKey(geo, { label: `工具：天气 · ${geo}` });
-      return;
-    }
-    if (name === "get_flight_status") {
+      if (geo) focusGeoKey(geo, { label: `工具：天气 · ${geoLabel(geo) || geo}` });
+    } else if (name === "get_flight_status") {
       focusPlanning({
         placeIds: ["pl_chc_airport"],
         mode: "consider",
         label: args.flight_no ? `工具：航班 ${args.flight_no}` : "工具：航班动态",
         force: true,
       }).catch(() => {});
-      return;
-    }
-    if (name === "list_active_alerts") {
+    } else if (name === "list_active_alerts") {
       const roads = result?.road_events || [];
       const roadIds = roads.map((e) => e.road_id).filter(Boolean);
       const blob = roads.map((e) => e.note || "").join(" ");
@@ -1201,6 +1237,20 @@ export class UI {
       if (roadIds.length) {
         focusTrafficResult({ matched: roads }, {}).catch(() => {});
       }
+    }
+
+    // Always show the lookup result near the place when we can resolve one.
+    if (anchor.placeId || anchor.geoKey || anchor.roadId) {
+      this.pulseMapFeedback({
+        id: `tool-place:${name}:${anchor.placeId || anchor.geoKey || anchor.roadId}`,
+        icon: meta.icon,
+        title: meta.title,
+        detail: meta.detail,
+        kind: "agent_tool",
+        placeId: anchor.placeId,
+        geoKey: anchor.geoKey,
+        roadId: anchor.roadId,
+      });
     }
   }
 
@@ -1274,7 +1324,7 @@ export class UI {
     const title = n > 1 ? `${baseLabel} · ${n} 次` : meta.title;
     const detail = this._mergedToolDetail(row);
 
-    // One timeline + one map toast per tool name per turn (merged).
+    // Timeline only — place bubbles are emitted from focusMapFromTool / per-call pulse.
     this.appendActivityFeed({
       id: `tool:${wrap._simTime || wrap._startedAt || "t"}:${name}`,
       kind: "agent_tool",
@@ -1283,8 +1333,23 @@ export class UI {
       body: title,
       detail,
       time: wrap._simTime || null,
-      mapPulse: true,
+      mapPulse: false,
     });
+
+    // If onTool didn't run focus yet (e.g. syncToolCalls), still drop a place bubble.
+    const anchor = resolveToolMapAnchor(name, args, result);
+    if (anchor.placeId || anchor.geoKey || anchor.roadId) {
+      this.pulseMapFeedback({
+        id: `tool-place:${name}:${anchor.placeId || anchor.geoKey || anchor.roadId}`,
+        icon: meta.icon,
+        title: meta.title,
+        detail: meta.detail,
+        kind: "agent_tool",
+        placeId: anchor.placeId,
+        geoKey: anchor.geoKey,
+        roadId: anchor.roadId,
+      });
+    }
 
     this._scrollChatToBottom();
     return row;
@@ -1601,6 +1666,58 @@ function isWriteToolName(name) {
   return /book|cancel|create|send|post|update|write|insert|reserve|confirm|refund/i.test(
     String(name || "")
   );
+}
+
+/** Resolve map anchor for a tool call (place / geo / road). */
+function resolveToolMapAnchor(name, args = {}, result = null) {
+  const geoKey = args.geo_key || result?.geo_key || null;
+  let placeId = null;
+  let roadId = args.road_id || result?.matched?.[0]?.road_id || null;
+
+  if (name === "get_flight_status") placeId = "pl_chc_airport";
+  if (name === "get_budget_snapshot" && result?.location) {
+    const ids = extractPlaceIdsFromText(result.location);
+    placeId = ids[0] || null;
+  }
+
+  const blob = [
+    args.query,
+    args.flight_no,
+    result?.summary,
+    result?.note,
+    ...(result?.matched || []).map((e) => `${e.note || ""} ${e.road_name || ""}`),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  if (!placeId) {
+    const ids = extractPlaceIdsFromText(blob);
+    placeId = ids[0] || null;
+  }
+  if (!roadId) {
+    const roads = extractRoadIdsFromText(blob);
+    roadId = roads[0] || null;
+  }
+
+  // geo_key → place when we only have weather keys
+  if (!placeId && geoKey) {
+    const map = {
+      christchurch: "pl_chc_airport",
+      tekapo: "pl_tekapo",
+      mt_cook: "pl_mt_cook",
+      queenstown: "pl_queenstown",
+      milford: "pl_milford",
+      wanaka: "pl_wanaka",
+      picton: "pl_picton",
+      wellington: "pl_wellington",
+      taupo: "pl_taupo",
+      rotorua: "pl_rotorua",
+      auckland: "pl_akl_airport",
+      shanghai_home: null,
+    };
+    placeId = map[String(geoKey).toLowerCase()] || null;
+  }
+
+  return { placeId, geoKey, roadId };
 }
 
 function geoLabel(key) {

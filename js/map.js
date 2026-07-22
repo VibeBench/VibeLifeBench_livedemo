@@ -68,8 +68,8 @@ function clearPulseTimers() {
 }
 
 /**
- * Transient feedback: text cards in the fixed mid rail + a tiny ping on the map.
- * Avoids covering the top status strip / bottom docks.
+ * Transient feedback: prefer a bubble anchored near the related place;
+ * fall back to mid-rail toast + traveler ping when no location is known.
  */
 export function pulseMapEvent({
   icon = "📌",
@@ -78,6 +78,11 @@ export function pulseMapEvent({
   detail = "",
   kind = "",
   durationMs = 5600,
+  placeId = null,
+  geoKey = null,
+  roadId = null,
+  latlng = null,
+  rail = null,
 } = {}) {
   const head = String(title || label || "")
     .replace(/\s+/g, " ")
@@ -91,9 +96,60 @@ export function pulseMapEvent({
     .replace(/[^a-z0-9_-]/gi, "")
     .slice(0, 24);
 
-  pushToastRail({ icon, head, sub, kindCls, durationMs });
+  const at = resolvePulseLatLng({ placeId, geoKey, roadId, latlng });
+  if (at) {
+    pulsePlaceBubble({
+      icon,
+      head,
+      sub,
+      kindCls,
+      latlng: at,
+      durationMs,
+    });
+    // Optional rail mirror only when explicitly requested.
+    if (rail === true) pushToastRail({ icon, head, sub, kindCls, durationMs });
+    return true;
+  }
+
+  if (rail !== false) pushToastRail({ icon, head, sub, kindCls, durationMs });
   pulseTinyPin({ icon, durationMs: Math.min(2800, durationMs) });
   return true;
+}
+
+function resolvePulseLatLng({ placeId = null, geoKey = null, roadId = null, latlng = null } = {}) {
+  if (!window.L) return null;
+  if (Array.isArray(latlng) && latlng.length >= 2) {
+    return window.L.latLng(latlng[0], latlng[1]);
+  }
+  if (latlng && typeof latlng.lat === "number") return window.L.latLng(latlng.lat, latlng.lng);
+
+  if (placeId && lastCtx?.placeById?.[placeId]) {
+    const p = lastCtx.placeById[placeId];
+    return window.L.latLng(p.lat, p.lng);
+  }
+
+  const geo = String(geoKey || "").toLowerCase();
+  if (geo) {
+    const id = GEO_TO_PLACE[geo];
+    if (id && lastCtx?.placeById?.[id]) {
+      const p = lastCtx.placeById[id];
+      return window.L.latLng(p.lat, p.lng);
+    }
+    if (lastCtx?.home && geo === "shanghai_home") {
+      return window.L.latLng(lastCtx.home.lat, lastCtx.home.lng);
+    }
+  }
+
+  if (roadId && lastCtx?.roadById?.[roadId]) {
+    const road = lastCtx.roadById[roadId];
+    const geom = parseRoadGeom(road.geom || road.geom_json);
+    if (geom.length) {
+      const mid = geom[Math.floor(geom.length / 2)];
+      return window.L.latLng(mid[0], mid[1]);
+    }
+  }
+
+  return null;
 }
 
 function pushToastRail({ icon, head, sub, kindCls, durationMs }) {
@@ -128,15 +184,17 @@ function pushToastRail({ icon, head, sub, kindCls, durationMs }) {
   if (pulseTimers.length > 48) pulseTimers = pulseTimers.slice(-24);
 }
 
-function pulseTinyPin({ icon = "📌", durationMs = 2400 } = {}) {
+function pulseTinyPin({ icon = "📌", durationMs = 2400, latlng = null } = {}) {
   if (!leafletMap || !window.L) return;
   if (!pulseLayer) pulseLayer = window.L.layerGroup().addTo(leafletMap);
 
   const here = lastCtx ? placeLatLng(lastCtx) : null;
   const center = leafletMap.getCenter();
-  const latlng = window.L.latLng(here?.[0] ?? center.lat, here?.[1] ?? center.lng);
+  const at =
+    latlng ||
+    window.L.latLng(here?.[0] ?? center.lat, here?.[1] ?? center.lng);
 
-  const marker = window.L.marker(latlng, {
+  const marker = window.L.marker(at, {
     icon: window.L.divIcon({
       className: "map-event-ping",
       html: `<span class="map-ping-ring"></span><span class="map-ping-ico">${icon}</span>`,
@@ -156,6 +214,56 @@ function pulseTinyPin({ icon = "📌", durationMs = 2400 } = {}) {
     }
   }, durationMs);
   pulseTimers.push(t);
+}
+
+/** Message bubble anchored next to a place / road on the map. */
+function pulsePlaceBubble({ icon, head, sub, kindCls, latlng, durationMs }) {
+  if (!leafletMap || !window.L || !latlng) return;
+  if (!pulseLayer) pulseLayer = window.L.layerGroup().addTo(leafletMap);
+
+  const html = `
+    <div class="map-place-bubble${sub ? " has-detail" : ""}${kindCls ? ` pulse-${kindCls}` : ""}">
+      <span class="map-place-bubble-ico">${icon || "📍"}</span>
+      <span class="map-place-bubble-text">
+        ${head ? `<span class="map-place-bubble-title">${escapeHtml(head)}</span>` : ""}
+        ${sub ? `<span class="map-place-bubble-detail">${escapeHtml(sub)}</span>` : ""}
+      </span>
+      <span class="map-place-bubble-pin" aria-hidden="true"></span>
+    </div>`;
+
+  const marker = window.L.marker(latlng, {
+    icon: window.L.divIcon({
+      className: "map-place-bubble-wrap",
+      html,
+      iconSize: [240, 72],
+      iconAnchor: [28, 78],
+    }),
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: 1100,
+  }).addTo(pulseLayer);
+
+  // Soft ping under the bubble so the exact spot is clear.
+  pulseTinyPin({ icon: "", durationMs: Math.min(2200, durationMs), latlng });
+
+  const fadeAt = Math.max(1800, durationMs - 550);
+  const t1 = setTimeout(() => {
+    try {
+      const el = marker.getElement()?.querySelector(".map-place-bubble");
+      el?.classList.add("is-leaving");
+    } catch {
+      /* ignore */
+    }
+  }, fadeAt);
+  const t2 = setTimeout(() => {
+    try {
+      pulseLayer?.removeLayer(marker);
+    } catch {
+      /* ignore */
+    }
+  }, durationMs);
+  pulseTimers.push(t1, t2);
+  if (pulseTimers.length > 64) pulseTimers = pulseTimers.slice(-32);
 }
 
 const PLACE_MENTION_PATTERNS = [
