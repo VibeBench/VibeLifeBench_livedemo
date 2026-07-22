@@ -1353,10 +1353,6 @@ select {
   text-overflow: ellipsis;
 }
 
-.closure-tag {
-  z-index: 650 !important;
-}
-
 @keyframes map-here-pulse {
   0% {
     transform: scale(0.72);
@@ -1813,6 +1809,7 @@ select {
 .closure-tag {
   background: transparent !important;
   border: none !important;
+  z-index: 650 !important;
 }
 
 .closure-pill {
