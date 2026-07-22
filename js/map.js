@@ -128,6 +128,7 @@ function clearPulseTimers() {
 /**
  * Transient feedback: prefer a bubble anchored near the related place;
  * fall back to mid-rail toast + traveler ping when no location is known.
+ * Returns a Promise that resolves when the pulse finishes (for cinematic queue).
  */
 export function pulseMapEvent({
   icon = "📌",
@@ -135,12 +136,14 @@ export function pulseMapEvent({
   title = "",
   detail = "",
   kind = "",
-  durationMs = 5600,
+  durationMs = 3200,
   placeId = null,
   geoKey = null,
   roadId = null,
   latlng = null,
   rail = null,
+  /** Full-opacity hold before fade (weather / bubbles default 2000ms). */
+  holdMs = 2000,
 } = {}) {
   const head = String(title || label || "")
     .replace(/\s+/g, " ")
@@ -155,44 +158,48 @@ export function pulseMapEvent({
     .slice(0, 24);
 
   const at = resolvePulseLatLng({ placeId, geoKey, roadId, latlng });
+  const hold = Math.max(2000, Number(holdMs) || 2000);
+  // enter ~400ms + hold + leave ~450ms
+  const totalMs = Math.max(durationMs, hold + 900);
+
   // Weather: place bubble above the queried location (status bar stays day weather).
   if (kindCls === "weather" || /weather/i.test(String(kind || ""))) {
     if (at) {
-      pulsePlaceBubble({
+      return pulsePlaceBubble({
         icon: icon || "🌦️",
         head: head || "天气",
         sub,
         kindCls: "weather",
         latlng: at,
-        durationMs: Math.max(4200, Math.min(6200, durationMs)),
+        durationMs: totalMs,
+        holdMs: hold,
       });
-      return true;
     }
-    pulseWeatherEmoji({
+    return pulseWeatherEmoji({
       icon: icon || "🌦️",
-      durationMs: Math.min(3800, durationMs),
+      durationMs: totalMs,
+      holdMs: hold,
       latlng: undefined,
     });
-    return true;
   }
 
   if (at) {
-    pulsePlaceBubble({
+    const p = pulsePlaceBubble({
       icon,
       head,
       sub,
       kindCls,
       latlng: at,
-      durationMs,
+      durationMs: totalMs,
+      holdMs: hold,
     });
-    // Optional rail mirror only when explicitly requested.
-    if (rail === true) pushToastRail({ icon, head, sub, kindCls, durationMs });
-    return true;
+    if (rail === true) pushToastRail({ icon, head, sub, kindCls, durationMs: totalMs });
+    return p;
   }
 
-  if (rail !== false) pushToastRail({ icon, head, sub, kindCls, durationMs });
-  pulseTinyPin({ icon, durationMs: Math.min(2800, durationMs) });
-  return true;
+  if (rail !== false) pushToastRail({ icon, head, sub, kindCls, durationMs: totalMs });
+  pulseTinyPin({ icon, durationMs: Math.min(2800, totalMs) });
+  return new Promise((r) => setTimeout(() => r(true), Math.min(2800, totalMs)));
 }
 
 function resolvePulseLatLng({ placeId = null, geoKey = null, roadId = null, latlng = null } = {}) {
@@ -209,6 +216,13 @@ function resolvePulseLatLng({ placeId = null, geoKey = null, roadId = null, latl
 
   const geo = String(geoKey || "").toLowerCase();
   if (geo) {
+    // Prefer weather.locations (city center) over place pins (often airports).
+    const loc = (lastCtx?.locations || []).find(
+      (l) => String(l.geo_key || "").toLowerCase() === geo
+    );
+    if (loc && Number.isFinite(Number(loc.lat)) && Number.isFinite(Number(loc.lng))) {
+      return window.L.latLng(Number(loc.lat), Number(loc.lng));
+    }
     const id = GEO_TO_PLACE[geo];
     if (id && lastCtx?.placeById?.[id]) {
       const p = lastCtx.placeById[id];
@@ -216,13 +230,6 @@ function resolvePulseLatLng({ placeId = null, geoKey = null, roadId = null, latl
     }
     if (lastCtx?.home && geo === "shanghai_home") {
       return window.L.latLng(lastCtx.home.lat, lastCtx.home.lng);
-    }
-    // Fallback: weather.locations lat/lng (covers te_anau / manapouri etc.)
-    const loc = (lastCtx?.locations || []).find(
-      (l) => String(l.geo_key || "").toLowerCase() === geo
-    );
-    if (loc && Number.isFinite(Number(loc.lat)) && Number.isFinite(Number(loc.lng))) {
-      return window.L.latLng(Number(loc.lat), Number(loc.lng));
     }
   }
 
@@ -303,71 +310,81 @@ function pulseTinyPin({ icon = "📌", durationMs = 2400, latlng = null } = {}) 
 }
 
 /** Weather result: large emoji floating above the place (clear of 「现在」 orb). */
-function pulseWeatherEmoji({ icon = "🌦️", durationMs = 4200, latlng = null } = {}) {
-  if (!leafletMap || !window.L) return;
-  if (!pulseLayer) pulseLayer = window.L.layerGroup().addTo(leafletMap);
+function pulseWeatherEmoji({ icon = "🌦️", durationMs = 3200, holdMs = 2000, latlng = null } = {}) {
+  return new Promise((resolve) => {
+    if (!leafletMap || !window.L) {
+      resolve(false);
+      return;
+    }
+    if (!pulseLayer) pulseLayer = window.L.layerGroup().addTo(leafletMap);
 
-  const here = lastCtx ? placeLatLng(lastCtx) : null;
-  const center = leafletMap.getCenter();
-  const at =
-    latlng ||
-    window.L.latLng(here?.[0] ?? center.lat, here?.[1] ?? center.lng);
+    const here = lastCtx ? placeLatLng(lastCtx) : null;
+    const center = leafletMap.getCenter();
+    const at =
+      latlng ||
+      window.L.latLng(here?.[0] ?? center.lat, here?.[1] ?? center.lng);
 
-  const marker = window.L.marker(at, {
-    icon: window.L.divIcon({
-      className: "map-weather-emoji-wrap",
-      html: `
+    const marker = window.L.marker(at, {
+      icon: window.L.divIcon({
+        className: "map-weather-emoji-wrap",
+        html: `
         <div class="map-weather-emoji" aria-hidden="true">
           <span class="map-weather-emoji-ring"></span>
           <span class="map-weather-emoji-ico">${icon || "🌦️"}</span>
         </div>`,
-      iconSize: [56, 56],
-      // Anchor below the emoji so it sits clearly ABOVE the pin / here-orb.
-      iconAnchor: [28, 72],
-    }),
-    interactive: false,
-    keyboard: false,
-    zIndexOffset: 1800,
-  }).addTo(pulseLayer);
+        iconSize: [56, 56],
+        iconAnchor: [28, 72],
+      }),
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: 1800,
+    }).addTo(pulseLayer);
 
-  const fadeAt = Math.max(2200, durationMs - 500);
-  const t1 = setTimeout(() => {
-    try {
-      marker.getElement()?.querySelector(".map-weather-emoji")?.classList.add("is-leaving");
-    } catch {
-      /* ignore */
-    }
-  }, fadeAt);
-  const t2 = setTimeout(() => {
-    try {
-      pulseLayer?.removeLayer(marker);
-    } catch {
-      /* ignore */
-    }
-  }, durationMs);
-  pulseTimers.push(t1, t2);
+    const hold = Math.max(2000, Number(holdMs) || 2000);
+    const fadeAt = 400 + hold;
+    const total = Math.max(durationMs, fadeAt + 450);
+    const t1 = setTimeout(() => {
+      try {
+        marker.getElement()?.querySelector(".map-weather-emoji")?.classList.add("is-leaving");
+      } catch {
+        /* ignore */
+      }
+    }, fadeAt);
+    const t2 = setTimeout(() => {
+      try {
+        pulseLayer?.removeLayer(marker);
+      } catch {
+        /* ignore */
+      }
+      resolve(true);
+    }, total);
+    pulseTimers.push(t1, t2);
+  });
 }
 
 /** Message bubble anchored next to a place / road on the map. */
-function pulsePlaceBubble({ icon, head, sub, kindCls, latlng, durationMs }) {
-  if (!leafletMap || !window.L || !latlng) return;
-  if (!pulseLayer) pulseLayer = window.L.layerGroup().addTo(leafletMap);
+function pulsePlaceBubble({ icon, head, sub, kindCls, latlng, durationMs, holdMs = 2000 }) {
+  return new Promise((resolve) => {
+    if (!leafletMap || !window.L || !latlng) {
+      resolve(false);
+      return;
+    }
+    if (!pulseLayer) pulseLayer = window.L.layerGroup().addTo(leafletMap);
 
-  const isSms = /^(world|app_notification|sms)$/i.test(String(kindCls || ""));
-  const title = String(head || "").trim();
-  const detail = String(sub || "").trim();
-  // Keep SMS body short — about two lines on the map card.
-  const smsBody = (detail && detail !== title ? detail : title).slice(0, 72);
-  const smsFrom = isSms
-    ? String(icon || "").includes("✉️")
-      ? "邮件"
-      : /移民|签证|NZeTA|海关/i.test(`${title} ${detail}`)
-        ? "新西兰移民局"
-        : "系统通知"
-    : "";
+    const isSms = /^(world|app_notification|sms)$/i.test(String(kindCls || ""));
+    const title = String(head || "").trim();
+    const detail = String(sub || "").trim();
+    const smsBody = (detail && detail !== title ? detail : title).slice(0, 72);
+    const smsFrom = isSms
+      ? String(icon || "").includes("✉️")
+        ? "邮件"
+        : /移民|签证|NZeTA|海关/i.test(`${title} ${detail}`)
+          ? "新西兰移民局"
+          : "系统通知"
+      : "";
 
-  const html = isSms
-    ? `
+    const html = isSms
+      ? `
     <div class="map-sms-bubble${kindCls ? ` pulse-${kindCls}` : ""}">
       <div class="map-sms-head">
         <span class="map-sms-badge">短信</span>
@@ -376,7 +393,7 @@ function pulsePlaceBubble({ icon, head, sub, kindCls, latlng, durationMs }) {
       <div class="map-sms-body">${escapeHtml(smsBody)}</div>
       <span class="map-sms-pin" aria-hidden="true"></span>
     </div>`
-    : `
+      : `
     <div class="map-place-bubble${sub ? " has-detail" : ""}${kindCls ? ` pulse-${kindCls}` : ""}">
       <span class="map-place-bubble-ico">${icon || "📍"}</span>
       <span class="map-place-bubble-text">
@@ -386,43 +403,45 @@ function pulsePlaceBubble({ icon, head, sub, kindCls, latlng, durationMs }) {
       <span class="map-place-bubble-pin" aria-hidden="true"></span>
     </div>`;
 
-  // Sit clearly ABOVE the here-orb (orb ~52px + tag). Large iconAnchor Y = more gap.
-  const marker = window.L.marker(latlng, {
-    icon: window.L.divIcon({
-      className: isSms ? "map-sms-wrap" : "map-place-bubble-wrap",
-      html,
-      iconSize: [260, 100],
-      iconAnchor: [130, 168],
-    }),
-    interactive: false,
-    keyboard: false,
-    // Above the live "现在" marker (z≈1200) so text is never covered.
-    zIndexOffset: 1600,
-  }).addTo(pulseLayer);
+    const marker = window.L.marker(latlng, {
+      icon: window.L.divIcon({
+        className: isSms ? "map-sms-wrap" : "map-place-bubble-wrap",
+        html,
+        iconSize: [260, 100],
+        // Pin tip sits on the latlng (bubble floats above).
+        iconAnchor: [130, 108],
+      }),
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: 1600,
+    }).addTo(pulseLayer);
 
-  // Soft ping under the bubble so the exact spot is clear.
-  pulseTinyPin({ icon: "", durationMs: Math.min(2200, durationMs), latlng });
+    pulseTinyPin({ icon: "", durationMs: Math.min(2400, durationMs), latlng });
 
-  const fadeAt = Math.max(1800, durationMs - 550);
-  const t1 = setTimeout(() => {
-    try {
-      const el = marker
-        .getElement()
-        ?.querySelector(isSms ? ".map-sms-bubble" : ".map-place-bubble");
-      el?.classList.add("is-leaving");
-    } catch {
-      /* ignore */
-    }
-  }, fadeAt);
-  const t2 = setTimeout(() => {
-    try {
-      pulseLayer?.removeLayer(marker);
-    } catch {
-      /* ignore */
-    }
-  }, durationMs);
-  pulseTimers.push(t1, t2);
-  if (pulseTimers.length > 64) pulseTimers = pulseTimers.slice(-32);
+    const hold = Math.max(2000, Number(holdMs) || 2000);
+    const fadeAt = 400 + hold; // enter anim ~400ms, then hold ≥2s
+    const total = Math.max(Number(durationMs) || 0, fadeAt + 450);
+    const t1 = setTimeout(() => {
+      try {
+        const el = marker
+          .getElement()
+          ?.querySelector(isSms ? ".map-sms-bubble" : ".map-place-bubble");
+        el?.classList.add("is-leaving");
+      } catch {
+        /* ignore */
+      }
+    }, fadeAt);
+    const t2 = setTimeout(() => {
+      try {
+        pulseLayer?.removeLayer(marker);
+      } catch {
+        /* ignore */
+      }
+      resolve(true);
+    }, total);
+    pulseTimers.push(t1, t2);
+    if (pulseTimers.length > 64) pulseTimers = pulseTimers.slice(-32);
+  });
 }
 
 const PLACE_MENTION_PATTERNS = [

@@ -17,7 +17,7 @@ import {
   isOceanFlightCrossing,
   playMapAction,
   hideMapActionStage,
-} from "./map.js?v=20260722-58";
+} from "./map.js?v=20260722-59";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1257,7 +1257,7 @@ export class UI {
     // no-op
   }
 
-  /** Brief map toast — prefer anchoring near the related place. */
+  /** Brief map toast — queued so overlays never stack / overwrite each other. */
   pulseMapFeedback({
     id = null,
     icon = "📌",
@@ -1269,10 +1269,11 @@ export class UI {
     geoKey = null,
     roadId = null,
     latlng = null,
+    holdMs = 2000,
   } = {}) {
     if (!this._mapPulseSeen) this._mapPulseSeen = new Set();
     const key = id || `${kind}:${placeId || geoKey || roadId || ""}:${title || label}`;
-    if (this._mapPulseSeen.has(key)) return;
+    if (this._mapPulseSeen.has(key)) return Promise.resolve(false);
     this._mapPulseSeen.add(key);
     if (this._mapPulseSeen.size > 200) {
       this._mapPulseSeen = new Set([...this._mapPulseSeen].slice(-100));
@@ -1289,17 +1290,25 @@ export class UI {
       resolvedRoad = roads[0] || null;
     }
 
-    pulseMapEvent({
-      icon,
-      title: title || label,
-      detail,
-      kind,
-      durationMs: 5600,
-      placeId: resolvedPlace,
-      geoKey: resolvedGeo,
-      roadId: resolvedRoad,
-      latlng,
-    });
+    const isWeather = String(kind || "").toLowerCase() === "weather";
+    return this.enqueueCinematic(
+      () =>
+        Promise.resolve(
+          pulseMapEvent({
+            icon,
+            title: title || label,
+            detail,
+            kind,
+            durationMs: isWeather ? 3400 : 3000,
+            holdMs: Math.max(2000, Number(holdMs) || 2000),
+            placeId: resolvedPlace,
+            geoKey: resolvedGeo,
+            roadId: resolvedRoad,
+            latlng,
+          })
+        ),
+      { fingerprint: `pulse:${key}` }
+    );
   }
 
   renderMap(engine) {
@@ -1609,21 +1618,30 @@ export class UI {
         meta.detail ||
         formatObservedWeatherText(name, args, result) ||
         "天气查询完成";
-      // Place bubble only — no bottom card, no status-bar overwrite.
-      return Promise.resolve(
-        geo ? focusGeoKey(geo, { label: `工具：天气 · ${place || geo}` }) : false
-      ).then(() => {
-        this.pulseMapFeedback({
-          id: `tool-weather:${name}:${geo || ""}:${String(detail).slice(0, 40)}`,
-          icon: wIcon,
-          title: place ? `${place}天气` : name === "get_forecast_daily" ? "多日预报" : "当日天气",
-          detail,
-          kind: "weather",
-          placeId: anchor.placeId,
-          geoKey: geo || null,
-        });
-        return true;
-      });
+      // Queue: pan to place, then bubble (2s hold) — never stack over other overlays.
+      return this.enqueueCinematic(
+        async () => {
+          if (geo) {
+            await Promise.resolve(
+              focusGeoKey(geo, { label: `工具：天气 · ${place || geo}` })
+            );
+            await new Promise((r) => setTimeout(r, 320));
+          }
+          return pulseMapEvent({
+            icon: wIcon,
+            title: place ? `${place}天气` : name === "get_forecast_daily" ? "多日预报" : "当日天气",
+            detail,
+            kind: "weather",
+            durationMs: 3400,
+            holdMs: 2000,
+            placeId: anchor.placeId,
+            geoKey: geo || null,
+          });
+        },
+        {
+          fingerprint: `tool-weather:${name}:${geo || ""}:${String(detail).slice(0, 40)}`,
+        }
+      );
     } else if (name === "get_flight_status") {
       focusPlanning({
         placeIds: ["pl_chc_airport"],
