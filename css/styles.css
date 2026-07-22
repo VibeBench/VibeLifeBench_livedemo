@@ -259,6 +259,7 @@ select {
 }
 
 .map-chrome-bottom {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -282,13 +283,20 @@ select {
   pointer-events: auto;
 }
 
+/* Float above docks — must NOT participate in flex height or docks will rise. */
 .map-chrome-actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: 8px;
   display: flex;
   justify-content: center;
   align-items: flex-end;
   width: 100%;
   min-width: 0;
   pointer-events: none;
+  z-index: 8;
 }
 
 .map-chrome-actions > * {

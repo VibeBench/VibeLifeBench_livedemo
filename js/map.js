@@ -728,10 +728,9 @@ let mapActionTimer = null;
 function ensureMapActionStage() {
   let el = document.querySelector("#mapActionStage");
   if (el) return el;
-  // Prefer bottom actions slot (under 时间动态 / legend) so overlays don't cover the map.
+  // Prefer actions slot (floats above 时间动态 / legend; does not push them up).
   const host =
     document.querySelector(".map-chrome-actions") ||
-    document.querySelector(".map-chrome-bottom") ||
     document.querySelector(".map-chrome-mid") ||
     document.querySelector(".map-overlay");
   if (!host) return null;
