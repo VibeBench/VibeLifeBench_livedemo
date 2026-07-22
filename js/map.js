@@ -41,6 +41,7 @@ let leafletMap = null;
 let leafletLayer = null;
 let routeLayer = null;
 let activityLayer = null;
+let pulseLayer = null;
 let tileWatch = null;
 let lastCtx = null;
 let drawToken = 0;
@@ -50,6 +51,8 @@ let bannerHideTimer = null;
 let dismissedAlertKey = null;
 let mapResizeObs = null;
 let mapResizeTimer = null;
+let pulseTimers = [];
+let pulseJitter = 0;
 
 export function ensureMapContainer(panelEl) {
   let shell = panelEl.querySelector(".map-shell");
@@ -57,7 +60,7 @@ export function ensureMapContainer(panelEl) {
     shell &&
     (shell.querySelector(".map-toolbar") ||
       !shell.querySelector(".map-frame") ||
-      !shell.querySelector(".map-frame .map-legend") ||
+      shell.querySelector(".map-frame .map-legend") ||
       !shell.classList.contains("map-shell-stage"));
   if (needsRebuild) {
     panelEl.innerHTML = "";
@@ -70,14 +73,6 @@ export function ensureMapContainer(panelEl) {
         <div class="map-frame">
           <div id="routeMap" class="map-canvas map-host"></div>
           <div class="map-banner" id="mapBanner" hidden></div>
-          <div class="map-legend" id="mapLegend">
-            <span><i class="lg-done"></i>已走</span>
-            <span><i class="lg-route"></i>规划未走</span>
-            <span><i class="lg-live"></i>当前路段</span>
-            <span data-leg="flight"><i class="lg-flight"></i>确认后航线</span>
-            <span><i class="lg-ferry"></i>渡轮</span>
-            <span><i class="lg-close"></i>封闭/暂缓</span>
-          </div>
         </div>
       </div>`;
     destroyMap();
@@ -125,7 +120,8 @@ export function renderLeafletMap(engine) {
 }
 
 function updateLegend(panel, ctx) {
-  const flightLeg = panel.querySelector('[data-leg="flight"]');
+  const root = document.querySelector("#mapLegend") || panel?.querySelector("#mapLegend");
+  const flightLeg = root?.querySelector('[data-leg="flight"]');
   if (!flightLeg) return;
   const flags = ctx.flags || {};
   if (flags.showOutboundFlightArc) {
@@ -142,6 +138,7 @@ function updateLegend(panel, ctx) {
 export function destroyMap() {
   clearTimeout(tileWatch);
   clearTimeout(mapResizeTimer);
+  clearPulseTimers();
   if (mapResizeObs) {
     try {
       mapResizeObs.disconnect();
@@ -163,6 +160,7 @@ export function destroyMap() {
   leafletLayer = null;
   routeLayer = null;
   activityLayer = null;
+  pulseLayer = null;
 }
 
 function bindMapResize(host) {
@@ -367,6 +365,7 @@ function ensureLeaflet(host) {
   leafletLayer = window.L.layerGroup().addTo(leafletMap);
   routeLayer = window.L.layerGroup().addTo(leafletMap);
   activityLayer = window.L.layerGroup().addTo(leafletMap);
+  pulseLayer = window.L.layerGroup().addTo(leafletMap);
 }
 
 function paintLeafletBase(ctx) {
@@ -1092,6 +1091,79 @@ function emojiIcon(emoji, extraClass = "") {
     iconSize: [36, 36],
     iconAnchor: [18, 18],
   });
+}
+
+function clearPulseTimers() {
+  for (const t of pulseTimers) clearTimeout(t);
+  pulseTimers = [];
+}
+
+/**
+ * Transient map feedback for timeline / agent events.
+ * Pops near current location (or map center), then fades away.
+ */
+export function pulseMapEvent({
+  icon = "📌",
+  label = "",
+  kind = "",
+  durationMs = 4200,
+} = {}) {
+  if (!leafletMap || !window.L) return false;
+  if (!pulseLayer) {
+    pulseLayer = window.L.layerGroup().addTo(leafletMap);
+  }
+
+  const here = lastCtx ? placeLatLng(lastCtx) : null;
+  const center = leafletMap.getCenter();
+  pulseJitter = (pulseJitter + 1) % 6;
+  const angle = (pulseJitter / 6) * Math.PI * 2;
+  const radius = 0.012 + (pulseJitter % 3) * 0.006;
+  const baseLat = here?.[0] ?? center.lat;
+  const baseLng = here?.[1] ?? center.lng;
+  const lat = baseLat + Math.sin(angle) * radius;
+  const lng = baseLng + Math.cos(angle) * radius;
+
+  const short = String(label || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 26);
+  const kindCls = String(kind || "")
+    .replace(/[^a-z0-9_-]/gi, "")
+    .slice(0, 24);
+
+  const marker = window.L.marker([lat, lng], {
+    icon: window.L.divIcon({
+      className: `map-event-pulse ${kindCls ? `pulse-${kindCls}` : ""}`,
+      html: `<div class="map-pulse-card">
+        <span class="map-pulse-ring" aria-hidden="true"></span>
+        <span class="map-pulse-ico">${icon}</span>
+        ${short ? `<span class="map-pulse-label">${escapeHtml(short)}</span>` : ""}
+      </div>`,
+      iconSize: [148, 64],
+      iconAnchor: [74, 56],
+    }),
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: 950,
+  }).addTo(pulseLayer);
+
+  const fadeAt = Math.max(1200, durationMs - 520);
+  const t1 = setTimeout(() => {
+    const el = marker.getElement();
+    if (el) el.classList.add("is-leaving");
+  }, fadeAt);
+  const t2 = setTimeout(() => {
+    try {
+      pulseLayer?.removeLayer(marker);
+    } catch {
+      /* ignore */
+    }
+  }, durationMs);
+  pulseTimers.push(t1, t2);
+  if (pulseTimers.length > 40) {
+    pulseTimers = pulseTimers.slice(-20);
+  }
+  return true;
 }
 
 function startTravelerAnim(latlngs, emoji, label) {

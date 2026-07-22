@@ -206,21 +206,7 @@ select {
 
 
 .map-stage-canvas .map-legend {
-  position: absolute;
-  left: 14px;
-  right: auto;
-  bottom: 64px;
-  z-index: 500;
-  margin: 0;
-  padding: 7px 9px;
-  max-width: min(240px, 40%);
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 12px;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
-  pointer-events: auto;
+  display: none;
 }
 
 .map-overlay {
@@ -259,13 +245,14 @@ select {
 .map-chrome-mid {
   flex: 1 1 auto;
   min-height: 0;
-  align-items: flex-end;
-  justify-content: flex-end;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .map-chrome-bottom {
-  flex: 0 0 auto;
-  align-items: stretch;
+  display: none;
 }
 
 .panel-glass {
@@ -347,8 +334,9 @@ select {
 
 .float-events {
   position: static;
-  width: 100%;
-  max-height: min(36vh, 280px);
+  align-self: flex-start;
+  width: min(300px, 34%);
+  max-height: min(58vh, 420px);
   display: flex;
   flex-direction: column;
   border-radius: 14px;
@@ -400,7 +388,6 @@ select {
   max-height: none;
   height: auto;
   width: auto;
-  align-self: flex-start;
   min-width: 148px;
 }
 
@@ -408,27 +395,58 @@ select {
   display: none;
 }
 
-.float-plan {
-  position: static;
-  width: min(220px, 42%);
-  max-height: 110px;
-  overflow: auto;
-  padding: 8px 10px;
-  border-radius: 12px;
-  font-size: 11px;
+.float-info {
+  align-self: flex-start;
+  margin-left: auto;
+  width: min(260px, 34%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  min-width: 0;
 }
 
-.float-plan h3 {
+.float-info-legend.map-legend,
+.float-info .map-legend {
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.float-info-plan h3 {
   margin: 0 0 4px;
   font-size: 11.5px;
   font-weight: 700;
 }
 
-.float-plan ul {
+.float-info-plan ul {
   margin: 0;
   padding-left: 16px;
   color: #3b4a63;
   line-height: 1.4;
+  font-size: 11px;
+}
+
+.float-info-plan {
+  max-height: 140px;
+  overflow: auto;
+}
+
+.float-plan {
+  display: none;
 }
 
 
@@ -863,6 +881,119 @@ select {
 
 .traveler-emoji .map-emoji {
   animation: emoji-bob 0.9s ease-in-out infinite;
+}
+
+/* Transient timeline feedback on the map */
+.map-event-pulse {
+  background: transparent !important;
+  border: none !important;
+}
+
+.map-pulse-card {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 148px;
+  padding: 6px 10px 6px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transform-origin: 50% 100%;
+  animation: map-pulse-enter 0.45s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.map-pulse-ring {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  margin-top: -14px;
+  border-radius: 50%;
+  border: 2px solid rgba(37, 99, 235, 0.55);
+  animation: map-pulse-ring 1.4s ease-out infinite;
+  pointer-events: none;
+}
+
+.map-pulse-ico {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.map-pulse-label {
+  position: relative;
+  z-index: 1;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.map-event-pulse.is-leaving .map-pulse-card {
+  animation: map-pulse-leave 0.5s ease forwards;
+}
+
+.pulse-weather .map-pulse-ring {
+  border-color: rgba(14, 165, 233, 0.55);
+}
+.pulse-routine .map-pulse-ring,
+.pulse-agent_tool .map-pulse-ring {
+  border-color: rgba(22, 163, 74, 0.55);
+}
+.pulse-agent_state .map-pulse-ring,
+.pulse-app_notification .map-pulse-ring {
+  border-color: rgba(217, 119, 6, 0.55);
+}
+.pulse-notification .map-pulse-ring {
+  border-color: rgba(225, 29, 72, 0.45);
+}
+
+@keyframes map-pulse-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.72);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes map-pulse-leave {
+  to {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.9);
+  }
+}
+
+@keyframes map-pulse-ring {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
 }
 
 .home-status-tag {
@@ -2481,19 +2612,20 @@ body.is-busy .btn.primary {
   }
 
   .float-events:not(.collapsed) {
-    width: 100%;
+    width: min(260px, 48%);
+    max-height: min(48vh, 320px);
   }
 
-  .float-plan {
+  .float-info {
+    width: min(220px, 42%);
+  }
+
+  .float-info-plan {
     display: none;
   }
 
   .map-stage .day-chip {
     width: 62px;
-  }
-
-  .map-stage-canvas .map-legend {
-    bottom: 58px;
   }
 
   .phone-col {

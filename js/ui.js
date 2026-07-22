@@ -1,7 +1,7 @@
 /**
  * Dashboard + phone chat rendering
  */
-import { renderLeafletMap, destroyMap } from "./map.js?v=20260722-08";
+import { renderLeafletMap, destroyMap, pulseMapEvent } from "./map.js?v=20260722-09";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -414,6 +414,13 @@ export class UI {
       kind: event.kind,
       from: toast.from || toast.app,
     });
+    const km = KIND_META[event.kind] || {};
+    this.pulseMapFeedback({
+      id: `env:${event.id}`,
+      icon: toast.icon || km.icon || "📌",
+      label: truncate(title, 28),
+      kind: event.kind || "",
+    });
   }
 
   /** Archive a banner/notification into the mail inbox (deduped by key). */
@@ -798,13 +805,15 @@ export class UI {
     body = "",
     time = null,
     detail = "",
+    id = null,
   } = {}) {
     const km = KIND_META[kind] || KIND_META.agent_tool;
     const text = [body, detail].filter(Boolean).join(" · ");
     if (!String(text || "").trim()) return;
     this._activitySeq += 1;
+    const feedId = id || `act-${this._activitySeq}`;
     this._activityFeed.push({
-      id: `act-${this._activitySeq}`,
+      id: feedId,
       seq: this._activitySeq,
       kind,
       icon: icon || km.icon,
@@ -817,6 +826,28 @@ export class UI {
       this._activityFeed = this._activityFeed.slice(-100);
     }
     this._paintEventStream();
+    this.pulseMapFeedback({
+      id: feedId,
+      icon: icon || km.icon,
+      label: truncate(body || text, 28),
+      kind,
+    });
+  }
+
+  /**
+   * Brief icon bubble near the traveler on the map; auto-fades.
+   */
+  pulseMapFeedback({ id = null, icon = "📌", label = "", kind = "" } = {}) {
+    if (!this._mapPulseSeen) this._mapPulseSeen = new Set();
+    const key = id || `${kind}:${label}:${Date.now()}`;
+    if (id && this._mapPulseSeen.has(key)) return;
+    if (id) {
+      this._mapPulseSeen.add(key);
+      if (this._mapPulseSeen.size > 200) {
+        this._mapPulseSeen = new Set([...this._mapPulseSeen].slice(-100));
+      }
+    }
+    pulseMapEvent({ icon, label, kind, durationMs: 4200 });
   }
 
   _paintEventStream() {
