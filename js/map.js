@@ -1192,9 +1192,13 @@ export function playMapAction({
               <div class="map-action-cal-app">日程</div>
               <div class="map-action-cal-title">${escapeHtml(title || "行程日程")}</div>
             </div>
-            <span class="map-action-status">添加中</span>
+            <span class="map-action-status" id="mapActionStatus">添加中</span>
           </div>
           <div class="map-action-cal-event" id="mapActionBody"></div>
+          <div class="map-action-cal-foot" id="mapActionFoot" hidden>
+            <span class="map-action-notion-check">✓</span>
+            <span>已写入行程账本</span>
+          </div>
         </div>`;
     } else if (kind === "budget") {
       stage.innerHTML = `
@@ -1275,18 +1279,19 @@ export function playMapAction({
         foot.removeAttribute("hidden");
         foot.classList.add("show");
       }
-      // Search: hold 1s after all results. Budget/weather: short hold then hand off to status fly.
-      // Notion longer. Calendar shorter.
+      // Search: 1s. Calendar/notion: ~2s. Budget/weather handoff shorter when leaveVisible.
       const holdMs =
         kind === "search"
           ? 1000
-          : kind === "budget" || kind === "weather"
-            ? leaveVisible
-              ? 700
-              : 2000
-            : kind === "notion"
-              ? 2400
-              : 1500;
+          : kind === "calendar"
+            ? 2000
+            : kind === "budget" || kind === "weather"
+              ? leaveVisible
+                ? 700
+                : 2000
+              : kind === "notion"
+                ? 2400
+                : 1500;
       mapActionTimer = setTimeout(() => {
         if (!leaveVisible && alive()) hideMapActionStage();
         resolve(Boolean(ok) && alive());
@@ -1454,26 +1459,55 @@ export function playMapAction({
       return;
     }
 
-    // calendar — type body lines (slightly slower)
-    const bodyEl = stage.querySelector("#mapActionBody");
-    const lines = text
-      ? text.split(/\n+/).map((s) => s.trim()).filter(Boolean).slice(0, 5)
-      : rows.map((x) => (typeof x === "string" ? x : x.title || x.text || "")).filter(Boolean);
-    if (!lines.length) lines.push("已加入今日行程");
-    let li = 0;
-    const paintLine = () => {
-      if (!bodyEl) return finish();
-      if (li >= lines.length) return finish();
-      const p = document.createElement("div");
-      p.className = "map-action-cal-line";
-      p.textContent = lines[li];
-      bodyEl.appendChild(p);
-      li += 1;
-      if (li < lines.length) setTimeout(paintLine, 580);
-      else finish();
-    };
-    setTimeout(paintLine, 360);
-    mapActionTimer = setTimeout(() => finish(), Math.max(durationMs, 5600));
+    if (kind === "calendar") {
+      const bodyEl = stage.querySelector("#mapActionBody");
+      const statusEl = stage.querySelector("#mapActionStatus");
+      const calRows = rows.length
+        ? rows
+        : text
+          ? text
+              .split(/\n+|·/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .slice(0, 4)
+              .map((line, i) => ({
+                label: i === 0 ? "日程" : "详情",
+                value: line,
+              }))
+          : [{ label: "日程", value: title || "已加入今日行程" }];
+      let ci = 0;
+      const addCalRow = () => {
+        if (!alive() || !bodyEl || finished) return finish(false);
+        if (ci >= calRows.length) {
+          if (statusEl) statusEl.textContent = "已加入";
+          return finish();
+        }
+        const item = calRows[ci];
+        const row = document.createElement("div");
+        row.className = "map-action-cal-row";
+        row.style.animationDelay = `${ci * 0.05}s`;
+        const label = item.label || item.title || "";
+        const value = item.value || item.snippet || item;
+        row.innerHTML = label
+          ? `<span class="map-action-cal-label">${escapeHtml(label)}</span>
+             <span class="map-action-cal-value">${escapeHtml(value)}</span>`
+          : `<span class="map-action-cal-value">${escapeHtml(value)}</span>`;
+        bodyEl.appendChild(row);
+        ci += 1;
+        if (statusEl && ci === 1) statusEl.textContent = "写入中";
+        if (ci < calRows.length) setTimeout(addCalRow, 420);
+        else {
+          if (statusEl) statusEl.textContent = "已加入";
+          setTimeout(() => finish(), 420);
+        }
+      };
+      setTimeout(addCalRow, 280);
+      mapActionTimer = setTimeout(() => finish(), 12000);
+      return;
+    }
+
+    // Unknown kind
+    finish(false);
   });
 }
 

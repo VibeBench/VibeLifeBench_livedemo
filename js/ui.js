@@ -19,7 +19,7 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260722-60";
+} from "./map.js?v=20260722-61";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -360,7 +360,12 @@ export class UI {
           kind: "calendar",
           title: a.title || "日程",
           body: a.body || a.text || "",
-          fingerprint: `calendar:${String(a.title || "日程").slice(0, 80)}`,
+          items: [
+            a.time ? { label: "时间", value: String(a.time).slice(0, 16) } : null,
+            { label: "日程", value: a.title || a.text || "日程" },
+            a.body && a.body !== a.title ? { label: "详情", value: truncate(a.body, 48) } : null,
+          ].filter(Boolean),
+          fingerprint: `calendar-ledger:${a.key || a.title || Date.now()}`,
         }).catch(() => {});
       }
     }
@@ -1687,21 +1692,28 @@ export class UI {
     } else if (name === "add_calendar_event" || /calendar|schedule/i.test(name)) {
       const ev = result?.event || {};
       const calTitle = args.title || ev.title || "日程";
+      const calDate = args.date || ev.date || "";
+      const calNote = args.note || ev.note || "";
+      const items = [
+        calDate ? { label: "日期", value: String(calDate).slice(0, 10) } : null,
+        { label: "标题", value: calTitle },
+        calNote ? { label: "备注", value: truncate(calNote, 48) } : null,
+      ].filter(Boolean);
       const p = this.playQueuedMapAction({
         kind: "calendar",
         title: calTitle,
-        body: [args.date || ev.date, args.note || ev.note, args.title || ev.title]
-          .filter(Boolean)
-          .join(" · "),
-        fingerprint: `calendar:${String(calTitle).slice(0, 80)}`,
+        body: [calDate, calNote, calTitle].filter(Boolean).join("\n"),
+        items,
+        // Unique per write so rapid successive adds each get an animation.
+        fingerprint: `calendar:${calDate}:${calTitle}:${ev.id || Date.now()}`,
       });
       this.notifyStateChange({
         icon: "📅",
-        title: `加入日程 · ${args.title || ev.title || "行程"}`,
-        body: [args.date || ev.date, args.note || ev.note].filter(Boolean).join(" · "),
+        title: `加入日程 · ${calTitle}`,
+        body: [calDate, calNote].filter(Boolean).join(" · "),
         tab: "trip",
         kind: "calendar",
-        key: `cal-write:${Date.now()}`,
+        key: `cal-write:${ev.id || Date.now()}`,
       });
       return p;
     }

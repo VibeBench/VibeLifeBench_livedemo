@@ -1626,8 +1626,50 @@ select {
 .map-action-cal-event {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
   min-height: 48px;
+}
+
+.map-action-cal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #fff7ed 0%, #f8fafc 100%);
+  border: 1px solid #fed7aa;
+  animation: map-action-row-in 0.35s ease both;
+}
+
+.map-action-cal-label {
+  font-size: 12px;
+  font-weight: 650;
+  color: #78716c;
+  flex: 0 0 auto;
+}
+
+.map-action-cal-value {
+  font-size: 13px;
+  font-weight: 750;
+  color: #9a3412;
+  text-align: right;
+}
+
+.map-action-cal-foot {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #fed7aa;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #c2410c;
+}
+
+.map-action-cal-foot.show {
+  display: flex;
 }
 
 .map-action-notion-caret {
