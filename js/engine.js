@@ -443,8 +443,8 @@ export class DemoEngine {
       this.currentState = this.applyUserState(ev.user_state, String(ev.time).slice(0, 10));
     }
 
-    const visible = ev.kind !== "mutation" || !ev.silent;
-    // Mutations still appear in dashboard stream (as "静默变更") for demo transparency
+    // Mutations apply silently — never marked visible for UI consumers.
+    const visible = ev.kind !== "mutation" && !ev.silent;
     this.revealed.push(ev);
 
     const feedToAgent =

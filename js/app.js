@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-50";
-import { DemoEngine } from "./engine.js?v=20260722-50";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-51";
+import { DemoEngine } from "./engine.js?v=20260722-51";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,10 +7,10 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-50";
+} from "./agent.js?v=20260722-51";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-50";
-import { isOceanFlightCrossing } from "./map.js?v=20260722-50";
+import { UI } from "./ui.js?v=20260722-51";
+import { isOceanFlightCrossing } from "./map.js?v=20260722-51";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -416,7 +416,11 @@ function refreshDashboard() {
   } else {
     list = engine.revealed.slice(-10);
   }
-  ui.renderEventStream(list, engine.meta);
+  // Mutations stay invisible in the UI timeline (Agent must discover via tools).
+  ui.renderEventStream(
+    list.filter((e) => e?.kind !== "mutation"),
+    engine.meta
+  );
   ui.syncEnvEmails(view.env?.emails || engine.env?.emails, engine.simNow?.());
   ui.renderMap(engine);
   ui.renderFooter(engine);
@@ -470,13 +474,7 @@ async function stepOnce() {
       });
       ui.notifyEnvEvent(event);
     } else if (event.kind === "mutation") {
-      // Backend writes (not Agent tools). Show in timeline/map/chat; no phone push.
-      const detail = ui.notifyMutation(event);
-      ui.appendChat({
-        role: "system",
-        text: `⚙️ 环境静默写入：${detail || "状态已更新"} — Agent 需主动查工具才能发现`,
-        time: t,
-      });
+      // Silent backend write — apply via engine only; never surface in chat/timeline/UI.
     }
 
     if (epoch !== playbackEpoch) return;

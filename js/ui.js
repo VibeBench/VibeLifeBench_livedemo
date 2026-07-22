@@ -16,7 +16,7 @@ import {
   playFlightCrossing,
   isOceanFlightCrossing,
   playMapAction,
-} from "./map.js?v=20260722-50";
+} from "./map.js?v=20260722-51";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -542,25 +542,11 @@ export class UI {
   }
 
   /**
-   * Silent env writes (mutations): not Agent tools.
-   * Timeline still comes from renderEventStream; chat gets a state card.
-   * No map toast / phone banner (Agent must discover via tools).
+   * Silent env writes (mutations): applied in the engine only.
+   * Intentionally not shown in chat / timeline / phone / map.
    */
-  notifyMutation(event) {
-    if (!event) return "";
-    const summary = mutationSummary(event);
-    const title = firstLine(summary) || "环境静默写入";
-    const detail = summary.replace(/（静默生效[^）]*）$/, "").trim() || title;
-
-    this.appendStateCard({
-      icon: "⚙️",
-      title: "环境静默写入（未通知用户）",
-      body: detail,
-      tab: null,
-      time: event.time || null,
-      kind: "mutation",
-    });
-    return detail;
+  notifyMutation(_event) {
+    return "";
   }
 
   /** Phone toast for playback events that should surface on the handset. */

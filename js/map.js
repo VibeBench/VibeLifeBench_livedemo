@@ -989,13 +989,15 @@ export function playMapAction({
         foot.removeAttribute("hidden");
         foot.classList.add("show");
       }
-      // Search/budget/weather: hold full card ~2s. Notion: slightly longer. Calendar: shorter.
+      // Search: hold 1s after all results. Budget/weather: ~2s. Notion longer. Calendar shorter.
       const holdMs =
-        kind === "search" || kind === "budget" || kind === "weather"
-          ? 2000
-          : kind === "notion"
-            ? 2400
-            : 1500;
+        kind === "search"
+          ? 1000
+          : kind === "budget" || kind === "weather"
+            ? 2000
+            : kind === "notion"
+              ? 2400
+              : 1500;
       mapActionTimer = setTimeout(() => {
         if (alive()) hideMapActionStage();
         resolve(Boolean(ok) && alive());
@@ -1007,10 +1009,10 @@ export function playMapAction({
       const resEl = stage.querySelector("#mapActionResults");
       const meta = stage.querySelector(".map-action-search-meta");
       let i = 0;
-      // Snappy typing; results stagger in; only then hold ~2s before dismiss.
-      const typeMs = 38;
-      const rowGapMs = 420;
-      const firstRowDelayMs = 280;
+      // Faster typing + staggered results; hold 1s after the last row.
+      const typeMs = 22;
+      const rowGapMs = 200;
+      const firstRowDelayMs = 120;
       const typeTimer = setInterval(() => {
         if (!alive()) {
           clearInterval(typeTimer);
