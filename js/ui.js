@@ -19,7 +19,7 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260722-68";
+} from "./map.js?v=20260722-69";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1826,8 +1826,8 @@ export class UI {
         </div>
         <div class="rail-body">
           <button type="button" class="rail-tool-main" disabled>
-            <span class="rail-ico">${toolOutlineIcon(name)}</span>
-            <span class="rail-mono">${escapeHtml(formatToolMono(name, args))}</span>
+            <span class="rail-ico" aria-hidden="true">${toolEmojiIcon(name)}</span>
+            <span class="rail-mono">${escapeHtml(toolCallName(name))}</span>
           </button>
         </div>`;
       this._refreshRailCollapse(wrap);
@@ -1916,7 +1916,7 @@ export class UI {
     bar.hidden = false;
     bar.removeAttribute("hidden");
     bar.innerHTML = `
-      <span class="turn-header-ico" aria-hidden="true">${toolOutlineIcon("get_budget_snapshot")}</span>
+      <span class="turn-header-ico" aria-hidden="true">${toolEmojiIcon("get_budget_snapshot")}</span>
       <span class="turn-header-label">行程预算</span>
       <span class="turn-header-value">${escapeHtml(value)}</span>`;
   }
@@ -1947,7 +1947,7 @@ export class UI {
     const anyError = calls.some((c) => c.meta?.error || c.result?.ok === false);
     const anyWarn = calls.some((c) => c.meta?.warning || c.result?.warning);
     const tone = anyError ? "err" : anyWarn ? "warn" : "ok";
-    const mono = formatToolMono(name, last.args || {});
+    const label = toolCallName(name);
 
     row.classList.remove("pending");
     row.classList.add("done");
@@ -1962,9 +1962,12 @@ export class UI {
       n > 1
         ? `<div class="rail-children"${childrenOpen ? "" : " hidden"}>${calls
             .map((c, i) => {
-              const line = formatToolMono(name, c.args || {});
+              const bit =
+                String(c.meta?.detail || "").trim() ||
+                firstArgPreview(c.args) ||
+                `#${i + 1}`;
               const err = c.meta?.error ? " · err" : "";
-              return `<div class="rail-child" data-child-idx="${i}" title="${escapeHtml(line)}">${escapeHtml(line)}${err}</div>`;
+              return `<div class="rail-child" data-child-idx="${i}" title="${escapeHtml(bit)}">${escapeHtml(truncate(bit, 56))}${err}</div>`;
             })
             .join("")}</div>`
         : "";
@@ -1987,8 +1990,8 @@ export class UI {
       </div>
       <div class="rail-body">
         <button type="button" class="rail-tool-main" aria-expanded="${childrenOpen || jsonOpen ? "true" : "false"}">
-          <span class="rail-ico">${toolOutlineIcon(name)}</span>
-          <span class="rail-mono" title="${escapeHtml(mono)}">${escapeHtml(mono)}</span>
+          <span class="rail-ico" aria-hidden="true">${toolEmojiIcon(name)}</span>
+          <span class="rail-mono" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
           ${n > 1 ? `<span class="rail-count">×${n}</span>` : ""}
         </button>
         ${childrenHtml}
@@ -2346,71 +2349,35 @@ const TOOL_META = {
   "API-post-page": { icon: "📝", label: "创建 Notion 页面", focus: "游记文档" },
 };
 
-/** Monochrome outline icons for the tool rail (Lucide-like). */
-function toolOutlineIcon(name) {
+/** Colorful emoji icons for the tool rail (from TOOL_META). */
+function toolEmojiIcon(name) {
   const n = String(name || "");
-  const svg = (paths) =>
-    `<svg viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
-  if (/budget/i.test(n)) {
-    return svg(
-      `<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20"/><circle cx="16" cy="12" r="1.5"/>`
-    );
-  }
-  if (/search|web/i.test(n)) {
-    return svg(`<circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5 21 21"/>`);
-  }
-  if (/forecast|calendar|schedule/i.test(n)) {
-    return svg(
-      `<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/>`
-    );
-  }
-  if (/weather|forecast_daily|current_weather/i.test(n)) {
-    return svg(
-      `<path d="M7 15a4 4 0 1 1 1.2-7.8A5.5 5.5 0 0 1 18.5 10 3.5 3.5 0 0 1 19 17H7.5"/>`
-    );
-  }
-  if (/traffic|road|alert/i.test(n)) {
-    return svg(`<path d="M4 19 8 5h8l4 14"/><path d="M9.5 12h5"/>`);
-  }
-  if (/flight|air/i.test(n)) {
-    return svg(`<path d="M10 12 3 9.5 4 8l7 1.5L17 4l1.5 1.5-4.5 6.5L21 14l-.5 1.5L13 14l-1.5 6H10l1-6Z"/>`);
-  }
-  if (/hotel|stay/i.test(n)) {
-    return svg(
-      `<path d="M3 20V9a2 2 0 0 1 2-2h6v13"/><path d="M11 7h6a2 2 0 0 1 2 2v11"/><path d="M3 20h18M7 11h.01M7 14h.01"/>`
-    );
-  }
-  if (/journal|notion|page|write/i.test(n)) {
-    return svg(
-      `<path d="M5 4h10l4 4v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v4h4M8 12h8M8 16h6"/>`
-    );
-  }
-  // default: wrench / tool
-  return svg(`<path d="M14.5 5.5a3.5 3.5 0 0 0-4.6 4.6L4 16v4h4l5.9-5.9a3.5 3.5 0 0 0 4.6-4.6L16 12l-2.5-2.5Z"/>`);
+  if (TOOL_META[n]?.icon) return TOOL_META[n].icon;
+  if (/budget/i.test(n)) return "💰";
+  if (/search|web/i.test(n)) return "🔍";
+  if (/forecast|calendar|schedule/i.test(n)) return "📅";
+  if (/weather/i.test(n)) return "🌦️";
+  if (/traffic|road/i.test(n)) return "🛣️";
+  if (/alert/i.test(n)) return "🚨";
+  if (/flight|air/i.test(n)) return "✈️";
+  if (/hotel|stay/i.test(n)) return "🏨";
+  if (/journal|notion|page|write/i.test(n)) return "📝";
+  return "🛠️";
 }
 
-/** `tool_name(arg=…, …)` single-line for the rail. */
-function formatToolMono(name, args = {}) {
-  const n = String(name || "tool");
-  const entries = Object.entries(args || {}).filter(
-    ([, v]) => v != null && String(v).trim() !== ""
-  );
-  if (!entries.length) return `${n}()`;
-  const parts = entries.slice(0, 4).map(([k, v]) => {
-    let s;
-    if (typeof v === "string") s = JSON.stringify(truncate(v, 36));
-    else if (typeof v === "number" || typeof v === "boolean") s = String(v);
-    else {
-      try {
-        s = truncate(JSON.stringify(v), 36);
-      } catch {
-        s = "…";
-      }
-    }
-    return `${k}=${s}`;
-  });
-  const more = entries.length > 4 ? ", …" : "";
-  return `${n}(${parts.join(", ")}${more})`;
+/** Tool call display name only — no params. */
+function toolCallName(name) {
+  return String(name || "tool").trim() || "tool";
+}
+
+/** First non-empty arg value for child-row preview (no key= param syntax). */
+function firstArgPreview(args = {}) {
+  for (const v of Object.values(args || {})) {
+    if (v == null) continue;
+    const s = typeof v === "string" ? v.trim() : String(v);
+    if (s) return s;
+  }
+  return "";
 }
 
 function summarizeToolResult(result) {
