@@ -19,7 +19,7 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260722-75";
+} from "./map.js?v=20260722-76";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1515,7 +1515,7 @@ export class UI {
         <div class="tool-panel" data-tool-panel hidden>
           <button type="button" class="tool-panel-head" data-tool-panel-toggle aria-expanded="true">
             <span class="tool-panel-title">正在使用工具</span>
-            <span class="tool-panel-chevron" aria-hidden="true">▾</span>
+            <span class="tool-panel-chevron" aria-hidden="true"></span>
           </button>
           <div class="tool-panel-body" data-tool-log></div>
           <div class="rail-collapse-wrap" data-rail-collapse hidden>
@@ -1541,8 +1541,6 @@ export class UI {
       if (!panel) return;
       const collapsed = panel.classList.toggle("is-collapsed");
       panelToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
-      const chev = panelToggle.querySelector(".tool-panel-chevron");
-      if (chev) chev.textContent = collapsed ? "▸" : "▾";
     });
 
     const collapseBtn = wrap.querySelector("[data-rail-collapse-btn]");
@@ -1830,7 +1828,6 @@ export class UI {
       row.dataset.toolName = name;
       row._calls = [];
       row._expanded = false;
-      row._jsonOpen = false;
       log.appendChild(row);
       wrap._toolRows.set(key, row);
       wrap._toolOrder.push(key);
@@ -1978,8 +1975,10 @@ export class UI {
     row.classList.toggle("err", anyError);
     row.classList.toggle("warn", anyWarn && !anyError);
 
-    const childrenOpen = row._expanded || (anyError && n > 1);
+    const childrenOpen = !!row._expanded;
     row._expanded = childrenOpen;
+    row.classList.toggle("is-group", n > 1);
+    row.classList.toggle("is-open", n > 1 && childrenOpen);
 
     const childrenHtml =
       n > 1
@@ -1995,61 +1994,39 @@ export class UI {
             .join("")}</div>`
         : "";
 
-    const payload = {
-      name,
-      args: n === 1 ? last.args : calls.map((c) => c.args),
-      result: n === 1 ? last.result : calls.map((c) => summarizeToolResult(c.result)),
-    };
-    let jsonText = "";
-    try {
-      jsonText = JSON.stringify(payload, null, 2);
-    } catch {
-      jsonText = String(last.result ?? "");
-    }
-
     const statusHtml = anyError
       ? `<span class="tool-step-status err" aria-label="失败">!</span>`
       : `<span class="tool-step-status ok" aria-label="完成">✓</span>`;
 
+    const titleHtml = `${escapeHtml(title)}${n > 1 ? ` <span class="tool-step-count">×${n}</span>` : ""}`;
+    const subHtml = escapeHtml(truncate(sub, 48));
+    // Single calls are static text; only ×N groups are clickable (no hover/JSON expand).
+    const mainInner =
+      n > 1
+        ? `<button type="button" class="tool-step-hit" aria-expanded="${childrenOpen ? "true" : "false"}">
+            <div class="tool-step-title">${titleHtml}</div>
+            <div class="tool-step-sub">${subHtml}</div>
+          </button>${childrenHtml}`
+        : `<div class="tool-step-static">
+            <div class="tool-step-title">${titleHtml}</div>
+            <div class="tool-step-sub">${subHtml}</div>
+          </div>`;
+
     row.innerHTML = `
       <span class="tool-step-ico" aria-hidden="true">${toolEmojiIcon(name)}</span>
-      <div class="tool-step-main">
-        <button type="button" class="tool-step-hit">
-          <div class="tool-step-title">${escapeHtml(title)}${n > 1 ? ` <span class="tool-step-count">×${n}</span>` : ""}</div>
-          <div class="tool-step-sub">${escapeHtml(truncate(sub, 48))}</div>
-        </button>
-        ${childrenHtml}
-        <pre class="tool-step-json"${row._jsonOpen || anyError ? "" : " hidden"}>${escapeHtml(jsonText)}</pre>
-      </div>
+      <div class="tool-step-main">${mainInner}</div>
       ${statusHtml}`;
 
     const hit = row.querySelector(".tool-step-hit");
     const children = row.querySelector(".tool-step-children");
-    const jsonEl = row.querySelector(".tool-step-json");
-
     hit?.addEventListener("click", (ev) => {
       ev.preventDefault();
-      if (n > 1 && children) {
-        row._expanded = !row._expanded;
-        if (row._expanded) children.removeAttribute("hidden");
-        else children.setAttribute("hidden", "");
-        return;
-      }
-      row._jsonOpen = !row._jsonOpen;
-      if (jsonEl) {
-        if (row._jsonOpen) jsonEl.removeAttribute("hidden");
-        else jsonEl.setAttribute("hidden", "");
-      }
-    });
-
-    let hoverTimer = null;
-    row.addEventListener("mouseenter", () => {
-      if (row._jsonOpen || anyError) return;
-      hoverTimer = setTimeout(() => jsonEl?.removeAttribute("hidden"), 320);
-    });
-    row.addEventListener("mouseleave", () => {
-      clearTimeout(hoverTimer);
-      if (!row._jsonOpen && !anyError) jsonEl?.setAttribute("hidden", "");
+      if (!children) return;
+      row._expanded = !row._expanded;
+      row.classList.toggle("is-open", row._expanded);
+      hit.setAttribute("aria-expanded", row._expanded ? "true" : "false");
+      if (row._expanded) children.removeAttribute("hidden");
+      else children.setAttribute("hidden", "");
     });
 
     if (wrap) this._refreshRailCollapse(wrap);
