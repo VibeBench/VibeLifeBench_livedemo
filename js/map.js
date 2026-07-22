@@ -172,15 +172,18 @@ export function pulseMapEvent({
   // enter ~400ms + hold + leave ~450ms
   const totalMs = Math.max(durationMs, hold + 900);
 
-  // Weather: place bubble above the queried location (status bar stays day weather).
+  // Weather: place bubble tip on the queried location (prefer city center coords).
   if (kindCls === "weather" || /weather/i.test(String(kind || ""))) {
-    if (at) {
+    // Prefer geo_key → weather.locations so tip matches the city, not an airport pin.
+    const weatherAt =
+      resolvePulseLatLng({ placeId: null, geoKey, roadId: null, latlng }) || at;
+    if (weatherAt) {
       return pulsePlaceBubble({
         icon: icon || "🌦️",
         head: head || "天气",
         sub,
         kindCls: "weather",
-        latlng: at,
+        latlng: weatherAt,
         durationMs: totalMs,
         holdMs: hold,
       });
@@ -395,37 +398,42 @@ function pulsePlaceBubble({ icon, head, sub, kindCls, latlng, durationMs, holdMs
 
     const html = isSms
       ? `
-    <div class="map-sms-bubble${kindCls ? ` pulse-${kindCls}` : ""}">
-      <div class="map-sms-head">
-        <span class="map-sms-badge">短信</span>
-        <span class="map-sms-from">${escapeHtml(smsFrom)}</span>
+    <div class="map-sms-anchor">
+      <div class="map-sms-bubble${kindCls ? ` pulse-${kindCls}` : ""}">
+        <div class="map-sms-head">
+          <span class="map-sms-badge">短信</span>
+          <span class="map-sms-from">${escapeHtml(smsFrom)}</span>
+        </div>
+        <div class="map-sms-body">${escapeHtml(smsBody)}</div>
+        <span class="map-sms-pin" aria-hidden="true"></span>
       </div>
-      <div class="map-sms-body">${escapeHtml(smsBody)}</div>
-      <span class="map-sms-pin" aria-hidden="true"></span>
     </div>`
       : `
-    <div class="map-place-bubble${sub ? " has-detail" : ""}${kindCls ? ` pulse-${kindCls}` : ""}">
-      <span class="map-place-bubble-ico">${icon || "📍"}</span>
-      <span class="map-place-bubble-text">
-        ${head ? `<span class="map-place-bubble-title">${escapeHtml(head)}</span>` : ""}
-        ${sub ? `<div class="map-place-bubble-detail">${escapeHtml(sub)}</div>` : ""}
-      </span>
-      <span class="map-place-bubble-pin" aria-hidden="true"></span>
+    <div class="map-place-bubble-anchor">
+      <div class="map-place-bubble${sub ? " has-detail" : ""}${kindCls ? ` pulse-${kindCls}` : ""}">
+        <span class="map-place-bubble-ico">${icon || "📍"}</span>
+        <span class="map-place-bubble-text">
+          ${head ? `<span class="map-place-bubble-title">${escapeHtml(head)}</span>` : ""}
+          ${sub ? `<div class="map-place-bubble-detail">${escapeHtml(sub)}</div>` : ""}
+        </span>
+        <span class="map-place-bubble-pin" aria-hidden="true"></span>
+      </div>
     </div>`;
 
+    // 0×0 icon: CSS positions the tip at (0,0) = latlng, independent of bubble height.
     const marker = window.L.marker(latlng, {
       icon: window.L.divIcon({
         className: isSms ? "map-sms-wrap" : "map-place-bubble-wrap",
         html,
-        iconSize: [260, 100],
-        // Pin tip sits on the latlng (bubble floats above).
-        iconAnchor: [130, 108],
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
       }),
       interactive: false,
       keyboard: false,
       zIndexOffset: 1600,
     }).addTo(pulseLayer);
 
+    // Soft ping on the exact place the tip points to
     pulseTinyPin({ icon: "", durationMs: Math.min(2400, durationMs), latlng });
 
     const hold = Math.max(2000, Number(holdMs) || 2000);
@@ -1027,8 +1035,33 @@ async function repaintAgentPlan({ fit = false } = {}) {
 
 /** Focus a weather / geo_key point during tool use. */
 export function focusGeoKey(geoKey, { label } = {}) {
-  const id = GEO_TO_PLACE[String(geoKey || "").toLowerCase()] || null;
-  if (id) return focusPlanning({ placeIds: [id], mode: "consider", label: label || `关注 · ${geoKey}`, force: true });
+  const geo = String(geoKey || "").toLowerCase();
+  if (!geo) return false;
+
+  // Prefer weather.locations (city center) so camera matches the bubble tip.
+  const loc = (lastCtx?.locations || []).find(
+    (l) => String(l.geo_key || "").toLowerCase() === geo
+  );
+  if (
+    loc &&
+    Number.isFinite(Number(loc.lat)) &&
+    Number.isFinite(Number(loc.lng)) &&
+    leafletMap &&
+    window.L
+  ) {
+    setViewInSafeArea(window.L.latLng(Number(loc.lat), Number(loc.lng)), 9);
+    return true;
+  }
+
+  const id = GEO_TO_PLACE[geo] || null;
+  if (id) {
+    return focusPlanning({
+      placeIds: [id],
+      mode: "consider",
+      label: label || `关注 · ${geoKey}`,
+      force: true,
+    });
+  }
   return false;
 }
 
