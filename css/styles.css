@@ -2012,61 +2012,120 @@ select {
   margin-left: -14px;
 }
 
-/* —— Console drawer —— */
-.console {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: min(420px, 100vw);
-  height: 100vh;
-  background: #fff;
-  box-shadow: -12px 0 40px rgba(15, 23, 42, 0.18);
-  transform: translateX(105%);
-  transition: transform 0.2s ease;
-  z-index: 40;
-  padding: 18px;
-  overflow: auto;
+/* —— Phone settings (演示控制台) —— */
+.phone-settings {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 14px 18px;
+  -webkit-overflow-scrolling: touch;
 }
 
-.console.open {
-  transform: none;
-}
-
-.console h3 {
+.phone-settings .console-onboard {
   margin: 0 0 12px;
-}
-
-.console-onboard {
-  margin: 0 0 14px;
-  padding: 12px 12px 10px;
+  padding: 10px 12px 8px;
   border-radius: 12px;
   background: linear-gradient(160deg, #eff6ff, #f8fafc);
   border: 1px solid #bfdbfe;
 }
 
-.console-onboard[hidden] {
+.phone-settings .console-onboard[hidden] {
   display: none !important;
 }
 
+.phone-settings .console-onboard-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #1e40af;
+  margin-bottom: 5px;
+}
+
+.phone-settings .console-onboard ol {
+  margin: 0;
+  padding-left: 1.15em;
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.phone-settings .console-onboard-note {
+  margin: 7px 0 0;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.phone-settings .hint {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.45;
+  margin: 0 0 12px;
+}
+
+.phone-settings .provider-hint {
+  margin-top: -2px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.phone-settings .field {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.phone-settings .field input,
+.phone-settings .field select {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 11px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.phone-settings .field.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  grid-template-columns: none;
+}
+
+.phone-settings .field.check input {
+  width: auto;
+  margin-top: 2px;
+  padding: 0;
+}
+
+.phone-settings .console-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+  padding-bottom: 4px;
+}
+
+.phone-settings .console-actions .btn.primary {
+  grid-column: 1 / -1;
+}
+
+.phone-settings .console-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* legacy drawer tokens kept for any residual class refs */
 .console-onboard-title {
   font-size: 13px;
   font-weight: 700;
   color: #1e40af;
   margin-bottom: 6px;
-}
-
-.console-onboard ol {
-  margin: 0;
-  padding-left: 1.2em;
-  font-size: 12.5px;
-  color: #334155;
-  line-height: 1.5;
-}
-
-.console-onboard-note {
-  margin: 8px 0 0;
-  font-size: 11px;
-  color: #64748b;
 }
 
 .field {
@@ -2096,21 +2155,6 @@ select {
   width: auto;
   margin-top: 2px;
   padding: 0;
-}
-
-.console .hint {
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 1.45;
-  margin: 0 0 14px;
-}
-
-.console .provider-hint {
-  margin-top: -4px;
-  padding: 8px 10px;
-  background: #f1f5f9;
-  border-radius: 8px;
-  border: 1px solid var(--line);
 }
 
 .console-actions {

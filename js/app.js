@@ -9,7 +9,7 @@ import {
   detectProvider,
 } from "./agent.js?v=20260722-03";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-03";
+import { UI } from "./ui.js?v=20260722-04";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -590,12 +590,14 @@ function bindChrome() {
 }
 
 function openConsole(show) {
-  const panel = document.querySelector("#consolePanel");
-  if (typeof show === "boolean") panel.classList.toggle("open", show);
-  else panel.classList.toggle("open");
-  if (panel.classList.contains("open")) {
+  const want =
+    typeof show === "boolean" ? show : ui.activeTab !== "settings";
+  if (want) {
     applySettingsToForm();
     syncConsoleOnboard();
+    ui.setPhoneTab("settings");
+  } else {
+    ui.setPhoneTab("chat");
   }
 }
 

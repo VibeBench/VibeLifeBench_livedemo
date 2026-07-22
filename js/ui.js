@@ -62,6 +62,7 @@ export class UI {
       paneTrip: $("#paneTrip"),
       paneMail: $("#paneMail"),
       paneNotes: $("#paneNotes"),
+      paneSettings: $("#paneSettings"),
     };
     this.speakers = {};
     this.kindLabels = {};
@@ -130,13 +131,8 @@ export class UI {
 
   setPhoneTab(tab, { mailKey = null } = {}) {
     const t = tab || "chat";
-    if (t === "settings") {
-      document.querySelector("#btnConsole")?.click();
-      this._flashNav("settings");
-      return;
-    }
     this.activeTab = t;
-    this.clearNavBadge(t);
+    if (t !== "settings") this.clearNavBadge(t);
     for (const btn of this.els.phoneNav?.querySelectorAll("[data-tab]") || []) {
       btn.classList.toggle("active", btn.dataset.tab === t);
     }
@@ -145,6 +141,7 @@ export class UI {
       trip: this.els.paneTrip,
       mail: this.els.paneMail,
       notes: this.els.paneNotes,
+      settings: this.els.paneSettings,
     };
     for (const [key, el] of Object.entries(panes)) {
       if (!el) continue;
@@ -987,7 +984,7 @@ export class UI {
           开始自动演示
         </button>
       </div>
-      <div class="welcome-foot">也可点顶部「演示控制台 / 自动播放」；手机底栏 ⚙️ 同样打开设置</div>`;
+      <div class="welcome-foot">也可点顶部「演示控制台 / 自动播放」；手机底栏 ⚙️ 打开设置页</div>`;
 
     wrap.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-welcome]");
