@@ -16,7 +16,7 @@ import {
   playFlightCrossing,
   isOceanFlightCrossing,
   playMapAction,
-} from "./map.js?v=20260722-47";
+} from "./map.js?v=20260722-48";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1564,20 +1564,45 @@ export class UI {
     const meta = describeToolCall(name, args, result);
     const anchor = resolveToolMapAnchor(name, args, result);
 
-    // Budget / alerts with nothing active: never paint a drive corridor.
+    // Budget: bottom wallet cinematic → then fly into status bar. No place bubble.
     if (name === "get_budget_snapshot") {
       clearPlanning({ immediate: true });
-      this.pulseMapFeedback({
-        id: `tool-place:${name}:${anchor.placeId || anchor.geoKey || "budget"}`,
-        icon: meta.icon,
-        title: meta.title,
-        detail: meta.detail,
-        kind: "agent_tool",
-        placeId: anchor.placeId,
-        geoKey: anchor.geoKey || "shanghai_home",
-        roadId: null,
+      const b = result?.budget || {};
+      const total = b.total_cny != null ? `¥${fmt(b.total_cny)}` : "待确定";
+      const spent = b.spent_cny != null ? `¥${fmt(b.spent_cny)}` : "—";
+      const remain =
+        b.total_cny != null && b.spent_cny != null
+          ? `¥${fmt(Number(b.total_cny) - Number(b.spent_cny))}`
+          : b.remaining_cny != null
+            ? `¥${fmt(b.remaining_cny)}`
+            : "—";
+      const loc = result?.location || args.location || "";
+      return this.playQueuedMapAction({
+        kind: "budget",
+        title: "行程预算",
+        items: [
+          { label: "总额", value: total },
+          { label: "已用", value: spent },
+          { label: "剩余", value: remain },
+          loc ? { label: "位置", value: loc } : null,
+        ].filter(Boolean),
+        fingerprint: `budget:${total}:${spent}`,
+      }).then(() => {
+        this.enqueueStatusLanding({
+          kind: "budget",
+          icon: "💰",
+          title: "预算已同步",
+          fromText: "核对中…",
+          toText:
+            b.total_cny != null
+              ? Number(b.spent_cny) > 0
+                ? `已用 ${spent} / ${total}`
+                : `预算 ${total}`
+              : "待确定",
+          detail: remain !== "—" ? `剩余 ${remain}` : meta.detail || "",
+        });
+        return true;
       });
-      return;
     }
 
     if (name === "list_active_alerts") {
@@ -1796,9 +1821,16 @@ export class UI {
       mapPulse: false,
     });
 
-    // If onTool didn't run focus yet (e.g. syncToolCalls), still drop a place bubble.
+    // If onTool didn't run focus yet (e.g. syncToolCalls), still drop a place bubble —
+    // except tools that already have their own bottom cinematic (search / budget / writes).
+    const hasOwnCinematic =
+      name === "search_web" ||
+      name === "get_budget_snapshot" ||
+      name === "write_journal" ||
+      name === "add_calendar_event" ||
+      /notion|journal|write_page|calendar|schedule/i.test(name || "");
     const anchor = resolveToolMapAnchor(name, args, result);
-    if (anchor.placeId || anchor.geoKey || anchor.roadId) {
+    if (!hasOwnCinematic && (anchor.placeId || anchor.geoKey || anchor.roadId)) {
       this.pulseMapFeedback({
         id: `tool-place:${name}:${anchor.placeId || anchor.geoKey || anchor.roadId}`,
         icon: meta.icon,

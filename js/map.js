@@ -787,7 +787,7 @@ function hideMapActionStage() {
 
 /**
  * Cinematic overlay for major agent actions on the map:
- * kind: 'search' | 'notion' | 'calendar'
+ * kind: 'search' | 'notion' | 'calendar' | 'budget'
  */
 export function playMapAction({
   kind = "search",
@@ -857,6 +857,23 @@ export function playMapAction({
           </div>
           <div class="map-action-cal-event" id="mapActionBody"></div>
         </div>`;
+    } else if (kind === "budget") {
+      stage.innerHTML = `
+        <div class="map-action-card map-action-budget">
+          <div class="map-action-budget-head">
+            <span class="map-action-budget-ico">💰</span>
+            <div>
+              <div class="map-action-budget-app">行程预算</div>
+              <div class="map-action-budget-title">${escapeHtml(title || "核对费用")}</div>
+            </div>
+            <span class="map-action-status" id="mapActionStatus">核对中</span>
+          </div>
+          <div class="map-action-budget-rows" id="mapActionBody"></div>
+          <div class="map-action-budget-foot" id="mapActionFoot" hidden>
+            <span class="map-action-notion-check">✓</span>
+            <span>已同步到状态栏</span>
+          </div>
+        </div>`;
     } else {
       resolve(false);
       return;
@@ -885,7 +902,13 @@ export function playMapAction({
       const st = stage.querySelector(".map-action-status") || stage.querySelector("#mapActionStatus");
       if (st) {
         st.textContent =
-          kind === "search" ? "完成" : kind === "notion" ? "已提交" : "已写入";
+          kind === "search"
+            ? "完成"
+            : kind === "notion"
+              ? "已提交"
+              : kind === "budget"
+                ? "已同步"
+                : "已写入";
       }
       const caret = stage.querySelector(".map-action-caret, #mapActionCaret");
       if (caret) caret.hidden = true;
@@ -895,8 +918,9 @@ export function playMapAction({
         foot.removeAttribute("hidden");
         foot.classList.add("show");
       }
-      // Search: hold full results ~2s. Notion/calendar: slightly longer hold (readable).
-      const holdMs = kind === "search" ? 2000 : kind === "notion" ? 2400 : 1500;
+      // Search/budget: hold full card ~2s. Notion: slightly longer. Calendar: shorter.
+      const holdMs =
+        kind === "search" || kind === "budget" ? 2000 : kind === "notion" ? 2400 : 1500;
       mapActionTimer = setTimeout(() => {
         if (alive()) hideMapActionStage();
         resolve(Boolean(ok) && alive());
@@ -989,6 +1013,42 @@ export function playMapAction({
       };
       setTimeout(chunk, 300);
       mapActionTimer = setTimeout(() => finish(), Math.max(durationMs, 9000));
+      return;
+    }
+
+    if (kind === "budget") {
+      const bodyEl = stage.querySelector("#mapActionBody");
+      const statusEl = stage.querySelector("#mapActionStatus");
+      const budgetRows = rows.length
+        ? rows
+        : [
+            { label: "总额", value: "核对中…" },
+            { label: "已用", value: "—" },
+            { label: "剩余", value: "—" },
+          ];
+      let bi = 0;
+      const addBudgetRow = () => {
+        if (!alive() || !bodyEl || finished) return finish(false);
+        if (bi >= budgetRows.length) {
+          if (statusEl) statusEl.textContent = "写入状态栏";
+          return finish();
+        }
+        const item = budgetRows[bi];
+        const row = document.createElement("div");
+        row.className = "map-action-budget-row";
+        row.innerHTML = `
+          <span class="map-action-budget-label">${escapeHtml(item.label || item.title || "")}</span>
+          <span class="map-action-budget-value">${escapeHtml(item.value || item.snippet || item)}</span>`;
+        bodyEl.appendChild(row);
+        bi += 1;
+        if (bi < budgetRows.length) setTimeout(addBudgetRow, 420);
+        else {
+          if (statusEl) statusEl.textContent = "写入状态栏";
+          setTimeout(() => finish(), 380);
+        }
+      };
+      setTimeout(addBudgetRow, 280);
+      mapActionTimer = setTimeout(() => finish(), 12000);
       return;
     }
 
