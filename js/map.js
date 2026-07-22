@@ -748,10 +748,12 @@ export function playMapAction({
       if (st) st.textContent = kind === "search" ? "完成" : "已写入";
       const caret = stage.querySelector(".map-action-caret");
       if (caret) caret.hidden = true;
+      // Search: hold full results ~2s then dismiss. Other kinds: short done beat.
+      const holdMs = kind === "search" ? 2000 : 1100;
       mapActionTimer = setTimeout(() => {
         hideMapActionStage();
         resolve(ok);
-      }, 1600);
+      }, holdMs);
     };
 
     if (kind === "search") {
@@ -759,20 +761,29 @@ export function playMapAction({
       const resEl = stage.querySelector("#mapActionResults");
       const meta = stage.querySelector(".map-action-search-meta");
       let i = 0;
-      // Slower typing + staggered results so the search beat is readable.
-      const typeMs = 95;
-      const rowGapMs = 780;
-      const firstRowDelayMs = 650;
+      // Snappy typing; results stagger in; only then hold ~2s before dismiss.
+      const typeMs = 38;
+      const rowGapMs = 420;
+      const firstRowDelayMs = 280;
       const typeTimer = setInterval(() => {
         i += 1;
         if (qEl) qEl.textContent = q.slice(0, i);
         if (i >= q.length) {
           clearInterval(typeTimer);
           if (meta) meta.textContent = `约 ${Math.max(rows.length, 1)} 条结果`;
+          if (!rows.length) {
+            if (resEl) {
+              const row = document.createElement("div");
+              row.className = "map-action-search-row";
+              row.innerHTML = `<div class="map-action-search-row-title">${escapeHtml(q || "相关结果")}</div>`;
+              resEl.appendChild(row);
+            }
+            finish();
+            return;
+          }
           let r = 0;
           const addRow = () => {
-            if (!resEl) return finish();
-            if (r >= rows.length) return finish();
+            if (!resEl || finished) return;
             const item = rows[r];
             const row = document.createElement("div");
             row.className = "map-action-search-row";
@@ -783,14 +794,13 @@ export function playMapAction({
             resEl.appendChild(row);
             r += 1;
             if (r < rows.length) setTimeout(addRow, rowGapMs);
-            else finish();
+            else finish(); // all rows in → hold 2s then hide
           };
           setTimeout(addRow, firstRowDelayMs);
         }
       }, typeMs);
-      const minHold =
-        q.length * typeMs + firstRowDelayMs + Math.max(rows.length, 1) * rowGapMs + 2200;
-      mapActionTimer = setTimeout(() => finish(), Math.max(durationMs, minHold));
+      // Fallback only if typing/results somehow stall.
+      mapActionTimer = setTimeout(() => finish(), 20000);
       return;
     }
 
