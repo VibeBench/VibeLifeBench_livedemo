@@ -792,6 +792,7 @@ select {
 .impact-box {
   margin: 10px 14px 14px;
   font-size: 12px;
+  flex-shrink: 0;
 }
 
 .plan-block h3,
