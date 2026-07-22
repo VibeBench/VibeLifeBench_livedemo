@@ -32,7 +32,7 @@ body {
     var(--bg);
 }
 
-@media (min-width: 1101px) {
+@media (min-width: 961px) {
   html,
   body {
     overflow: hidden;
@@ -47,18 +47,19 @@ select {
 
 .app {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(300px, 34vw, 440px);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
   grid-template-rows: auto minmax(0, 1fr);
   align-items: stretch;
-  gap: clamp(10px, 1.2vw, 18px);
+  gap: clamp(10px, 1.2vw, 16px);
   width: 100%;
-  max-width: 1520px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: clamp(10px, 1.2vw, 14px) clamp(10px, 1.4vw, 16px) clamp(10px, 1.2vw, 14px);
+  padding: clamp(8px, 1vw, 14px);
   box-sizing: border-box;
   height: 100vh;
   height: 100dvh;
   min-height: 0;
+  overflow: hidden;
 }
 
 /* —— Top bar —— */
@@ -2681,28 +2682,56 @@ body.is-busy .btn.primary {
   opacity: 0.8;
 }
 
-@media (max-width: 1100px) {
+@media (min-width: 961px) and (max-width: 1280px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    gap: 10px;
+    padding: 8px 10px;
+  }
+
+  .map-stage .day-chip {
+    width: 58px;
+    padding: 4px 2px;
+  }
+
+  .float-info {
+    width: min(220px, 30%);
+  }
+
+  .float-info-plan {
+    max-height: 96px;
+  }
+}
+
+/* Narrow / DevTools-split: keep map + phone both on screen, no float overlap */
+@media (max-width: 960px) {
   html,
   body {
-    overflow: auto;
-    height: auto;
-    min-height: 100%;
+    overflow: hidden;
+    height: 100%;
   }
 
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: auto;
-    height: auto;
-    min-height: 100vh;
-    min-height: 100dvh;
-    max-height: none;
-    overflow: visible;
+    grid-template-rows: auto minmax(0, 1fr) minmax(280px, 42dvh);
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .dashboard,
   .dashboard.map-stage {
-    height: min(78dvh, 820px);
-    min-height: 520px;
+    height: auto;
+    min-height: 0;
+    max-height: none;
     overflow: hidden;
   }
 
@@ -2712,20 +2741,22 @@ body.is-busy .btn.primary {
 
   .float-status .status-chip {
     flex: 0 0 auto;
-    max-width: 140px;
+    max-width: 132px;
   }
 
   .map-toast-rail {
-    width: min(320px, 72%);
+    width: min(300px, 78%);
   }
 
   .float-events:not(.collapsed) {
-    width: min(260px, 48%);
-    max-height: min(48vh, 320px);
+    width: min(260px, 56%);
+    max-height: min(36vh, 240px);
   }
 
   .float-info {
-    width: min(220px, 42%);
+    width: min(200px, 44%);
+    max-height: min(34vh, 200px);
+    overflow: auto;
   }
 
   .float-info-plan {
@@ -2733,37 +2764,47 @@ body.is-busy .btn.primary {
   }
 
   .map-stage .day-chip {
-    width: 62px;
+    width: 56px;
   }
 
   .phone-col {
     position: relative;
     top: auto;
-    width: min(100%, 440px);
-    margin: 0 auto;
-    height: min(78dvh, 720px);
-    max-height: min(78dvh, 720px);
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    height: 100%;
+    max-height: none;
+    min-height: 0;
+    align-self: stretch;
+  }
+
+  .phone {
+    border-radius: 18px;
+    padding: 8px;
+    height: 100%;
+    max-height: 100%;
   }
 }
 
 @media (max-width: 640px) {
   .app {
-    padding: 8px;
-    gap: 10px;
+    padding: 6px;
+    gap: 6px;
+    grid-template-rows: auto minmax(0, 1fr) minmax(300px, 48dvh);
   }
 
   .dashboard.map-stage {
-    height: min(70dvh, 640px);
-    min-height: 420px;
+    border-radius: 14px;
   }
 
   .float-status .status-chip {
-    padding: 7px 8px;
-    max-width: 120px;
+    padding: 6px 8px;
+    max-width: 112px;
   }
 
   .float-events.collapsed {
-    min-width: 132px;
+    min-width: 128px;
   }
 
   .top-actions .btn {
@@ -2771,19 +2812,43 @@ body.is-busy .btn.primary {
     font-size: 11px;
   }
 
-  .phone-col {
-    height: min(85dvh, 680px);
-    max-height: min(85dvh, 680px);
+  .map-chrome-bottom {
+    gap: 8px;
+  }
+
+  .float-info {
+    display: none;
   }
 }
 
-@media (min-width: 1101px) and (max-height: 760px) {
+@media (min-width: 961px) and (max-height: 760px) {
+  .app {
+    gap: 8px;
+    padding: 8px;
+  }
+
   .float-status .status-chip {
-    padding: 6px 8px;
+    padding: 5px 8px;
   }
 
   .map-stage .day-chip {
-    width: 60px;
-    padding: 4px 2px;
+    width: 54px;
+    padding: 3px 2px;
+  }
+
+  .float-ribbon {
+    padding: 4px 6px;
+  }
+
+  .map-overlay {
+    padding: 8px;
+    gap: 8px;
+  }
+}
+
+/* Very short viewports: shrink phone share so map stays usable */
+@media (max-height: 620px) and (max-width: 960px) {
+  .app {
+    grid-template-rows: auto minmax(0, 1fr) minmax(220px, 38dvh);
   }
 }
