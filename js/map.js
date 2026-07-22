@@ -838,6 +838,9 @@ function hideMapActionStage() {
   el.innerHTML = "";
 }
 
+/** Hide the bottom map-action card (used after status-bar landing takes over). */
+export { hideMapActionStage };
+
 /**
  * Cinematic overlay for major agent actions on the map:
  * kind: 'search' | 'notion' | 'calendar' | 'budget' | 'weather'
@@ -849,6 +852,8 @@ export function playMapAction({
   body = "",
   items = [],
   durationMs = 8500,
+  /** Keep the card visible after resolve so status landing can fly it upward. */
+  leaveVisible = false,
 } = {}) {
   return new Promise((resolve) => {
     const session = mapSession;
@@ -989,17 +994,20 @@ export function playMapAction({
         foot.removeAttribute("hidden");
         foot.classList.add("show");
       }
-      // Search: hold 1s after all results. Budget/weather: ~2s. Notion longer. Calendar shorter.
+      // Search: hold 1s after all results. Budget/weather: short hold then hand off to status fly.
+      // Notion longer. Calendar shorter.
       const holdMs =
         kind === "search"
           ? 1000
           : kind === "budget" || kind === "weather"
-            ? 2000
+            ? leaveVisible
+              ? 700
+              : 2000
             : kind === "notion"
               ? 2400
               : 1500;
       mapActionTimer = setTimeout(() => {
-        if (alive()) hideMapActionStage();
+        if (!leaveVisible && alive()) hideMapActionStage();
         resolve(Boolean(ok) && alive());
       }, holdMs);
     };

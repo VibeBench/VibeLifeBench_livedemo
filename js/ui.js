@@ -16,7 +16,8 @@ import {
   playFlightCrossing,
   isOceanFlightCrossing,
   playMapAction,
-} from "./map.js?v=20260722-52";
+  hideMapActionStage,
+} from "./map.js?v=20260722-53";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -976,7 +977,8 @@ export class UI {
   }
 
   /**
-   * Big map-center card → flies up and lands into the matching status chip.
+   * Fly a status update into the matching status chip.
+   * When fromStage is true, reuse the bottom map-action card (no mid-map bubble).
    */
   playStatusLandingAnim({
     kind = "budget",
@@ -985,21 +987,32 @@ export class UI {
     fromText = "",
     toText = "",
     detail = "",
+    fromStage = false,
   } = {}) {
     return new Promise((resolve) => {
       const chip = this.els.statusGrid?.querySelector(`[data-status="${kind}"]`);
-      const mapPanel =
-        document.querySelector("#mapPanel") ||
-        document.querySelector(".map-stage-canvas") ||
-        document.querySelector(".map-overlay");
-      if (!chip || !mapPanel) {
+      if (!chip) {
+        if (fromStage) hideMapActionStage();
         resolve(false);
         return;
       }
 
+      const stageCard = fromStage
+        ? document.querySelector("#mapActionStage .map-action-card")
+        : null;
+      const stageBox = stageCard?.getBoundingClientRect?.();
+      const hasStage =
+        stageCard && stageBox && stageBox.width > 8 && stageBox.height > 8;
+
       const fly = document.createElement("div");
-      fly.className = `status-fly status-fly-${kind}`;
-      fly.innerHTML = `
+      fly.className = `status-fly status-fly-${kind}${hasStage ? " status-fly-from-stage" : ""}`;
+
+      if (hasStage) {
+        // Clone the bottom card visually so it continues flying upward.
+        fly.innerHTML = `<div class="status-fly-stage-clone">${stageCard.outerHTML}</div>`;
+        hideMapActionStage();
+      } else {
+        fly.innerHTML = `
         <div class="status-fly-inner">
           <div class="status-fly-head">
             <span class="status-fly-ico">${icon}</span>
@@ -1017,29 +1030,54 @@ export class UI {
             ${detail ? `<div class="status-fly-detail">${escapeHtml(detail)}</div>` : ""}
           </div>
         </div>`;
+      }
       document.body.appendChild(fly);
 
-      const startBox = mapPanel.getBoundingClientRect();
       const measure = () => fly.getBoundingClientRect();
-      // Place near lower-center of the map (above bottom docks)
-      const startX = startBox.left + startBox.width / 2 - measure().width / 2;
-      const startY = startBox.top + startBox.height * 0.42 - measure().height / 2;
-      fly.style.transform = `translate(${Math.max(8, startX)}px, ${Math.max(8, startY)}px) scale(0.86)`;
-      fly.style.opacity = "0";
+      let startX;
+      let startY;
+      if (hasStage) {
+        // Match the on-screen bottom card before flying.
+        fly.style.width = `${stageBox.width}px`;
+        startX = stageBox.left;
+        startY = stageBox.top;
+        fly.style.transform = `translate(${startX}px, ${startY}px) scale(1)`;
+        fly.style.opacity = "1";
+      } else {
+        const mapPanel =
+          document.querySelector("#mapPanel") ||
+          document.querySelector(".map-stage-canvas") ||
+          document.querySelector(".map-overlay");
+        if (!mapPanel) {
+          fly.remove();
+          resolve(false);
+          return;
+        }
+        const startBox = mapPanel.getBoundingClientRect();
+        startX = startBox.left + startBox.width / 2 - measure().width / 2;
+        startY = startBox.top + startBox.height * 0.42 - measure().height / 2;
+        fly.style.transform = `translate(${Math.max(8, startX)}px, ${Math.max(8, startY)}px) scale(0.86)`;
+        fly.style.opacity = "0";
+      }
 
       const run = async () => {
         try {
-          await fly.animate(
-            [
-              { opacity: 0, transform: `translate(${startX}px, ${startY + 18}px) scale(0.86)` },
-              { opacity: 1, transform: `translate(${startX}px, ${startY}px) scale(1)` },
-            ],
-            { duration: 520, easing: "cubic-bezier(0.2, 0.9, 0.2, 1)", fill: "forwards" }
-          ).finished;
+          if (!hasStage) {
+            await fly.animate(
+              [
+                { opacity: 0, transform: `translate(${startX}px, ${startY + 18}px) scale(0.86)` },
+                { opacity: 1, transform: `translate(${startX}px, ${startY}px) scale(1)` },
+              ],
+              { duration: 520, easing: "cubic-bezier(0.2, 0.9, 0.2, 1)", fill: "forwards" }
+            ).finished;
 
-          const badge = fly.querySelector(".status-fly-badge");
-          await new Promise((r) => setTimeout(r, 980));
-          if (badge) badge.textContent = "写入状态栏";
+            const badge = fly.querySelector(".status-fly-badge");
+            await new Promise((r) => setTimeout(r, 980));
+            if (badge) badge.textContent = "写入状态栏";
+          } else {
+            // Brief beat so the handoff from bottom card reads clearly.
+            await new Promise((r) => setTimeout(r, 180));
+          }
 
           const end = chip.getBoundingClientRect();
           const flyBox = measure();
@@ -1055,21 +1093,22 @@ export class UI {
               },
               {
                 opacity: 1,
-                transform: `translate(${(startX + endX) / 2}px, ${Math.min(startY, endY) - 24}px) scale(0.78)`,
+                transform: `translate(${(startX + endX) / 2}px, ${Math.min(startY, endY) - 28}px) scale(0.72)`,
                 offset: 0.45,
               },
               {
-                opacity: 0.15,
-                transform: `translate(${endX}px, ${endY}px) scale(0.28)`,
+                opacity: 0.12,
+                transform: `translate(${endX}px, ${endY}px) scale(0.22)`,
                 offset: 1,
               },
             ],
-            { duration: 980, easing: "cubic-bezier(0.4, 0.0, 0.2, 1)", fill: "forwards" }
+            { duration: hasStage ? 860 : 980, easing: "cubic-bezier(0.4, 0.0, 0.2, 1)", fill: "forwards" }
           ).finished;
         } catch {
           /* ignore abort */
         } finally {
           fly.remove();
+          hideMapActionStage();
           const chipNow =
             this.els.statusGrid?.querySelector(`[data-status="${kind}"]`) || chip;
           if (chipNow) {
@@ -1570,7 +1609,7 @@ export class UI {
     const meta = describeToolCall(name, args, result);
     const anchor = resolveToolMapAnchor(name, args, result);
 
-    // Budget: bottom wallet cinematic → then fly into status bar. No place bubble.
+    // Budget: bottom wallet card → flies straight into status bar (no mid-map bubble).
     if (name === "get_budget_snapshot") {
       clearPlanning({ immediate: true });
       const b = result?.budget || {};
@@ -1583,6 +1622,12 @@ export class UI {
             ? `¥${fmt(b.remaining_cny)}`
             : "—";
       const loc = result?.location || args.location || "";
+      const toText =
+        b.total_cny != null
+          ? Number(b.spent_cny) > 0
+            ? `已用 ${spent} / ${total}`
+            : `预算 ${total}`
+          : "待确定";
       return this.playQueuedMapAction({
         kind: "budget",
         title: "行程预算",
@@ -1593,22 +1638,22 @@ export class UI {
           loc ? { label: "位置", value: loc } : null,
         ].filter(Boolean),
         fingerprint: `budget:${total}:${spent}`,
-      }).then(() => {
-        this.enqueueStatusLanding({
-          kind: "budget",
-          icon: "💰",
-          title: "预算已同步",
-          fromText: "核对中…",
-          toText:
-            b.total_cny != null
-              ? Number(b.spent_cny) > 0
-                ? `已用 ${spent} / ${total}`
-                : `预算 ${total}`
-              : "待确定",
-          detail: remain !== "—" ? `剩余 ${remain}` : meta.detail || "",
-        });
-        return true;
-      });
+        leaveVisible: true,
+      }).then(() =>
+        this.enqueueCinematic(
+          () =>
+            this.playStatusLandingAnim({
+              kind: "budget",
+              icon: "💰",
+              title: "预算已同步",
+              fromText: "核对中…",
+              toText,
+              detail: remain !== "—" ? `剩余 ${remain}` : meta.detail || "",
+              fromStage: true,
+            }),
+          { fingerprint: `status:budget:${String(toText).slice(0, 60)}` }
+        )
+      );
     }
 
     if (name === "list_active_alerts") {
@@ -1656,7 +1701,7 @@ export class UI {
       const statusText = formatObservedWeatherText(name, args, result);
       const rows = buildWeatherActionRows(name, args, result);
 
-      // Pan + place emoji, then bottom weather card → status bar (like budget).
+      // Pan + place emoji, then bottom weather card flies into status bar.
       return Promise.resolve(
         geo ? focusGeoKey(geo, { label: `工具：天气 · ${place || geo}` }) : false
       )
@@ -1676,6 +1721,7 @@ export class UI {
             query: wIcon,
             items: rows,
             fingerprint: `weather:${name}:${geo || ""}:${statusText.slice(0, 40)}`,
+            leaveVisible: true,
           });
         })
         .then(() => {
@@ -1687,15 +1733,20 @@ export class UI {
               detail: meta.detail || statusText,
             });
           }
-          this.enqueueStatusLanding({
-            kind: "weather",
-            icon: wIcon,
-            title: place ? `${place}天气` : "天气已同步",
-            fromText: "查询中…",
-            toText: shortWeather(statusText) || statusText || "已更新",
-            detail: statusText || meta.detail || "",
-          });
-          return true;
+          const toText = shortWeather(statusText) || statusText || "已更新";
+          return this.enqueueCinematic(
+            () =>
+              this.playStatusLandingAnim({
+                kind: "weather",
+                icon: wIcon,
+                title: place ? `${place}天气` : "天气已同步",
+                fromText: "查询中…",
+                toText,
+                detail: statusText || meta.detail || "",
+                fromStage: true,
+              }),
+            { fingerprint: `status:weather:${String(toText).slice(0, 60)}` }
+          );
         });
     } else if (name === "get_flight_status") {
       focusPlanning({
