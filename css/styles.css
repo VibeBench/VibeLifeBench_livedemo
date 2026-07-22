@@ -1500,7 +1500,7 @@ select {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 0;
   pointer-events: none;
 }
 
@@ -1552,11 +1552,13 @@ select {
   filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.15));
 }
 
-/* Sit above the orb — never overlap the circle rim */
+/* Hang under the orb, slightly overlapping the circle rim */
 .map-here-tag {
-  position: relative;
-  z-index: 3;
-  flex-shrink: 0;
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  z-index: 4;
+  transform: translateX(-50%);
   padding: 2px 8px;
   border-radius: 999px;
   background: #16a34a;
@@ -1565,16 +1567,17 @@ select {
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 1.35;
+  white-space: nowrap;
   box-shadow: 0 3px 10px rgba(22, 163, 74, 0.45);
 }
 
-/* Status under the icon — clear gap so road/closure pills don't collide */
+/* Activity label under the overlapping 「现在」 tag */
 .map-here-caption {
   position: relative;
   z-index: 1;
   flex-shrink: 0;
   max-width: 88px;
-  margin-top: 1px;
+  margin-top: 12px;
   padding: 3px 8px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.96);
@@ -1711,7 +1714,7 @@ select {
   word-break: break-word;
 }
 
-/* Place-anchored message bubble (near queried location) */
+/* Place-anchored message bubble — sits above the place / here-orb */
 .map-place-bubble-wrap {
   background: transparent !important;
   border: none !important;
@@ -1724,7 +1727,8 @@ select {
   gap: 8px;
   min-width: 140px;
   max-width: 220px;
-  padding: 8px 11px 10px;
+  margin: 0 auto;
+  padding: 8px 11px 12px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.8);
@@ -1732,7 +1736,7 @@ select {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   animation: map-place-bubble-in 0.4s cubic-bezier(0.2, 0.9, 0.2, 1) both;
-  transform-origin: 20% 100%;
+  transform-origin: 50% 100%;
 }
 
 .map-place-bubble.is-leaving {
@@ -1773,12 +1777,14 @@ select {
   word-break: break-word;
 }
 
+/* Tip points down to the circle below */
 .map-place-bubble-pin {
   position: absolute;
-  left: 22px;
-  bottom: -7px;
+  left: 50%;
+  bottom: -6px;
   width: 12px;
   height: 12px;
+  margin-left: -6px;
   background: rgba(255, 255, 255, 0.95);
   border-right: 1px solid rgba(148, 163, 184, 0.35);
   border-bottom: 1px solid rgba(148, 163, 184, 0.35);
@@ -1788,7 +1794,7 @@ select {
 @keyframes map-place-bubble-in {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.92);
+    transform: translateY(10px) scale(0.94);
   }
   to {
     opacity: 1;

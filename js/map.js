@@ -303,8 +303,9 @@ function pulsePlaceBubble({ icon, head, sub, kindCls, latlng, durationMs }) {
     icon: window.L.divIcon({
       className: "map-place-bubble-wrap",
       html,
-      iconSize: [240, 72],
-      iconAnchor: [28, 78],
+      // Wide card; anchor at bottom-center so the card sits above the place / here-orb.
+      iconSize: [240, 96],
+      iconAnchor: [120, 104],
     }),
     interactive: false,
     keyboard: false,
@@ -2363,29 +2364,28 @@ function emojiIcon(emoji, extraClass = "") {
   });
 }
 
-/** Distinct "you are here" marker — status caption sits under the icon (no side tooltip). */
+/** Distinct "you are here" marker — 「现在」hangs under the orb with slight overlap. */
 function hereMarkerIcon(emoji, label = "") {
   const raw = String(label || "").trim();
   const tip = escapeHtml(raw);
-  // Keep caption short so it stays under the pin and does not fan out sideways.
   const short = escapeHtml(raw.length > 8 ? `${raw.slice(0, 7)}…` : raw);
   return window.L.divIcon({
     className: "map-here-wrap",
     html: `
       <div class="map-here-marker" title="${tip}">
-        <span class="map-here-tag">现在</span>
         <div class="map-here-orb">
           <span class="map-here-pulse" aria-hidden="true"></span>
           <span class="map-here-pulse map-here-pulse-late" aria-hidden="true"></span>
           <span class="map-here-core">
             <span class="map-here-emoji">${emoji || "📍"}</span>
           </span>
+          <span class="map-here-tag">现在</span>
         </div>
         ${short ? `<div class="map-here-caption">${short}</div>` : ""}
       </div>`,
-    // Tall footprint: tag above + orb + caption below; anchor at orb center.
-    iconSize: [96, 110],
-    iconAnchor: [48, 52],
+    // Orb + overlapping tag + caption; anchor at orb center.
+    iconSize: [96, 96],
+    iconAnchor: [48, 26],
   });
 }
 
