@@ -1,7 +1,7 @@
 /**
  * Dashboard + phone chat rendering
  */
-import { renderLeafletMap, destroyMap, pulseMapEvent } from "./map.js?v=20260722-16";
+import { renderLeafletMap, destroyMap, pulseMapEvent } from "./map.js?v=20260722-17";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -431,6 +431,9 @@ export class UI {
     });
     return detail;
   }
+
+  /** Phone toast for playback events that should surface on the handset. */
+  notifyEnvEvent(event) {
     if (!event) return;
     const toast = envEventToast(event);
     if (!toast) return;
