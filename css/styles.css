@@ -1305,14 +1305,14 @@ select {
   margin-top: 6px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(37, 99, 235, 0.3);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   font-size: 11.5px;
-  font-weight: 700;
-  color: #1d4ed8;
+  font-weight: 650;
+  color: #6d28d9;
   pointer-events: none;
 }
 
@@ -1406,12 +1406,12 @@ select {
   height: 28px;
   padding: 0 6px;
   border-radius: 999px;
-  background: linear-gradient(160deg, #3b82f6, #1d4ed8);
+  background: linear-gradient(160deg, #c4b5fd, #a78bfa);
   color: #fff;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.02em;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 3px 10px rgba(139, 92, 246, 0.28);
   border: 2px solid #fff;
 }
 
@@ -1420,8 +1420,8 @@ select {
   padding: 1px 6px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(37, 99, 235, 0.2);
-  color: #1e3a8a;
+  border: 1px solid rgba(167, 139, 250, 0.28);
+  color: #6d28d9;
   font-size: 10px;
   font-weight: 700;
   line-height: 1.3;

@@ -996,17 +996,35 @@ async function repaintAgentPlan({ fit = false } = {}) {
   }
 
   if (path.length >= 2) {
-    window.L.polyline(path, {
-      color: "#2563eb",
-      weight: 4,
-      opacity: 0.72,
-      dashArray: "10 8",
+    // Soft violet ghost corridor — lighter than live/planning blues & road colors,
+    // stays readable as a long-lived backdrop without competing with active routes.
+    const under = window.L.polyline(path, {
+      color: "#f5f3ff",
+      weight: 6,
+      opacity: 0.55,
+      lineCap: "round",
+      lineJoin: "round",
+      interactive: false,
+      className: "map-agent-plan-route-under",
+    }).addTo(agentPlanLayer);
+    const line = window.L.polyline(path, {
+      color: "#a78bfa",
+      weight: 2.5,
+      opacity: 0.48,
+      dashArray: "3 10",
       lineCap: "round",
       lineJoin: "round",
       className: "map-agent-plan-route",
     })
       .addTo(agentPlanLayer)
       .bindTooltip(lastAgentPlan.label || "行程规划路线");
+    try {
+      under.bringToBack?.();
+      line.bringToBack?.();
+      agentPlanLayer.bringToBack?.();
+    } catch {
+      /* ignore */
+    }
   }
 
   // Deduplicate markers by place; keep first day's label if multi-night.
