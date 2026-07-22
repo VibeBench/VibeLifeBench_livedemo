@@ -19,7 +19,7 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260722-71";
+} from "./map.js?v=20260722-72";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1480,7 +1480,7 @@ export class UI {
     return wrap;
   }
 
-  /** Agent turn: timeline rail (thinking quote + tool steps) + answer */
+  /** Agent turn: thinking quote + 「正在使用工具」card + answer */
   beginAgentTurn({ time = null } = {}) {
     clearPlanning({ immediate: true });
     clearTimeout(this._planThinkTimer);
@@ -1512,9 +1512,15 @@ export class UI {
             <button type="button" class="rail-think-more" data-think-more hidden>展开全文</button>
           </div>
         </div>
-        <div class="rail-tools" data-tool-log></div>
-        <div class="rail-collapse-wrap" data-rail-collapse hidden>
-          <button type="button" class="rail-collapse-btn" data-rail-collapse-btn>… <span data-collapse-n>0</span> steps</button>
+        <div class="tool-panel" data-tool-panel hidden>
+          <button type="button" class="tool-panel-head" data-tool-panel-toggle aria-expanded="true">
+            <span class="tool-panel-title">正在使用工具</span>
+            <span class="tool-panel-chevron" aria-hidden="true">▾</span>
+          </button>
+          <div class="tool-panel-body" data-tool-log></div>
+          <div class="rail-collapse-wrap" data-rail-collapse hidden>
+            <button type="button" class="rail-collapse-btn" data-rail-collapse-btn>… <span data-collapse-n>0</span> steps</button>
+          </div>
         </div>
       </div>
       <div class="bubble-text answer-text"></div>`;
@@ -1527,6 +1533,16 @@ export class UI {
       if (open) full.removeAttribute("hidden");
       else full.setAttribute("hidden", "");
       moreBtn.textContent = open ? "收起" : "展开全文";
+    });
+
+    const panelToggle = wrap.querySelector("[data-tool-panel-toggle]");
+    panelToggle?.addEventListener("click", () => {
+      const panel = wrap.querySelector("[data-tool-panel]");
+      if (!panel) return;
+      const collapsed = panel.classList.toggle("is-collapsed");
+      panelToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      const chev = panelToggle.querySelector(".tool-panel-chevron");
+      if (chev) chev.textContent = collapsed ? "▸" : "▾";
     });
 
     const collapseBtn = wrap.querySelector("[data-rail-collapse-btn]");
@@ -1793,10 +1809,15 @@ export class UI {
     }
 
     const rail = wrap.querySelector("[data-agent-rail]");
+    const panel = wrap.querySelector("[data-tool-panel]");
     const log = wrap.querySelector("[data-tool-log]");
     if (!log || !rail) return null;
     rail.hidden = false;
     rail.removeAttribute("hidden");
+    if (panel) {
+      panel.hidden = false;
+      panel.removeAttribute("hidden");
+    }
     if (!wrap._toolRows) wrap._toolRows = new Map();
     if (!wrap._toolSeen) wrap._toolSeen = new Set();
     if (!wrap._toolOrder) wrap._toolOrder = [];
@@ -1805,7 +1826,7 @@ export class UI {
     let row = wrap._toolRows.get(key);
     if (!row) {
       row = document.createElement("div");
-      row.className = "rail-step rail-tool";
+      row.className = "tool-step";
       row.dataset.toolName = name;
       row._calls = [];
       row._expanded = false;
@@ -1819,17 +1840,15 @@ export class UI {
       if (row._calls.length) return row;
       row.classList.add("pending");
       row.classList.remove("done", "err", "warn");
+      const title = humanizeToolName(name);
+      const sub = (TOOL_META[name] && TOOL_META[name].focus) || toolCallName(name);
       row.innerHTML = `
-        <div class="rail-gutter">
-          <span class="rail-dot pending" aria-hidden="true"></span>
-          <span class="rail-line" aria-hidden="true"></span>
+        <span class="tool-step-ico" aria-hidden="true">${toolEmojiIcon(name)}</span>
+        <div class="tool-step-main">
+          <div class="tool-step-title">${escapeHtml(title)}</div>
+          <div class="tool-step-sub">${escapeHtml(sub)}</div>
         </div>
-        <div class="rail-body">
-          <button type="button" class="rail-tool-main" disabled>
-            <span class="rail-ico" aria-hidden="true">${toolEmojiIcon(name)}</span>
-            <span class="rail-mono">${escapeHtml(toolCallName(name))}</span>
-          </button>
-        </div>`;
+        <span class="tool-step-status pending" aria-label="进行中"><span class="tool-spin"></span></span>`;
       this._refreshRailCollapse(wrap);
       this._scrollChatToBottom();
       return row;
@@ -1946,8 +1965,13 @@ export class UI {
     const n = calls.length;
     const anyError = calls.some((c) => c.meta?.error || c.result?.ok === false);
     const anyWarn = calls.some((c) => c.meta?.warning || c.result?.warning);
-    const tone = anyError ? "err" : anyWarn ? "warn" : "ok";
-    const label = toolCallName(name);
+    const title = humanizeToolName(name);
+    const sub =
+      n > 1
+        ? `已调用 ${n} 次`
+        : String(last.meta?.detail || "").trim() ||
+          (TOOL_META[name] && TOOL_META[name].focus) ||
+          toolCallName(name);
 
     row.classList.remove("pending");
     row.classList.add("done");
@@ -1955,24 +1979,24 @@ export class UI {
     row.classList.toggle("warn", anyWarn && !anyError);
 
     const childrenOpen = row._expanded || (anyError && n > 1);
-    const jsonOpen = row._jsonOpen || (anyError && n === 1);
     row._expanded = childrenOpen;
 
     const childrenHtml =
       n > 1
-        ? `<div class="rail-children"${childrenOpen ? "" : " hidden"}>${calls
+        ? `<div class="tool-step-children"${childrenOpen ? "" : " hidden"}>${calls
             .map((c, i) => {
               const bit =
                 String(c.meta?.detail || "").trim() ||
                 firstArgPreview(c.args) ||
                 `#${i + 1}`;
-              const err = c.meta?.error ? " · err" : "";
-              return `<div class="rail-child" data-child-idx="${i}" title="${escapeHtml(bit)}">${escapeHtml(truncate(bit, 56))}${err}</div>`;
+              const err = c.meta?.error ? " · 失败" : "";
+              return `<div class="tool-step-child">${escapeHtml(truncate(bit, 56))}${err}</div>`;
             })
             .join("")}</div>`
         : "";
 
     const payload = {
+      name,
       args: n === 1 ? last.args : calls.map((c) => c.args),
       result: n === 1 ? last.result : calls.map((c) => summarizeToolResult(c.result)),
     };
@@ -1983,33 +2007,32 @@ export class UI {
       jsonText = String(last.result ?? "");
     }
 
+    const statusHtml = anyError
+      ? `<span class="tool-step-status err" aria-label="失败">!</span>`
+      : `<span class="tool-step-status ok" aria-label="完成">✓</span>`;
+
     row.innerHTML = `
-      <div class="rail-gutter">
-        <span class="rail-dot ${tone}" aria-hidden="true"></span>
-        <span class="rail-line" aria-hidden="true"></span>
-      </div>
-      <div class="rail-body">
-        <button type="button" class="rail-tool-main" aria-expanded="${childrenOpen || jsonOpen ? "true" : "false"}">
-          <span class="rail-ico" aria-hidden="true">${toolEmojiIcon(name)}</span>
-          <span class="rail-mono" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
-          ${n > 1 ? `<span class="rail-count">×${n}</span>` : ""}
+      <span class="tool-step-ico" aria-hidden="true">${toolEmojiIcon(name)}</span>
+      <div class="tool-step-main">
+        <button type="button" class="tool-step-hit">
+          <div class="tool-step-title">${escapeHtml(title)}${n > 1 ? ` <span class="tool-step-count">×${n}</span>` : ""}</div>
+          <div class="tool-step-sub">${escapeHtml(truncate(sub, 48))}</div>
         </button>
         ${childrenHtml}
-        <pre class="rail-json"${jsonOpen ? "" : " hidden"}>${escapeHtml(jsonText)}</pre>
-      </div>`;
+        <pre class="tool-step-json"${row._jsonOpen || anyError ? "" : " hidden"}>${escapeHtml(jsonText)}</pre>
+      </div>
+      ${statusHtml}`;
 
-    const main = row.querySelector(".rail-tool-main");
-    const children = row.querySelector(".rail-children");
-    const jsonEl = row.querySelector(".rail-json");
+    const hit = row.querySelector(".tool-step-hit");
+    const children = row.querySelector(".tool-step-children");
+    const jsonEl = row.querySelector(".tool-step-json");
 
-    main?.addEventListener("click", (ev) => {
+    hit?.addEventListener("click", (ev) => {
       ev.preventDefault();
       if (n > 1 && children) {
         row._expanded = !row._expanded;
         if (row._expanded) children.removeAttribute("hidden");
         else children.setAttribute("hidden", "");
-        // Keep JSON for hover/fail; don't force-toggle on group click
-        main.setAttribute("aria-expanded", row._expanded ? "true" : "false");
         return;
       }
       row._jsonOpen = !row._jsonOpen;
@@ -2017,20 +2040,16 @@ export class UI {
         if (row._jsonOpen) jsonEl.removeAttribute("hidden");
         else jsonEl.setAttribute("hidden", "");
       }
-      main.setAttribute("aria-expanded", row._jsonOpen ? "true" : "false");
     });
 
-    // Hover preview of JSON (desktop)
     let hoverTimer = null;
     row.addEventListener("mouseenter", () => {
-      if (row._jsonOpen) return;
-      hoverTimer = setTimeout(() => {
-        jsonEl?.removeAttribute("hidden");
-      }, 280);
+      if (row._jsonOpen || anyError) return;
+      hoverTimer = setTimeout(() => jsonEl?.removeAttribute("hidden"), 320);
     });
     row.addEventListener("mouseleave", () => {
       clearTimeout(hoverTimer);
-      if (!row._jsonOpen) jsonEl?.setAttribute("hidden", "");
+      if (!row._jsonOpen && !anyError) jsonEl?.setAttribute("hidden", "");
     });
 
     if (wrap) this._refreshRailCollapse(wrap);
@@ -2042,6 +2061,7 @@ export class UI {
     const order = wrap._toolOrder || [];
     const collapseWrap = wrap.querySelector("[data-rail-collapse]");
     const log = wrap.querySelector("[data-tool-log]");
+    const panel = wrap.querySelector("[data-tool-panel]");
     const EDGE = 3;
     const THRESHOLD = 8;
 
@@ -2054,8 +2074,7 @@ export class UI {
     if (order.length <= THRESHOLD) {
       collapseWrap.hidden = true;
       collapseWrap.setAttribute("hidden", "");
-      // keep at end of rail
-      wrap.querySelector("[data-agent-rail]")?.appendChild(collapseWrap);
+      panel?.appendChild(collapseWrap);
       return;
     }
 
@@ -2064,7 +2083,7 @@ export class UI {
       collapseWrap.removeAttribute("hidden");
       const btn = collapseWrap.querySelector("[data-rail-collapse-btn]");
       if (btn) btn.textContent = "收起中间步骤";
-      wrap.querySelector("[data-agent-rail]")?.appendChild(collapseWrap);
+      panel?.appendChild(collapseWrap);
       return;
     }
 
@@ -2077,7 +2096,6 @@ export class UI {
     collapseWrap.hidden = false;
     collapseWrap.removeAttribute("hidden");
 
-    // Sit after the last visible leading edge step
     const edgeRow = wrap._toolRows?.get(order[EDGE - 1]);
     if (edgeRow?.parentElement === log) {
       log.insertBefore(collapseWrap, edgeRow.nextSibling);
@@ -2173,13 +2191,14 @@ export class UI {
     thinkBlock?.classList.remove("thinking");
 
     this.syncToolCalls(wrap, toolCalls);
-    wrap.querySelectorAll(".rail-tool.pending").forEach((row) => {
+    wrap.querySelectorAll(".tool-step.pending").forEach((row) => {
       row.classList.remove("pending");
       row.classList.add("done");
-      const dot = row.querySelector(".rail-dot");
-      if (dot) {
-        dot.classList.remove("pending");
-        dot.classList.add("ok");
+      const st = row.querySelector(".tool-step-status");
+      if (st) {
+        st.className = "tool-step-status ok";
+        st.innerHTML = "✓";
+        st.setAttribute("aria-label", "完成");
       }
     });
     this._refreshRailCollapse(wrap);
