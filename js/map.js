@@ -1019,14 +1019,8 @@ export async function commitAgentItineraryPlan({
     extractPlaceIdsFromText(blob).length >= 3;
   if (!force) return false;
 
-  let plan = buildPlanFromAgentOutputs({ content, thinking, toolCalls, calendar });
-
-  // Last-resort seed only when the model clearly planned but place extraction failed
-  if (!plan?.stays?.length && (tripDays || []).length >= 3 && looksLikePlanCommit(blob, toolCalls)) {
-    // Prefer still not hardcoding — skip rather than paint the wrong static spine.
-    return false;
-  }
-
+  // Always rebuild from the latest model/calendar output — never paint the static case spine.
+  const plan = buildPlanFromAgentOutputs({ content, thinking, toolCalls, calendar });
   if ((plan?.stays || []).length < 2) return false;
   return showAgentPlan(plan, { fit: true });
 }

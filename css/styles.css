@@ -3333,14 +3333,13 @@ select {
   }
 }
 
-/* 「正在使用工具」card — matches phone reference mock */
+/* 「正在使用工具」card — compact */
 .tool-panel {
-  margin: 2px 0 12px;
+  margin: 2px 0 8px;
   border: 1px solid #e5e7eb;
-  border-radius: 14px;
+  border-radius: 10px;
   background: #fff;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .tool-panel[hidden] {
@@ -3352,7 +3351,7 @@ select {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 11px 14px;
+  padding: 7px 10px;
   border: none;
   background: #fff;
   cursor: pointer;
@@ -3361,21 +3360,21 @@ select {
 }
 
 .tool-panel-title {
-  font-size: 13.5px;
-  font-weight: 650;
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 
 .tool-panel-chevron {
-  font-size: 12px;
+  font-size: 10px;
   color: #9ca3af;
 }
 
 .tool-panel-body {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 0 8px 10px;
+  gap: 0;
+  padding: 0 6px 6px;
 }
 
 .tool-panel.is-collapsed .tool-panel-body,
@@ -3385,11 +3384,11 @@ select {
 
 .tool-step {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 22px;
-  align-items: start;
-  column-gap: 10px;
-  padding: 8px 6px;
-  border-radius: 10px;
+  grid-template-columns: 26px minmax(0, 1fr) 16px;
+  align-items: center;
+  column-gap: 8px;
+  padding: 4px 4px;
+  border-radius: 8px;
 }
 
 .tool-step.is-collapsed-away {
@@ -3401,19 +3400,19 @@ select {
 }
 
 .tool-step-ico {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
   background: #eff6ff;
   display: grid;
   place-items: center;
-  font-size: 18px;
+  font-size: 13px;
   line-height: 1;
 }
 
 .tool-step-main {
   min-width: 0;
-  padding-top: 1px;
+  padding-top: 0;
 }
 
 .tool-step-hit {
@@ -3430,36 +3429,36 @@ select {
 }
 
 .tool-step-title {
-  font-size: 13.5px;
-  font-weight: 650;
+  font-size: 12px;
+  font-weight: 600;
   color: #111827;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 .tool-step-count {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: #9ca3af;
 }
 
 .tool-step-sub {
-  margin-top: 2px;
-  font-size: 11.5px;
+  margin-top: 1px;
+  font-size: 10.5px;
   color: #6b7280;
-  line-height: 1.4;
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .tool-step-status {
-  width: 20px;
-  height: 20px;
-  margin-top: 8px;
+  width: 15px;
+  height: 15px;
+  margin-top: 0;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
   line-height: 1;
 }
@@ -3476,14 +3475,14 @@ select {
 
 .tool-step-status.pending {
   background: transparent;
-  border: 2px solid #e5e7eb;
+  border: 1.5px solid #e5e7eb;
 }
 
 .tool-spin {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  border: 2px solid #d1d5db;
+  border: 1.5px solid #d1d5db;
   border-top-color: #3b82f6;
   animation: tool-spin 0.7s linear infinite;
 }
