@@ -19,7 +19,7 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260722-79";
+} from "./map.js?v=20260722-80";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -1003,8 +1003,8 @@ export class UI {
   }
 
   /**
-   * Fly a status update into the matching status chip.
-   * When fromStage is true, reuse the bottom map-action card (no mid-map bubble).
+   * Soft sync cue into the matching status chip.
+   * Compact pill (no bulky flying card / stage clone shrink).
    */
   playStatusLandingAnim({
     kind = "budget",
@@ -1023,118 +1023,71 @@ export class UI {
         return;
       }
 
-      const stageCard = fromStage
-        ? document.querySelector("#mapActionStage .map-action-card")
-        : null;
-      const stageBox = stageCard?.getBoundingClientRect?.();
-      const hasStage =
-        stageCard && stageBox && stageBox.width > 8 && stageBox.height > 8;
+      if (fromStage) hideMapActionStage();
+
+      const chipBox = chip.getBoundingClientRect();
+      if (!chipBox.width) {
+        resolve(false);
+        return;
+      }
 
       const fly = document.createElement("div");
-      fly.className = `status-fly status-fly-${kind}${hasStage ? " status-fly-from-stage" : ""}`;
-
-      if (hasStage) {
-        // Clone the bottom card visually so it continues flying upward.
-        fly.innerHTML = `<div class="status-fly-stage-clone">${stageCard.outerHTML}</div>`;
-        hideMapActionStage();
-      } else {
-        fly.innerHTML = `
-        <div class="status-fly-inner">
-          <div class="status-fly-head">
-            <span class="status-fly-ico">${icon}</span>
-            <span class="status-fly-title">${escapeHtml(title)}</span>
-            <span class="status-fly-badge">同步中</span>
-          </div>
-          <div class="status-fly-body">
-            ${
-              fromText && fromText !== toText
-                ? `<div class="status-fly-from">${escapeHtml(fromText)}</div>
-                   <div class="status-fly-arrow">↓</div>`
-                : ""
-            }
-            <div class="status-fly-to">${escapeHtml(toText)}</div>
-            ${detail ? `<div class="status-fly-detail">${escapeHtml(detail)}</div>` : ""}
-          </div>
+      fly.className = `status-sync status-sync-${kind}`;
+      const short =
+        String(toText || detail || title || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 42) || title;
+      fly.innerHTML = `
+        <div class="status-sync-pill">
+          <span class="status-sync-ico" aria-hidden="true">${icon}</span>
+          <span class="status-sync-copy">
+            <span class="status-sync-kicker">${escapeHtml(title)}</span>
+            <span class="status-sync-val">${escapeHtml(short)}</span>
+          </span>
         </div>`;
-      }
       document.body.appendChild(fly);
 
-      const measure = () => fly.getBoundingClientRect();
-      let startX;
-      let startY;
-      if (hasStage) {
-        // Match the on-screen bottom card before flying.
-        fly.style.width = `${stageBox.width}px`;
-        startX = stageBox.left;
-        startY = stageBox.top;
-        fly.style.transform = `translate(${startX}px, ${startY}px) scale(1)`;
-        fly.style.opacity = "1";
-      } else {
-        const mapPanel =
-          document.querySelector("#mapPanel") ||
-          document.querySelector(".map-stage-canvas") ||
-          document.querySelector(".map-overlay");
-        if (!mapPanel) {
-          fly.remove();
-          resolve(false);
-          return;
-        }
-        const startBox = mapPanel.getBoundingClientRect();
-        startX = startBox.left + startBox.width / 2 - measure().width / 2;
-        startY = startBox.top + startBox.height * 0.42 - measure().height / 2;
-        fly.style.transform = `translate(${Math.max(8, startX)}px, ${Math.max(8, startY)}px) scale(0.86)`;
-        fly.style.opacity = "0";
-      }
+      const pillBox = fly.getBoundingClientRect();
+      // Rise from just under the chip, settle onto it.
+      const endX = chipBox.left + chipBox.width / 2 - pillBox.width / 2;
+      const endY = chipBox.top + chipBox.height / 2 - pillBox.height / 2;
+      const startX = endX;
+      const startY = endY + Math.min(36, chipBox.height * 0.9 + 18);
+
+      fly.style.transform = `translate(${startX}px, ${startY}px) scale(0.92)`;
+      fly.style.opacity = "0";
 
       const run = async () => {
         try {
-          if (!hasStage) {
-            await fly.animate(
-              [
-                { opacity: 0, transform: `translate(${startX}px, ${startY + 18}px) scale(0.86)` },
-                { opacity: 1, transform: `translate(${startX}px, ${startY}px) scale(1)` },
-              ],
-              { duration: 520, easing: "cubic-bezier(0.2, 0.9, 0.2, 1)", fill: "forwards" }
-            ).finished;
-
-            const badge = fly.querySelector(".status-fly-badge");
-            await new Promise((r) => setTimeout(r, 980));
-            if (badge) badge.textContent = "写入状态栏";
-          } else {
-            // Brief beat so the handoff from bottom card reads clearly.
-            await new Promise((r) => setTimeout(r, 180));
-          }
-
-          const end = chip.getBoundingClientRect();
-          const flyBox = measure();
-          const endX = end.left + end.width / 2 - flyBox.width / 2;
-          const endY = end.top + end.height / 2 - flyBox.height / 2;
-
           await fly.animate(
             [
               {
-                opacity: 1,
-                transform: `translate(${startX}px, ${startY}px) scale(1)`,
+                opacity: 0,
+                transform: `translate(${startX}px, ${startY}px) scale(0.92)`,
                 offset: 0,
               },
               {
                 opacity: 1,
-                transform: `translate(${(startX + endX) / 2}px, ${Math.min(startY, endY) - 28}px) scale(0.72)`,
-                offset: 0.45,
+                transform: `translate(${endX}px, ${endY - 2}px) scale(1)`,
+                offset: 0.55,
               },
               {
-                opacity: 0.12,
-                transform: `translate(${endX}px, ${endY}px) scale(0.22)`,
+                opacity: 0,
+                transform: `translate(${endX}px, ${endY}px) scale(0.96)`,
                 offset: 1,
               },
             ],
-            { duration: hasStage ? 860 : 980, easing: "cubic-bezier(0.4, 0.0, 0.2, 1)", fill: "forwards" }
+            {
+              duration: 920,
+              easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+              fill: "forwards",
+            }
           ).finished;
         } catch {
           /* ignore abort */
         } finally {
           fly.remove();
-          hideMapActionStage();
           const chipNow =
             this.els.statusGrid?.querySelector(`[data-status="${kind}"]`) || chip;
           if (chipNow) {
@@ -1146,6 +1099,14 @@ export class UI {
                   ? "status-chip-landed-weather"
                   : "status-chip-landed-budget"
             );
+            const valEl = chipNow.querySelector(".status-chip-val");
+            if (valEl && toText) {
+              valEl.classList.add("status-chip-val-flash");
+              clearTimeout(valEl._flashTimer);
+              valEl._flashTimer = setTimeout(() => {
+                valEl.classList.remove("status-chip-val-flash");
+              }, 900);
+            }
             clearTimeout(chipNow._landTimer);
             chipNow._landTimer = setTimeout(() => {
               chipNow.classList.remove(
@@ -1154,7 +1115,7 @@ export class UI {
                 "status-chip-landed-budget",
                 "status-chip-landed-weather"
               );
-            }, 1400);
+            }, 1100);
           }
           resolve(true);
         }
@@ -1607,32 +1568,40 @@ export class UI {
     const meta = describeToolCall(name, args, result);
     const anchor = resolveToolMapAnchor(name, args, result);
 
-    // Budget: bottom wallet card → flies straight into status bar (no mid-map bubble).
+    // Budget: compact wallet card → soft sync into status bar.
     if (name === "get_budget_snapshot") {
       clearPlanning({ immediate: true });
       const b = result?.budget || {};
-      const total = b.total_cny != null ? `¥${fmt(b.total_cny)}` : "待确定";
-      const spent = b.spent_cny != null ? `¥${fmt(b.spent_cny)}` : "—";
-      const remain =
-        b.total_cny != null && b.spent_cny != null
-          ? `¥${fmt(Number(b.total_cny) - Number(b.spent_cny))}`
+      const totalN = b.total_cny != null ? Number(b.total_cny) : null;
+      const spentN = b.spent_cny != null ? Number(b.spent_cny) : null;
+      const remainN =
+        totalN != null && spentN != null
+          ? totalN - spentN
           : b.remaining_cny != null
-            ? `¥${fmt(b.remaining_cny)}`
-            : "—";
+            ? Number(b.remaining_cny)
+            : null;
+      const total = totalN != null ? `¥${fmt(totalN)}` : "待确定";
+      const spent = spentN != null ? `¥${fmt(spentN)}` : "—";
+      const remain = remainN != null ? `¥${fmt(remainN)}` : "—";
       const loc = result?.location || args.location || "";
       const toText =
-        b.total_cny != null
-          ? Number(b.spent_cny) > 0
+        totalN != null
+          ? spentN > 0
             ? `已用 ${spent} / ${total}`
             : `预算 ${total}`
           : "待确定";
+      const pct =
+        totalN != null && totalN > 0 && spentN != null
+          ? Math.max(0, Math.min(100, Math.round((spentN / totalN) * 100)))
+          : 0;
       return this.playQueuedMapAction({
         kind: "budget",
         title: "行程预算",
+        query: String(pct),
         items: [
-          { label: "总额", value: total },
           { label: "已用", value: spent },
           { label: "剩余", value: remain },
+          { label: "总额", value: total },
           loc ? { label: "位置", value: loc } : null,
         ].filter(Boolean),
         fingerprint: `budget:${total}:${spent}`,
@@ -1644,7 +1613,6 @@ export class UI {
               kind: "budget",
               icon: "💰",
               title: "预算已同步",
-              fromText: "核对中…",
               toText,
               detail: remain !== "—" ? `剩余 ${remain}` : meta.detail || "",
               fromStage: true,
@@ -1725,12 +1693,51 @@ export class UI {
         }
       );
     } else if (name === "get_flight_status") {
+      const no = args.flight_no || result?.flight_no || "";
+      const st = flightStatusLabel(result?.status) || result?.status || "查询中";
+      const route = result?.route || result?.legs || "";
+      const delay =
+        result?.delay_min != null && Number(result.delay_min) > 0
+          ? `延误 ${result.delay_min} 分`
+          : "";
+      const gate = result?.gate ? `登机口 ${result.gate}` : "";
+      const date = String(args.date || result?.date || "").slice(0, 10);
+      const toText = no ? `${no} · ${st}${delay ? ` · ${delay}` : ""}` : st;
       focusPlanning({
         placeIds: ["pl_chc_airport"],
         mode: "consider",
-        label: args.flight_no ? `工具：航班 ${args.flight_no}` : "工具：航班动态",
+        label: no ? `工具：航班 ${no}` : "工具：航班动态",
         force: true,
       }).catch(() => {});
+      return this.playQueuedMapAction({
+        kind: "flight",
+        title: no || "航班动态",
+        query: st,
+        items: [
+          no ? { label: "航班", value: no } : null,
+          { label: "状态", value: st },
+          route ? { label: "航线", value: route } : null,
+          date ? { label: "日期", value: date } : null,
+          delay ? { label: "延误", value: delay } : null,
+          gate ? { label: "登机口", value: gate.replace(/^登机口\s*/, "") } : null,
+          result?.note ? { label: "备注", value: truncate(String(result.note), 40) } : null,
+        ].filter(Boolean),
+        fingerprint: `flight:${no}:${st}:${date}`,
+        leaveVisible: true,
+      }).then(() =>
+        this.enqueueCinematic(
+          () =>
+            this.playStatusLandingAnim({
+              kind: "flight",
+              icon: "✈️",
+              title: "航班已同步",
+              toText,
+              detail: route || meta.detail || "",
+              fromStage: true,
+            }),
+          { fingerprint: `status:flight:${String(toText).slice(0, 60)}` }
+        )
+      );
     } else if (name === "search_web") {
       const items = result?.results || [];
       // Return promise so agent can await one tool cinematic before the next.

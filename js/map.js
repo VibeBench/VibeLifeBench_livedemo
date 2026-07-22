@@ -1553,7 +1553,7 @@ export { hideMapActionStage };
 
 /**
  * Cinematic overlay for major agent actions on the map:
- * kind: 'search' | 'notion' | 'calendar' | 'budget' | 'weather'
+ * kind: 'search' | 'notion' | 'calendar' | 'budget' | 'weather' | 'flight'
  */
 export function playMapAction({
   kind = "search",
@@ -1630,18 +1630,59 @@ export function playMapAction({
           </div>
         </div>`;
     } else if (kind === "budget") {
+      const pct = Math.max(0, Math.min(100, Number(query) || 0));
+      const remainRow = rows.find((r) => /剩余/.test(String(r.label || "")));
+      const hero = remainRow?.value || rows[0]?.value || "—";
       stage.innerHTML = `
         <div class="map-action-card map-action-budget">
           <div class="map-action-budget-head">
-            <span class="map-action-budget-ico">💰</span>
             <div>
-              <div class="map-action-budget-app">行程预算</div>
-              <div class="map-action-budget-title">${escapeHtml(title || "核对费用")}</div>
+              <div class="map-action-budget-app">Budget</div>
+              <div class="map-action-budget-title">${escapeHtml(title || "行程预算")}</div>
             </div>
             <span class="map-action-status" id="mapActionStatus">核对中</span>
           </div>
+          <div class="map-action-budget-hero">
+            <div class="map-action-budget-hero-label">剩余可用</div>
+            <div class="map-action-budget-hero-value" id="mapActionBudgetHero">${escapeHtml(hero)}</div>
+            <div class="map-action-budget-meter" aria-hidden="true">
+              <span class="map-action-budget-meter-fill" id="mapActionBudgetMeter" style="width:0%"></span>
+            </div>
+            <div class="map-action-budget-meter-cap">${pct ? `已用 ${pct}%` : "费用核对"}</div>
+          </div>
           <div class="map-action-budget-rows" id="mapActionBody"></div>
           <div class="map-action-budget-foot" id="mapActionFoot" hidden>
+            <span class="map-action-notion-check">✓</span>
+            <span>已同步到状态栏</span>
+          </div>
+        </div>`;
+      // Stash pct for meter anim
+      stage._budgetPct = pct;
+    } else if (kind === "flight") {
+      const statusText = String(query || rows.find((r) => /状态/.test(String(r.label || "")))?.value || "查询中");
+      const flightNo = String(title || rows.find((r) => /航班/.test(String(r.label || "")))?.value || "航班");
+      const route = rows.find((r) => /航线/.test(String(r.label || "")))?.value || "";
+      stage.innerHTML = `
+        <div class="map-action-card map-action-flight">
+          <div class="map-action-flight-rail" aria-hidden="true"></div>
+          <div class="map-action-flight-head">
+            <div>
+              <div class="map-action-flight-app">Flight status</div>
+              <div class="map-action-flight-no">${escapeHtml(flightNo)}</div>
+            </div>
+            <span class="map-action-flight-badge" id="mapActionStatus">${escapeHtml(statusText)}</span>
+          </div>
+          ${
+            route
+              ? `<div class="map-action-flight-route" id="mapActionFlightRoute">
+                   <span>${escapeHtml(String(route).split(/→|->|—/)[0] || "").trim() || "出发"}</span>
+                   <span class="map-action-flight-plane" aria-hidden="true">✈</span>
+                   <span>${escapeHtml(String(route).split(/→|->|—/).slice(-1)[0] || "").trim() || "到达"}</span>
+                 </div>`
+              : `<div class="map-action-flight-route is-empty" id="mapActionFlightRoute"></div>`
+          }
+          <div class="map-action-flight-rows" id="mapActionBody"></div>
+          <div class="map-action-flight-foot" id="mapActionFoot" hidden>
             <span class="map-action-notion-check">✓</span>
             <span>已同步到状态栏</span>
           </div>
@@ -1696,7 +1737,7 @@ export function playMapAction({
             ? "完成"
             : kind === "notion"
               ? "已提交"
-              : kind === "budget" || kind === "weather"
+              : kind === "budget" || kind === "weather" || kind === "flight"
                 ? "已同步"
                 : "已写入";
       }
@@ -1708,16 +1749,16 @@ export function playMapAction({
         foot.removeAttribute("hidden");
         foot.classList.add("show");
       }
-      // Search: 1s. Calendar/notion: ~2s. Budget/weather handoff shorter when leaveVisible.
+      // Search: 1s. Calendar/notion: ~2s. Budget/weather/flight handoff shorter when leaveVisible.
       const holdMs =
         kind === "search"
           ? 1000
           : kind === "calendar"
             ? 2000
-            : kind === "budget" || kind === "weather"
+            : kind === "budget" || kind === "weather" || kind === "flight"
               ? leaveVisible
-                ? 700
-                : 2000
+                ? 520
+                : 1800
               : kind === "notion"
                 ? 2400
                 : 1500;
@@ -1819,18 +1860,22 @@ export function playMapAction({
     if (kind === "budget") {
       const bodyEl = stage.querySelector("#mapActionBody");
       const statusEl = stage.querySelector("#mapActionStatus");
+      const meter = stage.querySelector("#mapActionBudgetMeter");
+      const pct = Number(stage._budgetPct) || 0;
       const budgetRows = rows.length
-        ? rows
+        ? rows.filter((r) => !/剩余/.test(String(r.label || "")))
         : [
-            { label: "总额", value: "核对中…" },
             { label: "已用", value: "—" },
-            { label: "剩余", value: "—" },
+            { label: "总额", value: "核对中…" },
           ];
+      requestAnimationFrame(() => {
+        if (meter) meter.style.width = `${pct}%`;
+      });
       let bi = 0;
       const addBudgetRow = () => {
         if (!alive() || !bodyEl || finished) return finish(false);
         if (bi >= budgetRows.length) {
-          if (statusEl) statusEl.textContent = "写入状态栏";
+          if (statusEl) statusEl.textContent = "已同步";
           return finish();
         }
         const item = budgetRows[bi];
@@ -1841,14 +1886,43 @@ export function playMapAction({
           <span class="map-action-budget-value">${escapeHtml(item.value || item.snippet || item)}</span>`;
         bodyEl.appendChild(row);
         bi += 1;
-        if (bi < budgetRows.length) setTimeout(addBudgetRow, 420);
+        if (bi < budgetRows.length) setTimeout(addBudgetRow, 260);
         else {
-          if (statusEl) statusEl.textContent = "写入状态栏";
-          setTimeout(() => finish(), 380);
+          if (statusEl) statusEl.textContent = "已同步";
+          setTimeout(() => finish(), 280);
         }
       };
-      setTimeout(addBudgetRow, 280);
-      mapActionTimer = setTimeout(() => finish(), 12000);
+      setTimeout(addBudgetRow, 200);
+      mapActionTimer = setTimeout(() => finish(), 10000);
+      return;
+    }
+
+    if (kind === "flight") {
+      const bodyEl = stage.querySelector("#mapActionBody");
+      const statusEl = stage.querySelector("#mapActionStatus");
+      const flightRows = rows.length
+        ? rows.filter((r) => !/航班|状态|航线/.test(String(r.label || "")))
+        : [{ label: "动态", value: "查询中…" }];
+      let fi = 0;
+      const addFlightRow = () => {
+        if (!alive() || !bodyEl || finished) return finish(false);
+        if (fi >= flightRows.length) {
+          if (statusEl) statusEl.textContent = statusEl.textContent || "已同步";
+          return finish();
+        }
+        const item = flightRows[fi];
+        const row = document.createElement("div");
+        row.className = "map-action-flight-row";
+        row.innerHTML = `
+          <span class="map-action-flight-label">${escapeHtml(item.label || item.title || "")}</span>
+          <span class="map-action-flight-value">${escapeHtml(item.value || item.snippet || item)}</span>`;
+        bodyEl.appendChild(row);
+        fi += 1;
+        if (fi < flightRows.length) setTimeout(addFlightRow, 240);
+        else setTimeout(() => finish(), 280);
+      };
+      setTimeout(addFlightRow, 180);
+      mapActionTimer = setTimeout(() => finish(), 10000);
       return;
     }
 

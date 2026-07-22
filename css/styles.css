@@ -521,8 +521,8 @@ select {
   text-overflow: ellipsis;
 }
 
-/* Budget / flight update: fly from map → land on status chip */
-.status-fly {
+/* Soft status sync pill → lands on status chip */
+.status-sync {
   position: fixed;
   left: 0;
   top: 0;
@@ -531,134 +531,129 @@ select {
   will-change: transform, opacity;
 }
 
-.status-fly-inner {
-  min-width: 220px;
-  max-width: min(360px, 78vw);
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.97);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
-  backdrop-filter: blur(12px);
-}
-
-.status-fly-budget .status-fly-inner {
-  border-color: #fde68a;
-  box-shadow: 0 18px 40px rgba(217, 119, 6, 0.22);
-}
-
-.status-fly-flight .status-fly-inner {
-  border-color: #bfdbfe;
-  box-shadow: 0 18px 40px rgba(37, 99, 235, 0.22);
-}
-
-.status-fly-weather .status-fly-inner {
-  border-color: #bae6fd;
-  box-shadow: 0 18px 40px rgba(14, 165, 233, 0.22);
-}
-
-.status-fly-from-stage .status-fly-stage-clone {
-  pointer-events: none;
-}
-
-.status-fly-from-stage .map-action-card {
-  margin: 0;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
-}
-
-.status-fly-head {
+.status-sync-pill {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+  min-width: 160px;
+  max-width: min(320px, 70vw);
+  padding: 8px 12px 8px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow:
+    0 10px 28px rgba(15, 23, 42, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-.status-fly-ico {
-  font-size: 18px;
-  line-height: 1;
+.status-sync-budget .status-sync-pill {
+  border-color: rgba(253, 230, 138, 0.85);
 }
 
-.status-fly-title {
-  font-size: 13px;
-  font-weight: 750;
-  color: #0f172a;
+.status-sync-flight .status-sync-pill {
+  border-color: rgba(191, 219, 254, 0.9);
 }
 
-.status-fly-badge {
-  margin-left: auto;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: #2563eb;
-  background: #eff6ff;
-  border-radius: 999px;
-  padding: 2px 8px;
+.status-sync-weather .status-sync-pill {
+  border-color: rgba(186, 230, 253, 0.9);
 }
 
-.status-fly-budget .status-fly-badge {
-  color: #b45309;
+.status-sync-ico {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  background: #f8fafc;
+}
+
+.status-sync-budget .status-sync-ico {
   background: #fffbeb;
 }
 
-.status-fly-body {
+.status-sync-flight .status-sync-ico {
+  background: #eff6ff;
+}
+
+.status-sync-copy {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
 }
 
-.status-fly-from {
-  font-size: 11px;
+.status-sync-kicker {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: #94a3b8;
-  text-decoration: line-through;
 }
 
-.status-fly-arrow {
-  font-size: 11px;
-  color: #64748b;
-  line-height: 1;
-}
-
-.status-fly-to {
-  font-size: 15px;
-  font-weight: 750;
+.status-sync-val {
+  font-size: 12.5px;
+  font-weight: 650;
   color: #0f172a;
-}
-
-.status-fly-detail {
-  margin-top: 2px;
-  font-size: 11px;
-  color: #64748b;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .status-chip.status-chip-landed {
-  animation: status-chip-land 1.1s ease;
+  animation: status-chip-land 0.85s cubic-bezier(0.22, 1, 0.36, 1);
   z-index: 2;
 }
 
 .status-chip.status-chip-landed-budget {
-  background: linear-gradient(180deg, #fffbeb 0%, rgba(255, 255, 255, 0.55) 100%);
+  background: linear-gradient(180deg, rgba(255, 251, 235, 0.95) 0%, rgba(255, 255, 255, 0.55) 100%);
 }
 
 .status-chip.status-chip-landed-flight {
-  background: linear-gradient(180deg, #eff6ff 0%, rgba(255, 255, 255, 0.55) 100%);
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.95) 0%, rgba(255, 255, 255, 0.55) 100%);
 }
 
 .status-chip.status-chip-landed-weather {
-  background: linear-gradient(180deg, #e0f2fe 0%, rgba(255, 255, 255, 0.55) 100%);
+  background: linear-gradient(180deg, rgba(224, 242, 254, 0.95) 0%, rgba(255, 255, 255, 0.55) 100%);
+}
+
+.status-chip-val-flash {
+  animation: status-val-flash 0.85s ease;
 }
 
 @keyframes status-chip-land {
   0% {
-    transform: scale(1);
     box-shadow: none;
   }
-  30% {
-    transform: scale(1.08);
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.22);
+  35% {
+    box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.28);
   }
   100% {
-    transform: scale(1);
     box-shadow: none;
   }
+}
+
+@keyframes status-val-flash {
+  0% {
+    opacity: 0.35;
+    transform: translateY(3px);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.float-status .status-chip-val {
+  display: inline-block;
 }
 
 /* Fixed toast rail — tool call feedback only (messages / mutations stay off-map) */
@@ -1741,66 +1736,114 @@ select {
 }
 
 /* —— Budget wallet cinematic —— */
+.map-action-budget {
+  padding-top: 12px;
+}
+
 .map-action-budget-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
 }
 
-.map-action-budget-ico {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: linear-gradient(160deg, #fef3c7, #fde68a);
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
 .map-action-budget-app {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  color: #92400e;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #a8a29e;
 }
 
 .map-action-budget-title {
-  font-size: 13.5px;
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1c1917;
+  letter-spacing: -0.01em;
+}
+
+.map-action-budget-hero {
+  padding: 10px 12px 12px;
+  border-radius: 12px;
+  background: linear-gradient(165deg, #fafaf9 0%, #f5f5f4 100%);
+  border: 1px solid #e7e5e4;
+  margin-bottom: 8px;
+}
+
+.map-action-budget-hero-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #a8a29e;
+  letter-spacing: 0.02em;
+}
+
+.map-action-budget-hero-value {
+  margin-top: 2px;
+  font-size: 22px;
   font-weight: 750;
-  color: #0f172a;
+  letter-spacing: -0.03em;
+  color: #1c1917;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  animation: budget-hero-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.map-action-budget-meter {
+  margin-top: 10px;
+  height: 4px;
+  border-radius: 999px;
+  background: #e7e5e4;
+  overflow: hidden;
+}
+
+.map-action-budget-meter-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #d6d3d1, #78716c);
+  transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.map-action-budget-meter-cap {
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: #a8a29e;
 }
 
 .map-action-budget-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .map-action-budget-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 10px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 8px;
   border-radius: 10px;
-  background: linear-gradient(90deg, #fffbeb 0%, #f8fafc 100%);
-  border: 1px solid #fde68a;
-  animation: map-action-row-in 0.35s ease both;
+  background: #fff;
+  border: 1px solid #f5f5f4;
+  animation: map-action-row-in 0.32s ease both;
 }
 
 .map-action-budget-label {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
-  color: #78716c;
+  color: #a8a29e;
 }
 
 .map-action-budget-value {
-  font-size: 13.5px;
-  font-weight: 800;
-  color: #b45309;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #292524;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .map-action-budget-foot {
@@ -1809,15 +1852,185 @@ select {
   gap: 6px;
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px dashed #fde68a;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #92400e;
+  border-top: 1px solid #f5f5f4;
+  font-size: 11px;
+  font-weight: 600;
+  color: #78716c;
 }
 
 .map-action-budget-foot.show {
   display: flex;
 }
+
+@keyframes budget-hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* —— Flight boarding-pass cinematic —— */
+.map-action-flight {
+  position: relative;
+  padding: 12px 12px 12px 16px;
+  overflow: hidden;
+}
+
+.map-action-flight-rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #60a5fa, #2563eb);
+}
+
+.map-action-flight-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.map-action-flight-app {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.map-action-flight-no {
+  margin-top: 2px;
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+
+.map-action-flight-badge {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  padding: 3px 9px;
+  animation: flight-badge-in 0.4s ease both;
+}
+
+.map-action-flight-route {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  background: linear-gradient(165deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: #0f172a;
+}
+
+.map-action-flight-route.is-empty {
+  display: none;
+}
+
+.map-action-flight-route > span:first-child {
+  text-align: left;
+}
+
+.map-action-flight-route > span:last-child {
+  text-align: right;
+}
+
+.map-action-flight-plane {
+  color: #64748b;
+  font-size: 13px;
+  animation: flight-plane-nudge 1.6s ease-in-out infinite;
+}
+
+.map-action-flight-rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.map-action-flight-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 72px;
+  padding: 6px 8px;
+  border-radius: 9px;
+  background: #fff;
+  border: 1px solid #f1f5f9;
+  animation: map-action-row-in 0.3s ease both;
+}
+
+.map-action-flight-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.map-action-flight-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.map-action-flight-foot {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.map-action-flight-foot.show {
+  display: flex;
+}
+
+@keyframes flight-badge-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes flight-plane-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+}
+
+/* —— Weather cinematic —— */
 
 /* —— Weather service cinematic —— */
 .map-action-weather-head {
