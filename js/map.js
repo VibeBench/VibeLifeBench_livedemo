@@ -1069,10 +1069,18 @@ function looksLikePlanCommit(text, toolCalls = []) {
 
 /**
  * Build a live itinerary plan from the agent's own outputs (calendar writes + reply text).
- * Does NOT use hardcoded case trip_days — each plan commit redraws from the latest model output.
+ * Day numbers are supervised against case trip_days / calendar dates — never raw list index
+ * (which wrongly painted 库克山 as D1 when it is trip Day 4).
  */
-function buildPlanFromAgentOutputs({ content = "", thinking = "", toolCalls = [], calendar = [] } = {}) {
+function buildPlanFromAgentOutputs({
+  content = "",
+  thinking = "",
+  toolCalls = [],
+  calendar = [],
+  tripDays = [],
+} = {}) {
   const blob = `${content || ""}\n${thinking || ""}`;
+  const days = Array.isArray(tripDays) ? tripDays : [];
 
   // 1) Calendar events written this turn (tool args) — strongest signal for adjustments
   const fromTools = [];
@@ -1082,18 +1090,18 @@ function buildPlanFromAgentOutputs({ content = "", thinking = "", toolCalls = []
     const ev = tc.result?.event || {};
     const title = String(args.title || ev.title || "").trim();
     const note = String(args.note || ev.note || "").trim();
-    const date = String(args.date || ev.date || "").slice(0, 10);
+    const date = String(args.date || ev.date || "").slice(0, 10) || null;
     const ids = extractPlaceIdsFromText(`${title} ${note}`);
     if (!ids[0]) continue;
     fromTools.push({
-      day: fromTools.length + 1,
-      date: date || null,
+      day: null,
+      date,
       placeId: ids[0],
       label: title || placeLabel(ids[0]),
     });
   }
   if (fromTools.length >= 2) {
-    return staysToPlan(fromTools, "行程规划 · 日程");
+    return staysToPlan(superviseStays(fromTools, days, blob), "行程规划 · 日程");
   }
 
   // 2) Accumulated agent calendar in ledger (sorted by date)
@@ -1105,40 +1113,160 @@ function buildPlanFromAgentOutputs({ content = "", thinking = "", toolCalls = []
   for (const c of calAgent) {
     const ids = extractPlaceIdsFromText(`${c.title || ""} ${c.note || ""} ${c.summary || ""}`);
     if (!ids[0]) continue;
-    // Skip consecutive same hub
-    if (fromCal.length && fromCal[fromCal.length - 1].placeId === ids[0]) {
-      // keep richer label if empty
-      continue;
-    }
+    if (fromCal.length && fromCal[fromCal.length - 1].placeId === ids[0]) continue;
     fromCal.push({
-      day: fromCal.length + 1,
-      date: c.date || null,
+      day: null,
+      date: c.date ? String(c.date).slice(0, 10) : null,
       placeId: ids[0],
       label: c.title || c.summary || placeLabel(ids[0]),
     });
   }
   if (fromCal.length >= 2) {
-    return staysToPlan(fromCal, "行程规划 · 日程");
+    return staysToPlan(superviseStays(fromCal, days, blob), "行程规划 · 日程");
   }
 
-  // 3) Day-structured lines in the reply (Day 2 蒂卡波 / 第3天·皇后镇)
+  // 3) Day-structured lines in the reply (Day 4 库克山 / 第5天·皇后镇)
   const fromDays = parseDayPlaceStays(blob);
   if (fromDays.length >= 2) {
-    return staysToPlan(fromDays, "行程规划");
+    return staysToPlan(superviseStays(fromDays, days, blob), "行程规划");
   }
 
-  // 4) Ordered place mentions in the reply/thinking
+  // 4) Ordered place mentions — align to trip_days chronology, not mention order alone
   const ids = extractPlaceIdsFromText(blob).filter((id) => id !== "shanghai_home");
   if (ids.length >= 2) {
-    const stays = ids.map((id, i) => ({
-      day: i + 1,
+    const uniq = [];
+    for (const id of ids) {
+      if (uniq[uniq.length - 1] !== id) uniq.push(id);
+    }
+    const stays = uniq.map((id) => ({
+      day: null,
       placeId: id,
       label: placeLabel(id),
+      date: null,
     }));
-    return staysToPlan(stays, "行程规划");
+    return staysToPlan(superviseStays(stays, days, blob), "行程规划");
   }
 
   return null;
+}
+
+/**
+ * Supervise stay day labels + order using case trip_days and any Day-N hints in text.
+ * Fixes "first overnight in plan list ⇒ D1" which mislabeled 库克山 as Day 1.
+ */
+function superviseStays(stays, tripDays = [], blob = "") {
+  if (!stays?.length) return [];
+  const days = Array.isArray(tripDays) ? tripDays : [];
+  const hinted = parseDayPlaceStays(blob);
+  const hintByPlace = new Map();
+  for (const h of hinted) {
+    if (h.placeId && h.day != null) hintByPlace.set(h.placeId, Number(h.day));
+  }
+
+  let out = stays.map((s) => {
+    const date = s.date ? String(s.date).slice(0, 10) : null;
+    let day = null;
+
+    // 1) Calendar date → official trip day
+    if (date && days.length) {
+      const byDate = days.find((d) => String(d.date || "").slice(0, 10) === date);
+      if (byDate?.day != null) day = Number(byDate.day);
+    }
+
+    // 2) Known case place → official trip day (beats raw "Day 1" list index / mis-parsed 第1天)
+    const placeDay = days.length
+      ? resolveTripDayForPlace(s.placeId, days, { date, label: s.label })
+      : null;
+    if (day == null && placeDay != null) day = placeDay;
+
+    // 3) If model Day-N conflicts with case place day, trust case for known hubs
+    const modelDay =
+      s.day != null && Number(s.day) > 0
+        ? Number(s.day)
+        : hintByPlace.has(s.placeId)
+          ? hintByPlace.get(s.placeId)
+          : null;
+    if (day == null && modelDay != null) day = modelDay;
+    if (day != null && placeDay != null && modelDay != null && placeDay !== modelDay && !date) {
+      day = placeDay;
+    }
+
+    return {
+      ...s,
+      date: date || tripDateForDay(day, days) || s.date || null,
+      day: day != null ? day : null,
+    };
+  });
+
+  // Sort by resolved trip day / date when we have them
+  out.sort((a, b) => {
+    const da = a.day != null ? a.day : 999;
+    const db = b.day != null ? b.day : 999;
+    if (da !== db) return da - db;
+    return String(a.date || "").localeCompare(String(b.date || ""));
+  });
+
+  // Dedupe same place keeping earliest day
+  const dedup = [];
+  for (const row of out) {
+    if (dedup.length && dedup[dedup.length - 1].placeId === row.placeId) continue;
+    dedup.push(row);
+  }
+
+  // Fallback: only if still no day numbers, use chronological index BUT mark as planIndex
+  // and try one more pass against trip_days order.
+  if (dedup.every((s) => s.day == null) && days.length) {
+    const orderedPlaces = [];
+    for (const d of days) {
+      const id = primaryStayPlaceId(d);
+      if (!id) continue;
+      if (orderedPlaces[orderedPlaces.length - 1] === id) continue;
+      orderedPlaces.push(id);
+    }
+    dedup.sort((a, b) => {
+      const ia = orderedPlaces.indexOf(a.placeId);
+      const ib = orderedPlaces.indexOf(b.placeId);
+      return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+    });
+    for (const s of dedup) {
+      s.day = resolveTripDayForPlace(s.placeId, days, { label: s.label });
+    }
+  }
+
+  // Absolute last resort: keep order but do NOT invent D1..Dn that conflict with case places.
+  // Prefer date md label in paint if day still null.
+  return dedup;
+}
+
+function tripDateForDay(dayNum, tripDays = []) {
+  if (dayNum == null) return null;
+  const hit = (tripDays || []).find((d) => Number(d.day) === Number(dayNum));
+  return hit?.date ? String(hit.date).slice(0, 10) : null;
+}
+
+/** Map a place to the best matching case trip day number. */
+function resolveTripDayForPlace(placeId, tripDays = [], { date = null, label = "" } = {}) {
+  if (!placeId || !tripDays?.length) return null;
+  const matches = tripDays.filter((d) => primaryStayPlaceId(d) === placeId);
+  if (!matches.length) return null;
+  if (date) {
+    const exact = matches.find((d) => String(d.date || "").slice(0, 10) === String(date).slice(0, 10));
+    if (exact?.day != null) return Number(exact.day);
+  }
+  // If label mentions overnight / 露营 / 第N天 already handled elsewhere — pick canonical overnight day:
+  // for multi-night hubs (Tekapo D2+D3), prefer the first overnight day unless label says otherwise.
+  if (matches.length === 1) return Number(matches[0].day);
+  // Prefer day whose place/label text is closest to stay label
+  const lab = String(label || "");
+  const scored = matches
+    .map((d) => {
+      const blob = `${d.place || ""} ${d.label || ""}`;
+      let score = 0;
+      if (lab && blob && lab.includes(String(d.place || "").slice(0, 2))) score += 2;
+      return { d, score, day: Number(d.day) };
+    })
+    .sort((a, b) => b.score - a.score || a.day - b.day);
+  return scored[0]?.day ?? Number(matches[0].day);
 }
 
 function staysToPlan(stays, label = "行程规划") {
@@ -1219,8 +1347,14 @@ export async function commitAgentItineraryPlan({
     extractPlaceIdsFromText(blob).length >= 3;
   if (!force) return false;
 
-  // Always rebuild from the latest model/calendar output — never paint the static case spine.
-  const plan = buildPlanFromAgentOutputs({ content, thinking, toolCalls, calendar });
+  // Always rebuild from the latest model/calendar output, then supervise day # vs case trip_days.
+  const plan = buildPlanFromAgentOutputs({
+    content,
+    thinking,
+    toolCalls,
+    calendar,
+    tripDays,
+  });
   if ((plan?.stays || []).length < 2) return false;
   return showAgentPlan(plan, { fit: true });
 }
@@ -1313,14 +1447,25 @@ async function repaintAgentPlan({ fit = false } = {}) {
     seen.add(s.placeId);
     const p = lastCtx.placeById[s.placeId];
     if (!p) continue;
-    const dayNum = s.day != null ? `D${s.day}` : "Stay";
-    const tip = [s.label, s.date ? String(s.date).slice(5) : null].filter(Boolean).join(" · ");
+    const dayNum =
+      s.day != null
+        ? `D${s.day}`
+        : s.date
+          ? String(s.date).slice(5).replace("-", "/")
+          : "Stay";
+    const tip = [
+      s.label,
+      s.day != null ? `行程第${s.day}天` : null,
+      s.date ? String(s.date).slice(0, 10) : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
     window.L.marker([p.lat, p.lng], {
       icon: window.L.divIcon({
         className: "map-stay-wrap",
         html: `<div class="map-stay-marker" title="${escapeHtml(tip)}">
           <span class="map-stay-day">${escapeHtml(dayNum)}</span>
-          <span class="map-stay-name">${escapeHtml(String(s.label || "").slice(0, 8))}</span>
+          <span class="map-stay-name">${escapeHtml(String(s.label || placeLabel(s.placeId)).slice(0, 8))}</span>
         </div>`,
         iconSize: [72, 44],
         iconAnchor: [36, 44],
