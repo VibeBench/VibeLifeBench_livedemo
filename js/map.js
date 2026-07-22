@@ -384,24 +384,31 @@ function pulsePlaceBubble({ icon, head, sub, kindCls, latlng, durationMs, holdMs
     }
     if (!pulseLayer) pulseLayer = window.L.layerGroup().addTo(leafletMap);
 
-    const isSms = /^(world|app_notification|sms)$/i.test(String(kindCls || ""));
+    const isSms = /^(world|app_notification|sms|email|mail)$/i.test(String(kindCls || ""));
     const title = String(head || "").trim();
     const detail = String(sub || "").trim();
     const smsBody = (detail && detail !== title ? detail : title).slice(0, 72);
+    const isMail =
+      /^(email|mail)$/i.test(String(kindCls || "")) ||
+      String(icon || "").includes("✉️") ||
+      /邮件|收件箱|@\w+\.\w+/i.test(`${title} ${detail}`);
     const smsFrom = isSms
-      ? String(icon || "").includes("✉️")
-        ? "邮件"
+      ? isMail
+        ? "收件箱"
         : /移民|签证|NZeTA|海关/i.test(`${title} ${detail}`)
           ? "新西兰移民局"
-          : "系统通知"
+          : /租车|房车|Britz/i.test(`${title} ${detail}`)
+            ? "租车"
+            : "系统通知"
       : "";
+    const smsBadge = isMail ? "邮件" : "短信";
 
     const html = isSms
       ? `
     <div class="map-sms-anchor">
-      <div class="map-sms-bubble${kindCls ? ` pulse-${kindCls}` : ""}">
+      <div class="map-sms-bubble${isMail ? " is-mail" : ""}${kindCls ? ` pulse-${kindCls}` : ""}">
         <div class="map-sms-head">
-          <span class="map-sms-badge">短信</span>
+          <span class="map-sms-badge">${smsBadge}</span>
           <span class="map-sms-from">${escapeHtml(smsFrom)}</span>
         </div>
         <div class="map-sms-body">${escapeHtml(smsBody)}</div>

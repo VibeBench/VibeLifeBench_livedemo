@@ -2313,16 +2313,16 @@ select {
   box-shadow: 2px 2px 4px rgba(15, 23, 42, 0.06);
 }
 
-/* —— Map SMS bubble (world / app notifications) —— */
+/* —— Map SMS / 邮件 bubble (amber, matches phone chat) —— */
 .map-sms-bubble {
   position: relative;
   width: min(240px, 92vw);
   margin: 0 0 10px;
   padding: 8px 10px 10px;
   border-radius: 16px 16px 16px 6px;
-  background: linear-gradient(165deg, #ffffff 0%, #f0fdf4 100%);
-  border: 1px solid rgba(34, 197, 94, 0.28);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+  background: linear-gradient(165deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid rgba(217, 119, 6, 0.32);
+  box-shadow: 0 12px 28px rgba(180, 83, 9, 0.16);
   animation: map-sms-in 0.55s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
   transform-origin: 50% 100%;
 }
@@ -2342,17 +2342,21 @@ select {
   flex-shrink: 0;
   padding: 1px 7px;
   border-radius: 999px;
-  background: #16a34a;
+  background: #d97706;
   color: #fff;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.04em;
 }
 
+.map-sms-bubble.is-mail .map-sms-badge {
+  background: #b45309;
+}
+
 .map-sms-from {
   font-size: 11px;
   font-weight: 700;
-  color: #166534;
+  color: #92400e;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2361,7 +2365,7 @@ select {
 .map-sms-body {
   font-size: 12px;
   font-weight: 560;
-  color: #14532d;
+  color: #78350f;
   line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -2377,9 +2381,9 @@ select {
   width: 12px;
   height: 12px;
   margin-left: -6px;
-  background: #f0fdf4;
-  border-right: 1px solid rgba(34, 197, 94, 0.28);
-  border-bottom: 1px solid rgba(34, 197, 94, 0.28);
+  background: #fef3c7;
+  border-right: 1px solid rgba(217, 119, 6, 0.32);
+  border-bottom: 1px solid rgba(217, 119, 6, 0.32);
   transform: rotate(45deg);
 }
 
@@ -2891,7 +2895,7 @@ select {
   text-align: center;
 }
 
-/* Incoming SMS in the phone chat */
+/* Incoming SMS / 邮件 in the phone chat — amber/yellow (not green) */
 .bubble.sms-in {
   align-self: flex-start;
   max-width: 88%;
@@ -2904,9 +2908,9 @@ select {
 .bubble.sms-in .sms-shell {
   padding: 8px 11px 10px;
   border-radius: 16px 16px 16px 5px;
-  background: linear-gradient(165deg, #ffffff 0%, #ecfdf5 100%);
-  border: 1px solid rgba(34, 197, 94, 0.28);
-  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.1);
+  background: linear-gradient(165deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid rgba(217, 119, 6, 0.32);
+  box-shadow: 0 4px 14px rgba(180, 83, 9, 0.1);
 }
 
 .bubble.sms-in .sms-meta {
@@ -2919,23 +2923,27 @@ select {
 .bubble.sms-in .sms-badge {
   padding: 1px 7px;
   border-radius: 999px;
-  background: #16a34a;
+  background: #d97706;
   color: #fff;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.04em;
 }
 
+.bubble.sms-in.mail-in .sms-badge {
+  background: #b45309;
+}
+
 .bubble.sms-in .sms-from {
   font-size: 11px;
   font-weight: 700;
-  color: #166534;
+  color: #92400e;
 }
 
 .bubble.sms-in .sms-text {
   font-size: 13px;
   line-height: 1.45;
-  color: #14532d;
+  color: #78350f;
   white-space: pre-wrap;
   word-break: break-word;
 }

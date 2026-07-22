@@ -19,7 +19,7 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260722-65";
+} from "./map.js?v=20260722-66";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -607,12 +607,17 @@ export class UI {
       chat: !(event.kind === "world" || event.kind === "app_notification"),
     });
 
-    // World / APP notices arrive as SMS in the phone chat.
+    // World / APP notices arrive as SMS/邮件 bubbles in the phone chat (yellow).
     if (event.kind === "world" || event.kind === "app_notification") {
+      const isMail =
+        toast.app === "邮件" ||
+        /email/i.test(String(event.channel || event.source || "")) ||
+        /邮件|收件箱|@/.test(`${toast.from || ""} ${body || ""}`);
       this.appendSmsChat({
         text: truncate(body || toast.text || title, 160),
-        from: toast.from || toast.app || "短信通知",
+        from: toast.from || toast.app || (isMail ? "收件箱" : "短信通知"),
         time: event.time || null,
+        channel: isMail ? "email" : "sms",
       });
     }
 
@@ -622,12 +627,16 @@ export class UI {
     const roadIds = extractRoadIdsFromText(blob);
     const geoKey = event.user_state?.geo_key || null;
     if (placeIds.length || roadIds.length || geoKey || event.kind === "world" || event.kind === "app_notification") {
+      const isMailPulse =
+        toast.app === "邮件" ||
+        /email/i.test(String(event.channel || event.source || "")) ||
+        /邮件|收件箱|@/.test(`${toast.from || ""} ${body || ""}`);
       this.pulseMapFeedback({
         id: `env:${event.id}`,
-        icon: toast.icon || "💬",
+        icon: toast.icon || (isMailPulse ? "✉️" : "💬"),
         title: truncate(title, 36),
         detail: truncate(body && body !== title ? body : toast.text || "", 72),
-        kind: event.kind || "",
+        kind: isMailPulse ? "email" : event.kind || "sms",
         placeId: placeIds[0] || null,
         geoKey: geoKey || (placeIds.length || roadIds.length ? null : "shanghai_home"),
         roadId: roadIds[0] || null,
@@ -1447,10 +1456,11 @@ export class UI {
     return wrap;
   }
 
-  /** Incoming SMS-style message (world / app notifications). */
-  appendSmsChat({ text = "", from = "系统通知", time = null } = {}) {
+  /** Incoming SMS / email-style message (world / app notifications) — yellow shell. */
+  appendSmsChat({ text = "", from = "系统通知", time = null, channel = "sms" } = {}) {
     const wrap = document.createElement("div");
-    wrap.className = "bubble sms-in";
+    const isMail = channel === "email" || channel === "mail";
+    wrap.className = `bubble sms-in${isMail ? " mail-in" : ""}`;
     const stamp = formatSimStamp(time);
     const timeHtml = stamp ? `<div class="bubble-time">${escapeHtml(stamp)}</div>` : "";
     const sender = String(from || "系统通知").trim() || "系统通知";
@@ -1459,7 +1469,7 @@ export class UI {
       ${timeHtml}
       <div class="sms-shell">
         <div class="sms-meta">
-          <span class="sms-badge">短信</span>
+          <span class="sms-badge">${isMail ? "邮件" : "短信"}</span>
           <span class="sms-from">${escapeHtml(sender)}</span>
         </div>
         <div class="sms-text"></div>
