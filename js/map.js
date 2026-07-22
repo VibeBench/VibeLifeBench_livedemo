@@ -463,7 +463,13 @@ function planningStyle(mode) {
     return { color: "#e11d48", weight: 6, opacity: 0.92, dashArray: "10 8", className: "route-planning-line route-planning-blocked" };
   }
   if (mode === "checking") {
-    return { color: "#7c3aed", weight: 5, opacity: 0.9, dashArray: "8 10", className: "route-planning-line route-planning-checking" };
+    return {
+      color: "#38bdf8",
+      weight: 5,
+      opacity: 0.55,
+      dashArray: "6 12",
+      className: "route-planning-line route-planning-checking",
+    };
   }
   if (mode === "clear") {
     return { color: "#16a34a", weight: 5, opacity: 0.88, dashArray: "10 8", className: "route-planning-line route-planning-clear" };
@@ -1709,9 +1715,9 @@ function paintHomeFlightArc(ctx) {
   const arc = greatCircle([home.lat, home.lng], [chc.lat, chc.lng], 48);
   if (arc.length >= 2) {
     window.L.polyline(arc, {
-      color: "#38bdf8",
+      color: "#94a3b8",
       weight: 3,
-      opacity: 0.85,
+      opacity: 0.7,
       dashArray: "6 10",
       className: "flight-plan-line",
     })
@@ -1841,17 +1847,17 @@ export function playFlightCrossing({
     const total = lengths.reduce((s, n) => s + n, 0) || 1;
 
     window.L.polyline(arc, {
-      color: "#7dd3fc",
+      color: "#cbd5e1",
       weight: 2,
-      opacity: 0.45,
+      opacity: 0.55,
       dashArray: "4 8",
       className: "flight-plan-line",
     }).addTo(flightLayer);
 
     const flown = window.L.polyline([arc[0]], {
-      color: "#0ea5e9",
+      color: "#64748b",
       weight: 4,
-      opacity: 0.95,
+      opacity: 0.9,
       className: "flight-live-line",
     }).addTo(flightLayer);
 
@@ -1860,7 +1866,7 @@ export function playFlightCrossing({
       radius: 6,
       color: "#fff",
       weight: 2,
-      fillColor: "#38bdf8",
+      fillColor: "#94a3b8",
       fillOpacity: 1,
     })
       .addTo(flightLayer)
@@ -1869,7 +1875,7 @@ export function playFlightCrossing({
       radius: 6,
       color: "#fff",
       weight: 2,
-      fillColor: "#16a34a",
+      fillColor: "#64748b",
       fillOpacity: 1,
     })
       .addTo(flightLayer)

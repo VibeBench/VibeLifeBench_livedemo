@@ -1045,8 +1045,9 @@ select {
 
 .map-legend .lg-check {
   background: transparent;
-  border-top: 2px dashed #7c3aed;
+  border-top: 2px dashed rgba(56, 189, 248, 0.75);
   height: 0;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.45);
 }
 
 .map-legend .lg-live {
@@ -1057,7 +1058,7 @@ select {
 
 .map-legend .lg-flight {
   background: transparent;
-  border-top: 2px dashed #38bdf8;
+  border-top: 2px dashed #94a3b8;
   height: 0;
 }
 
@@ -1089,8 +1090,10 @@ select {
 }
 
 .route-planning-checking {
-  filter: drop-shadow(0 0 4px rgba(124, 58, 237, 0.5));
-  animation: route-dash 1.6s linear infinite;
+  filter:
+    drop-shadow(0 0 3px rgba(56, 189, 248, 0.85))
+    drop-shadow(0 0 12px rgba(14, 165, 233, 0.4));
+  animation: route-dash 1.35s linear infinite;
 }
 
 .route-planning-clear {
@@ -1099,12 +1102,13 @@ select {
 
 .flight-plan-line {
   stroke-dasharray: 8 12;
-  animation: route-dash 2.4s linear infinite;
+  animation: route-dash 2.8s linear infinite;
+  filter: drop-shadow(0 0 2px rgba(148, 163, 184, 0.35));
 }
 
 .flight-live-line {
   stroke-linecap: round;
-  filter: drop-shadow(0 0 4px rgba(14, 165, 233, 0.55));
+  filter: drop-shadow(0 0 3px rgba(100, 116, 139, 0.45));
 }
 
 .map-flight-plane-wrap {
@@ -1164,8 +1168,10 @@ select {
 }
 
 .map-planning-badge[data-mode="checking"] {
-  border-color: rgba(124, 58, 237, 0.4);
-  color: #5b21b6;
+  border-color: rgba(56, 189, 248, 0.45);
+  color: #0369a1;
+  background: rgba(224, 242, 254, 0.72);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.25);
 }
 
 .map-planning-dot {
@@ -1186,7 +1192,8 @@ select {
 }
 
 .map-planning-badge[data-mode="checking"] .map-planning-dot {
-  background: #7c3aed;
+  background: #38bdf8;
+  box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.5);
 }
 
 @keyframes planning-dot {
