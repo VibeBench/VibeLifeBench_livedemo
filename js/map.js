@@ -52,7 +52,108 @@ let dismissedAlertKey = null;
 let mapResizeObs = null;
 let mapResizeTimer = null;
 let pulseTimers = [];
-let pulseJitter = 0;
+let activePulseSlots = [];
+
+function clearPulseTimers() {
+  for (const t of pulseTimers) clearTimeout(t);
+  pulseTimers = [];
+  activePulseSlots = [];
+}
+
+function allocPulseSlot() {
+  const used = new Set(activePulseSlots.map((s) => s.slot));
+  let slot = 0;
+  while (used.has(slot) && slot < 12) slot += 1;
+  return slot;
+}
+
+function releasePulseSlot(slot) {
+  activePulseSlots = activePulseSlots.filter((s) => s.slot !== slot);
+}
+
+/**
+ * Transient map feedback for timeline / agent events.
+ * Stacks in screen space (no overlap), auto-fades.
+ */
+export function pulseMapEvent({
+  icon = "📌",
+  label = "",
+  title = "",
+  detail = "",
+  kind = "",
+  durationMs = 5600,
+} = {}) {
+  if (!leafletMap || !window.L) return false;
+  if (!pulseLayer) {
+    pulseLayer = window.L.layerGroup().addTo(leafletMap);
+  }
+
+  const here = lastCtx ? placeLatLng(lastCtx) : null;
+  const center = leafletMap.getCenter();
+  const baseLatLng = window.L.latLng(here?.[0] ?? center.lat, here?.[1] ?? center.lng);
+
+  const slot = allocPulseSlot();
+  const entry = { slot, until: Date.now() + durationMs };
+  activePulseSlots.push(entry);
+
+  // Pixel stack: upward column + slight L/R alternate so cards never sit on each other.
+  const pt = leafletMap.latLngToContainerPoint(baseLatLng);
+  const col = slot % 2 === 0 ? -1 : 1;
+  const row = Math.floor(slot / 2);
+  const offsetX = col * (18 + row * 12);
+  const offsetY = -(56 + slot * 78);
+  const placed = leafletMap.containerPointToLatLng(window.L.point(pt.x + offsetX, pt.y + offsetY));
+
+  const head = String(title || label || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 48);
+  const sub = String(detail || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 96);
+  const kindCls = String(kind || "")
+    .replace(/[^a-z0-9_-]/gi, "")
+    .slice(0, 24);
+
+  const marker = window.L.marker(placed, {
+    icon: window.L.divIcon({
+      className: `map-event-pulse ${kindCls ? `pulse-${kindCls}` : ""}`,
+      html: `<div class="map-pulse-card${sub ? " has-detail" : ""}">
+        <span class="map-pulse-ring" aria-hidden="true"></span>
+        <span class="map-pulse-ico">${icon}</span>
+        <span class="map-pulse-text">
+          ${head ? `<span class="map-pulse-title">${escapeHtml(head)}</span>` : ""}
+          ${sub ? `<span class="map-pulse-detail">${escapeHtml(sub)}</span>` : ""}
+        </span>
+      </div>`,
+      iconSize: [280, sub ? 64 : 44],
+      iconAnchor: [140, sub ? 64 : 44],
+    }),
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: 950 + slot,
+  }).addTo(pulseLayer);
+
+  const fadeAt = Math.max(1600, durationMs - 600);
+  const t1 = setTimeout(() => {
+    const el = marker.getElement();
+    if (el) el.classList.add("is-leaving");
+  }, fadeAt);
+  const t2 = setTimeout(() => {
+    try {
+      pulseLayer?.removeLayer(marker);
+    } catch {
+      /* ignore */
+    }
+    releasePulseSlot(slot);
+  }, durationMs);
+  pulseTimers.push(t1, t2);
+  if (pulseTimers.length > 48) {
+    pulseTimers = pulseTimers.slice(-24);
+  }
+  return true;
+}
 
 export function ensureMapContainer(panelEl) {
   let shell = panelEl.querySelector(".map-shell");
@@ -1091,79 +1192,6 @@ function emojiIcon(emoji, extraClass = "") {
     iconSize: [36, 36],
     iconAnchor: [18, 18],
   });
-}
-
-function clearPulseTimers() {
-  for (const t of pulseTimers) clearTimeout(t);
-  pulseTimers = [];
-}
-
-/**
- * Transient map feedback for timeline / agent events.
- * Pops near current location (or map center), then fades away.
- */
-export function pulseMapEvent({
-  icon = "📌",
-  label = "",
-  kind = "",
-  durationMs = 4200,
-} = {}) {
-  if (!leafletMap || !window.L) return false;
-  if (!pulseLayer) {
-    pulseLayer = window.L.layerGroup().addTo(leafletMap);
-  }
-
-  const here = lastCtx ? placeLatLng(lastCtx) : null;
-  const center = leafletMap.getCenter();
-  pulseJitter = (pulseJitter + 1) % 6;
-  const angle = (pulseJitter / 6) * Math.PI * 2;
-  const radius = 0.012 + (pulseJitter % 3) * 0.006;
-  const baseLat = here?.[0] ?? center.lat;
-  const baseLng = here?.[1] ?? center.lng;
-  const lat = baseLat + Math.sin(angle) * radius;
-  const lng = baseLng + Math.cos(angle) * radius;
-
-  const short = String(label || "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 26);
-  const kindCls = String(kind || "")
-    .replace(/[^a-z0-9_-]/gi, "")
-    .slice(0, 24);
-
-  const marker = window.L.marker([lat, lng], {
-    icon: window.L.divIcon({
-      className: `map-event-pulse ${kindCls ? `pulse-${kindCls}` : ""}`,
-      html: `<div class="map-pulse-card">
-        <span class="map-pulse-ring" aria-hidden="true"></span>
-        <span class="map-pulse-ico">${icon}</span>
-        ${short ? `<span class="map-pulse-label">${escapeHtml(short)}</span>` : ""}
-      </div>`,
-      iconSize: [148, 64],
-      iconAnchor: [74, 56],
-    }),
-    interactive: false,
-    keyboard: false,
-    zIndexOffset: 950,
-  }).addTo(pulseLayer);
-
-  const fadeAt = Math.max(1200, durationMs - 520);
-  const t1 = setTimeout(() => {
-    const el = marker.getElement();
-    if (el) el.classList.add("is-leaving");
-  }, fadeAt);
-  const t2 = setTimeout(() => {
-    try {
-      pulseLayer?.removeLayer(marker);
-    } catch {
-      /* ignore */
-    }
-  }, durationMs);
-  pulseTimers.push(t1, t2);
-  if (pulseTimers.length > 40) {
-    pulseTimers = pulseTimers.slice(-20);
-  }
-  return true;
 }
 
 function startTravelerAnim(latlngs, emoji, label) {

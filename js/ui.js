@@ -1,7 +1,7 @@
 /**
  * Dashboard + phone chat rendering
  */
-import { renderLeafletMap, destroyMap, pulseMapEvent } from "./map.js?v=20260722-10";
+import { renderLeafletMap, destroyMap, pulseMapEvent } from "./map.js?v=20260722-11";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -221,7 +221,12 @@ export class UI {
         icon: a.icon,
         who: a.app || "账本",
         body: a.title || a.text,
-        detail: a.body && a.body !== a.title ? truncate(a.body, 80) : "",
+        detail: a.body && a.body !== a.title ? truncate(a.body, 100) : "",
+        pulse: {
+          icon: a.icon,
+          title: truncate(a.title || a.text, 42),
+          detail: truncate(a.body || "", 80),
+        },
         time: a.time || null,
       });
     }
@@ -418,7 +423,8 @@ export class UI {
     this.pulseMapFeedback({
       id: `env:${event.id}`,
       icon: toast.icon || km.icon || "📌",
-      label: truncate(title, 28),
+      title: truncate(title, 42),
+      detail: truncate(body && body !== title ? body : toast.text || "", 72),
       kind: event.kind || "",
     });
   }
@@ -806,6 +812,7 @@ export class UI {
     time = null,
     detail = "",
     id = null,
+    pulse = null,
   } = {}) {
     const km = KIND_META[kind] || KIND_META.agent_tool;
     const text = [body, detail].filter(Boolean).join(" · ");
@@ -818,7 +825,7 @@ export class UI {
       kind,
       icon: icon || km.icon,
       who: who || km.label,
-      body: truncate(text, 140),
+      body: truncate(text, 180),
       time: time || null,
       cls: km.cls,
     });
@@ -826,10 +833,13 @@ export class UI {
       this._activityFeed = this._activityFeed.slice(-100);
     }
     this._paintEventStream();
+    const title = pulse?.title || body || km.label;
+    const sub = pulse?.detail || detail || "";
     this.pulseMapFeedback({
       id: feedId,
-      icon: icon || km.icon,
-      label: truncate(body || text, 28),
+      icon: pulse?.icon || icon || km.icon,
+      title,
+      detail: sub,
       kind,
     });
   }
@@ -837,9 +847,16 @@ export class UI {
   /**
    * Brief icon bubble near the traveler on the map; auto-fades.
    */
-  pulseMapFeedback({ id = null, icon = "📌", label = "", kind = "" } = {}) {
+  pulseMapFeedback({
+    id = null,
+    icon = "📌",
+    label = "",
+    title = "",
+    detail = "",
+    kind = "",
+  } = {}) {
     if (!this._mapPulseSeen) this._mapPulseSeen = new Set();
-    const key = id || `${kind}:${label}:${Date.now()}`;
+    const key = id || `${kind}:${title || label}:${Date.now()}`;
     if (id && this._mapPulseSeen.has(key)) return;
     if (id) {
       this._mapPulseSeen.add(key);
@@ -847,7 +864,13 @@ export class UI {
         this._mapPulseSeen = new Set([...this._mapPulseSeen].slice(-100));
       }
     }
-    pulseMapEvent({ icon, label, kind, durationMs: 4200 });
+    pulseMapEvent({
+      icon,
+      title: title || label,
+      detail,
+      kind,
+      durationMs: 5600,
+    });
   }
 
   _paintEventStream() {
@@ -1151,6 +1174,7 @@ export class UI {
         who: "工具",
         body: meta.title,
         detail: meta.detail,
+        pulse: meta.pulse,
         time: wrap._simTime || null,
       });
     }
@@ -1285,7 +1309,12 @@ export class UI {
         kind: "agent_reply",
         icon: "💬",
         who: "Agent",
-        body: truncate(plain || "已回复", 120),
+        body: truncate(plain || "已回复", 140),
+        pulse: {
+          icon: "💬",
+          title: "Agent 回复",
+          detail: truncate(plain || "已生成行程建议", 90),
+        },
         time: wrap._simTime || null,
       });
     }
@@ -1364,12 +1393,36 @@ function toolCallKey(name, args) {
 }
 
 const TOOL_META = {
-  get_current_weather: { icon: "🌦️", label: "查询天气" },
-  get_forecast_daily: { icon: "📅", label: "查询预报" },
-  get_traffic_estimate: { icon: "🛣️", label: "查询路况" },
-  get_flight_status: { icon: "✈️", label: "查询航班" },
-  list_active_alerts: { icon: "🚨", label: "查询告警" },
-  get_budget_snapshot: { icon: "💰", label: "查询预算" },
+  get_current_weather: {
+    icon: "🌦️",
+    label: "查询天气",
+    focus: "当日天气 · 气温/风力/降水",
+  },
+  get_forecast_daily: {
+    icon: "📅",
+    label: "查询预报",
+    focus: "多日预报 · 趋势与风险日",
+  },
+  get_traffic_estimate: {
+    icon: "🛣️",
+    label: "查询路况",
+    focus: "路段通行 · 封路/延误",
+  },
+  get_flight_status: {
+    icon: "✈️",
+    label: "查询航班",
+    focus: "航班状态 · 延误/登机口",
+  },
+  list_active_alerts: {
+    icon: "🚨",
+    label: "查询告警",
+    focus: "生效告警 · 路况/渡轮/航班",
+  },
+  get_budget_snapshot: {
+    icon: "💰",
+    label: "查询预算",
+    focus: "预算快照 · 已花/余额",
+  },
 };
 
 function isWriteToolName(name) {
@@ -1378,48 +1431,175 @@ function isWriteToolName(name) {
   );
 }
 
-function describeToolCall(name, args = {}, result = null) {
+function geoLabel(key) {
+  const k = String(key || "").toLowerCase();
+  const map = {
+    shanghai_home: "上海",
+    christchurch: "基督城",
+    tekapo: "蒂卡波",
+    mt_cook: "库克山",
+    queenstown: "皇后镇",
+    milford: "米尔福德",
+    wanaka: "瓦纳卡",
+    te_anau: "蒂阿瑙",
+    frankton: "弗兰克顿",
+    picton: "皮克顿",
+    wellington: "惠灵顿",
+    rotorua: "罗托鲁阿",
+  };
+  return map[k] || key || "";
+}
+
+function roadLabel(idOrName) {
+  const s = String(idOrName || "");
+  if (/sh80|mt.?cook/i.test(s)) return "SH80 库克山路";
+  if (/sh94|milford/i.test(s)) return "SH94 米尔福德";
+  if (/sh6/i.test(s)) return "SH6";
+  if (/sh8/i.test(s)) return "SH8";
+  if (/ferry|cook.?strait/i.test(s)) return "库克海峡渡轮";
+  return s.replace(/^rd_/, "").replace(/_/g, " ") || "路段";
+}
+
+/** Core one-liner + detail for map bubble / stream. */
+function buildToolPulse(name, args = {}, result = null) {
   const base = TOOL_META[name] || {
     icon: isWriteToolName(name) ? "🔧" : "🛠️",
     label: name,
+    focus: "工具调用结果",
   };
-  const stateful = isWriteToolName(name) || Boolean(result?.booked || result?.written || result?.mutated);
   const error = result && result.ok === false;
-  const argBits = [];
-  if (args.geo_key) argBits.push(args.geo_key);
-  if (args.flight_no) argBits.push(args.flight_no);
-  if (args.road_id) argBits.push(args.road_id);
-  if (args.query) argBits.push(args.query);
-  if (args.date) argBits.push(args.date);
-  if (args.hotel_id || args.hotel_name) argBits.push(args.hotel_id || args.hotel_name);
-  if (!argBits.length) {
-    const vals = Object.values(args || {}).filter((v) => v != null && String(v).trim() !== "");
-    if (vals.length) argBits.push(String(vals[0]).slice(0, 28));
-  }
+  let title = base.label;
+  let detail = "";
 
-  let detail = argBits.join(" · ");
-  if (result) {
-    if (result.summary) detail = [detail, result.summary].filter(Boolean).join(" · ");
-    else if (result.note) detail = [detail, result.note].filter(Boolean).join(" · ");
-    else if (error && result.error) detail = [detail, result.error].filter(Boolean).join(" · ");
-    else if (result.condition != null) {
-      detail = [detail, `${result.condition} ${result.tmin ?? ""}~${result.tmax ?? ""}℃`]
+  switch (name) {
+    case "get_current_weather": {
+      const place = geoLabel(args.geo_key || result?.geo_key);
+      title = place ? `天气 · ${place}` : "当日天气";
+      if (result?.summary) detail = result.summary;
+      else if (result?.condition != null) {
+        detail = `${result.condition} ${result.tmin ?? "?"}~${result.tmax ?? "?"}℃`;
+        if (result.wind_kmh != null) detail += ` · 风${result.wind_kmh}km/h`;
+        if (result.precip_mm != null) detail += ` · 降水${result.precip_mm}mm`;
+      } else if (result?.weather) detail = String(result.weather).slice(0, 72);
+      else detail = base.focus;
+      break;
+    }
+    case "get_forecast_daily": {
+      const place = geoLabel(args.geo_key || result?.geo_key);
+      const rows = result?.forecast || [];
+      title = place ? `预报 · ${place}` : "多日预报";
+      if (rows.length) {
+        detail = rows
+          .slice(0, 3)
+          .map((r) => {
+            const d = String(r.date || "").slice(5) || "?";
+            return `${d} ${r.condition || "?"} ${r.tmin ?? "?"}~${r.tmax ?? "?"}℃`;
+          })
+          .join(" · ");
+      } else detail = `${args.days || 3} 日趋势 · ${base.focus}`;
+      break;
+    }
+    case "get_traffic_estimate": {
+      const road = roadLabel(args.road_id || args.query || result?.matched?.[0]?.road_id);
+      title = `路况 · ${road}`;
+      const matched = result?.matched || result?.active_road_events || [];
+      if (error) detail = result?.error || result?.note || "查询失败";
+      else if (matched.length) {
+        const top = matched[0];
+        const status =
+          Number(top.active) === 1
+            ? top.severity === "closed" || /封|关闭|closed/i.test(top.note || "")
+              ? "封闭/暂缓"
+              : "有事件"
+            : "通行";
+        detail = [status, top.road_name || roadLabel(top.road_id), top.note]
+          .filter(Boolean)
+          .join(" · ")
+          .slice(0, 90);
+        if (matched.length > 1) detail += ` · 另有 ${matched.length - 1} 条`;
+      } else detail = "暂无匹配事件 · 路段可通行";
+      break;
+    }
+    case "get_flight_status": {
+      const no = args.flight_no || result?.flight_no || "航班";
+      title = `航班 · ${no}`;
+      if (error) detail = result?.note || "未知航班";
+      else {
+        const st = result?.status || "on_time";
+        const stLabel =
+          st === "delayed" ? "延误" : st === "cancelled" ? "取消" : st === "boarding" ? "登机中" : "准点";
+        const bits = [stLabel];
+        if (result?.delay_min) bits.push(`+${result.delay_min}min`);
+        if (result?.gate) bits.push(`登机口 ${result.gate}`);
+        if (result?.route || result?.legs) bits.push(result.route || result.legs);
+        if (result?.note) bits.push(result.note);
+        detail = bits.filter(Boolean).join(" · ").slice(0, 90);
+      }
+      break;
+    }
+    case "list_active_alerts": {
+      const roads = result?.road_events || [];
+      const transit = result?.transit_events || [];
+      const flights = Object.keys(result?.flights || {});
+      const n = roads.length + transit.length + flights.length;
+      title = n ? `告警 · ${n} 条生效` : "告警 · 暂无";
+      const bits = [];
+      for (const e of roads.slice(0, 2)) {
+        bits.push(e.note || roadLabel(e.road_id));
+      }
+      for (const e of transit.slice(0, 1)) bits.push(e.note || "渡轮事件");
+      for (const f of flights.slice(0, 1)) bits.push(`航班 ${f}`);
+      detail = bits.length ? bits.join(" · ").slice(0, 90) : "路况/渡轮/航班均正常";
+      break;
+    }
+    case "get_budget_snapshot": {
+      title = "预算快照";
+      const b = result?.budget;
+      if (b) {
+        const spent = b.spent_cny != null ? `已花 ¥${fmt(b.spent_cny)}` : null;
+        const total = b.total_cny != null ? `预算 ¥${fmt(b.total_cny)}` : null;
+        const left =
+          b.total_cny != null && b.spent_cny != null
+            ? `剩余 ¥${fmt(Number(b.total_cny) - Number(b.spent_cny))}`
+            : null;
+        detail = [spent, total, left, result.location].filter(Boolean).join(" · ");
+      } else detail = result?.location ? `位置 ${result.location} · 预算待定` : "预算待定";
+      break;
+    }
+    default: {
+      title = base.label;
+      const argBits = [];
+      if (args.geo_key) argBits.push(geoLabel(args.geo_key) || args.geo_key);
+      if (args.flight_no) argBits.push(args.flight_no);
+      if (args.road_id || args.query) argBits.push(roadLabel(args.road_id || args.query));
+      if (args.date) argBits.push(args.date);
+      detail = [base.focus, ...argBits, result?.summary || result?.note || result?.error]
         .filter(Boolean)
-        .join(" · ");
-    } else if (result.flight_no || result.status) {
-      detail = [detail, result.status || result.note].filter(Boolean).join(" · ");
-    } else if (Array.isArray(result.matched)) {
-      detail = [detail, `命中 ${result.matched.length} 条`].filter(Boolean).join(" · ");
-    } else if (result.budget) {
-      const b = result.budget;
-      detail = [detail, `已花 ¥${fmt(b.spent_cny)} / 预算 ¥${fmt(b.total_cny)}`].filter(Boolean).join(" · ");
+        .join(" · ")
+        .slice(0, 90);
     }
   }
 
+  if (error && !detail) detail = result?.error || result?.note || "调用失败";
+
   return {
     icon: base.icon,
-    title: stateful ? `${base.label}` : base.label,
-    detail: detail || (stateful ? "已写入环境状态" : ""),
+    title,
+    detail: String(detail || base.focus || "").slice(0, 96),
+    focus: base.focus,
+  };
+}
+
+function describeToolCall(name, args = {}, result = null) {
+  const pulse = buildToolPulse(name, args, result);
+  const stateful = isWriteToolName(name) || Boolean(result?.booked || result?.written || result?.mutated);
+  const error = result && result.ok === false;
+  return {
+    icon: pulse.icon,
+    title: pulse.title,
+    detail: pulse.detail || (stateful ? "已写入环境状态" : ""),
+    focus: pulse.focus,
+    pulse,
     stateful,
     error: Boolean(error),
   };
