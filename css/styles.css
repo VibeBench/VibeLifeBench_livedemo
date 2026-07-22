@@ -245,14 +245,17 @@ select {
 .map-chrome-mid {
   flex: 1 1 auto;
   min-height: 0;
-  flex-direction: row;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 12px;
+  pointer-events: none;
 }
 
 .map-chrome-bottom {
-  display: none;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .panel-glass {
@@ -334,9 +337,9 @@ select {
 
 .float-events {
   position: static;
-  align-self: flex-start;
+  align-self: flex-end;
   width: min(300px, 34%);
-  max-height: min(58vh, 420px);
+  max-height: min(42vh, 320px);
   display: flex;
   flex-direction: column;
   border-radius: 14px;
@@ -396,7 +399,7 @@ select {
 }
 
 .float-info {
-  align-self: flex-start;
+  align-self: flex-end;
   margin-left: auto;
   width: min(260px, 34%);
   display: flex;
