@@ -16,7 +16,7 @@ import {
   playFlightCrossing,
   isOceanFlightCrossing,
   playMapAction,
-} from "./map.js?v=20260722-39";
+} from "./map.js?v=20260722-40";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -63,7 +63,6 @@ export class UI {
       footerStats: $("#footerStats"),
       chatMessages: $("#chatMessages"),
       chatInput: $("#chatInput"),
-      quickChips: $("#quickChips"),
       progressLabel: $("#progressLabel"),
       agentStatus: $("#agentStatus"),
       toast: $("#toast"),

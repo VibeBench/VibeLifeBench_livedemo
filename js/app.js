@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-39";
-import { DemoEngine } from "./engine.js?v=20260722-39";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-40";
+import { DemoEngine } from "./engine.js?v=20260722-40";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,10 +7,10 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-39";
+} from "./agent.js?v=20260722-40";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-39";
-import { isOceanFlightCrossing } from "./map.js?v=20260722-39";
+import { UI } from "./ui.js?v=20260722-40";
+import { isOceanFlightCrossing } from "./map.js?v=20260722-40";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -115,7 +115,6 @@ function bootCase(data) {
   ui.clearChat();
   ui.resetLedgerAlerts();
   ui.setPhoneTab("chat");
-  ui.setQuickChips(["查看营地详情", "明天天气怎么样", "预算还剩多少", "现在路况安全吗"]);
   refreshDashboard();
   lastSceneGeo = engine.currentState?.geo_key || "shanghai_home";
   ensureAgent();
@@ -270,7 +269,6 @@ function clearAndRewind({ confirm: needConfirm = true } = {}) {
   ui.clearChat();
   ui.resetLedgerAlerts();
   ui.setPhoneTab("chat");
-  ui.setQuickChips(["查看营地详情", "明天天气怎么样", "预算还剩多少", "现在路况安全吗"]);
   refreshDashboard();
   lastSceneGeo = engine.currentState?.geo_key || "shanghai_home";
   showEntryGuide();
@@ -693,10 +691,6 @@ function bindChrome() {
   document.querySelector("#chatForm").addEventListener("submit", (e) => {
     e.preventDefault();
     sendUserChat(document.querySelector("#chatInput").value);
-  });
-  document.querySelector("#quickChips").addEventListener("click", (e) => {
-    const chip = e.target.closest("[data-chip]");
-    if (chip) sendUserChat(chip.dataset.chip);
   });
 
   document.querySelector("#btnHelp")?.addEventListener("click", () => {
