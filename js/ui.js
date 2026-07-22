@@ -17,7 +17,7 @@ import {
   isOceanFlightCrossing,
   playMapAction,
   hideMapActionStage,
-} from "./map.js?v=20260722-56";
+} from "./map.js?v=20260722-57";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -558,15 +558,16 @@ export class UI {
     const body = String(event.body || "").trim();
     const title = firstLine(body) || toast.text;
 
-    // Weather: map emoji only — no chat/phone big cards.
+    // Weather: bubble on the place — status bar keeps day weather from the timeline.
     if (event.kind === "weather") {
       const geoKey = event.user_state?.geo_key || null;
-      const blob = `${event.user_state?.weather || ""} ${title} ${body}`;
+      const w = event.user_state?.weather || title || body;
+      const blob = `${w} ${title} ${body}`;
       this.pulseMapFeedback({
         id: `env:${event.id}`,
         icon: weatherEmojiFromText(blob),
-        title: "",
-        detail: "",
+        title: geoLabel(geoKey) ? `${geoLabel(geoKey)}天气` : "天气更新",
+        detail: String(w || "").slice(0, 96),
         kind: "weather",
         placeId: extractPlaceIdsFromText(blob)[0] || null,
         geoKey,
@@ -1604,56 +1605,25 @@ export class UI {
       const place = geoLabel(geo) || geo || "";
       const weatherBlob = `${meta.detail || ""} ${result?.condition || ""} ${result?.summary || ""} ${result?.weather || ""}`;
       const wIcon = weatherEmojiFromText(weatherBlob);
-      const statusText = formatObservedWeatherText(name, args, result);
-      const rows = buildWeatherActionRows(name, args, result);
-
-      // Pan + place emoji, then bottom weather card flies into status bar.
+      const detail =
+        meta.detail ||
+        formatObservedWeatherText(name, args, result) ||
+        "天气查询完成";
+      // Place bubble only — no bottom card, no status-bar overwrite.
       return Promise.resolve(
         geo ? focusGeoKey(geo, { label: `工具：天气 · ${place || geo}` }) : false
-      )
-        .then(() => {
-          this.pulseMapFeedback({
-            id: `tool-weather:${name}:${geo || ""}`,
-            icon: wIcon,
-            title: "",
-            detail: "",
-            kind: "weather",
-            placeId: anchor.placeId,
-            geoKey: geo || null,
-          });
-          return this.playQueuedMapAction({
-            kind: "weather",
-            title: place ? `${place} · 天气` : name === "get_forecast_daily" ? "多日预报" : "当日天气",
-            query: wIcon,
-            items: rows,
-            fingerprint: `weather:${name}:${geo || ""}:${statusText.slice(0, 40)}`,
-            leaveVisible: true,
-          });
-        })
-        .then(() => {
-          if (statusText && typeof this.onWeatherObserved === "function") {
-            this.onWeatherObserved({
-              weather: statusText,
-              geo_key: geo || null,
-              icon: wIcon,
-              detail: meta.detail || statusText,
-            });
-          }
-          const toText = shortWeather(statusText) || statusText || "已更新";
-          return this.enqueueCinematic(
-            () =>
-              this.playStatusLandingAnim({
-                kind: "weather",
-                icon: wIcon,
-                title: place ? `${place}天气` : "天气已同步",
-                fromText: "查询中…",
-                toText,
-                detail: statusText || meta.detail || "",
-                fromStage: true,
-              }),
-            { fingerprint: `status:weather:${String(toText).slice(0, 60)}` }
-          );
+      ).then(() => {
+        this.pulseMapFeedback({
+          id: `tool-weather:${name}:${geo || ""}:${String(detail).slice(0, 40)}`,
+          icon: wIcon,
+          title: place ? `${place}天气` : name === "get_forecast_daily" ? "多日预报" : "当日天气",
+          detail,
+          kind: "weather",
+          placeId: anchor.placeId,
+          geoKey: geo || null,
         });
+        return true;
+      });
     } else if (name === "get_flight_status") {
       focusPlanning({
         placeIds: ["pl_chc_airport"],

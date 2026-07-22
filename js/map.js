@@ -155,12 +155,23 @@ export function pulseMapEvent({
     .slice(0, 24);
 
   const at = resolvePulseLatLng({ placeId, geoKey, roadId, latlng });
-  // Weather: float a clear emoji ABOVE the place (not under the 「现在」 orb).
+  // Weather: place bubble above the queried location (status bar stays day weather).
   if (kindCls === "weather" || /weather/i.test(String(kind || ""))) {
+    if (at) {
+      pulsePlaceBubble({
+        icon: icon || "🌦️",
+        head: head || "天气",
+        sub,
+        kindCls: "weather",
+        latlng: at,
+        durationMs: Math.max(4200, Math.min(6200, durationMs)),
+      });
+      return true;
+    }
     pulseWeatherEmoji({
       icon: icon || "🌦️",
-      durationMs: Math.max(3800, Math.min(5200, durationMs)),
-      latlng: at || undefined,
+      durationMs: Math.min(3800, durationMs),
+      latlng: undefined,
     });
     return true;
   }

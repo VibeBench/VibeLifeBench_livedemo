@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-56";
-import { DemoEngine } from "./engine.js?v=20260722-56";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-57";
+import { DemoEngine } from "./engine.js?v=20260722-57";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,10 +7,10 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-56";
+} from "./agent.js?v=20260722-57";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-56";
-import { isOceanFlightCrossing } from "./map.js?v=20260722-56";
+import { UI } from "./ui.js?v=20260722-57";
+import { isOceanFlightCrossing } from "./map.js?v=20260722-57";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -115,14 +115,6 @@ function bootCase(data) {
   ui.clearChat();
   ui.resetLedgerAlerts();
   ui.setPhoneTab("chat");
-  // Tool-queried weather → sticky state + status chip (landing anim comes from focusMapFromTool).
-  ui.onWeatherObserved = ({ weather, geo_key } = {}) => {
-    if (!engine || !weather) return;
-    engine.setObservedWeather(weather, { geo_key });
-    const brief = String(weather).split(/[,，]/)[0].trim().slice(0, 24) || "—";
-    ui._statusSnap = { ...(ui._statusSnap || {}), weather: brief };
-    refreshDashboard();
-  };
   refreshDashboard();
   lastSceneGeo = engine.currentState?.geo_key || "shanghai_home";
   ensureAgent();
