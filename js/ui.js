@@ -1,7 +1,7 @@
 /**
  * Dashboard + phone chat rendering
  */
-import { renderLeafletMap, destroyMap } from "./map.js?v=20260722-01";
+import { renderLeafletMap, destroyMap } from "./map.js?v=20260722-03";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -13,6 +13,9 @@ const KIND_META = {
   notification: { icon: "🫀", cls: "kind-heart", label: "系统心跳" },
   routine: { icon: "🚗", cls: "kind-routine", label: "日常节点" },
   env_change: { icon: "🌐", cls: "kind-world", label: "环境变更" },
+  agent_tool: { icon: "🛠️", cls: "kind-agent-tool", label: "Agent 工具" },
+  agent_reply: { icon: "💬", cls: "kind-agent-reply", label: "Agent 回复" },
+  agent_state: { icon: "📋", cls: "kind-agent-state", label: "状态变更" },
 };
 
 const DAY_ICONS = {
@@ -73,6 +76,11 @@ export class UI {
     this._onTabChange = null;
     /** Only auto-scroll chat when user is already near the bottom (or just sent). */
     this._chatStickToBottom = true;
+    /** Agent tool / reply / state lines mirrored into the left event stream. */
+    this._activityFeed = [];
+    this._activitySeq = 0;
+    this._envStreamEvents = [];
+    this._streamMeta = null;
     this._bindPhoneNav();
     this._bindChatScroll();
   }
@@ -210,6 +218,14 @@ export class UI {
         tab,
         time: a.time || null,
         kind: a.kind || "ledger",
+      });
+      this.appendActivityFeed({
+        kind: "agent_state",
+        icon: a.icon,
+        who: a.app || "账本",
+        body: a.title || a.text,
+        detail: a.body && a.body !== a.title ? truncate(a.body, 80) : "",
+        time: a.time || null,
       });
     }
     this.enqueuePhoneBanners(fresh.map((a) => ({ ...a, openTab: "mail" })));
@@ -525,6 +541,7 @@ export class UI {
     this._highlightMailKey = null;
     this._phoneToastQueue = [];
     this._phoneToastShowing = false;
+    this.clearActivityFeed();
     this._paintBadges();
     this.hidePhoneBanner();
     this.renderMailInbox();
@@ -761,29 +778,104 @@ export class UI {
   }
 
   renderEventStream(events, meta) {
-    const labels = meta?.kind_labels || this.kindLabels;
-    const speakers = meta?.speakers || this.speakers;
-    this.els.eventStream.innerHTML = events
-      .map((ev) => {
-        const km = KIND_META[ev.kind] || { icon: "•", cls: "", label: ev.kind };
-        const time = formatSimStamp(ev.time) || "--:--";
-        const who =
-          ev.kind === "user_message"
-            ? speakers[ev.from]?.name || ev.from || "用户"
-            : labels[ev.kind] || km.label;
-        const body = truncate(ev.body || (ev.kind === "mutation" ? mutationSummary(ev) : ""), 160);
-        return `
-        <div class="stream-item ${km.cls}" data-id="${escapeHtml(ev.id)}">
-          <div class="stream-time">${escapeHtml(time)}</div>
-          <div class="stream-icon">${km.icon}</div>
-          <div class="stream-main">
-            <div class="stream-who">${escapeHtml(who)}</div>
-            <div class="stream-body">${escapeHtml(body)}</div>
-          </div>
-        </div>`;
-      })
-      .join("");
-    this.els.eventStream.scrollTop = this.els.eventStream.scrollHeight;
+    this._envStreamEvents = events || [];
+    this._streamMeta = meta || null;
+    this._paintEventStream();
+  }
+
+  clearActivityFeed() {
+    this._activityFeed = [];
+    this._activitySeq = 0;
+    if (this.els.eventStream) this._paintEventStream();
+  }
+
+  /**
+   * Mirror Agent tool / reply / booking side-effects into the left dashboard stream.
+   * kind: 'agent_tool' | 'agent_reply' | 'agent_state'
+   */
+  appendActivityFeed({
+    kind = "agent_tool",
+    icon = null,
+    who = null,
+    body = "",
+    time = null,
+    detail = "",
+  } = {}) {
+    const km = KIND_META[kind] || KIND_META.agent_tool;
+    const text = [body, detail].filter(Boolean).join(" · ");
+    if (!String(text || "").trim()) return;
+    this._activitySeq += 1;
+    this._activityFeed.push({
+      id: `act-${this._activitySeq}`,
+      seq: this._activitySeq,
+      kind,
+      icon: icon || km.icon,
+      who: who || km.label,
+      body: truncate(text, 140),
+      time: time || null,
+      cls: km.cls,
+    });
+    if (this._activityFeed.length > 100) {
+      this._activityFeed = this._activityFeed.slice(-100);
+    }
+    this._paintEventStream();
+  }
+
+  _paintEventStream() {
+    const el = this.els.eventStream;
+    if (!el) return;
+    const meta = this._streamMeta || {};
+    const labels = meta.kind_labels || this.kindLabels;
+    const speakers = meta.speakers || this.speakers;
+
+    const rows = [];
+    for (const ev of this._envStreamEvents || []) {
+      const km = KIND_META[ev.kind] || { icon: "•", cls: "", label: ev.kind };
+      const time = formatSimStamp(ev.time) || "--:--";
+      const who =
+        ev.kind === "user_message"
+          ? speakers[ev.from]?.name || ev.from || "用户"
+          : labels[ev.kind] || km.label;
+      const body = truncate(ev.body || (ev.kind === "mutation" ? mutationSummary(ev) : ""), 160);
+      rows.push({
+        sortKey: String(ev.time || ""),
+        seq: rows.length,
+        html: streamItemHtml({
+          id: ev.id,
+          cls: km.cls,
+          time,
+          icon: km.icon,
+          who,
+          body,
+        }),
+      });
+    }
+    for (const a of this._activityFeed || []) {
+      rows.push({
+        sortKey: String(a.time || ""),
+        seq: 100000 + (a.seq || 0),
+        html: streamItemHtml({
+          id: a.id,
+          cls: a.cls || "",
+          time: formatSimStamp(a.time) || "Agent",
+          icon: a.icon,
+          who: a.who,
+          body: a.body,
+        }),
+      });
+    }
+    rows.sort((x, y) => {
+      if (x.sortKey && y.sortKey && x.sortKey !== y.sortKey) {
+        return x.sortKey < y.sortKey ? -1 : 1;
+      }
+      if (!!x.sortKey !== !!y.sortKey) return x.sortKey ? -1 : 1;
+      return x.seq - y.seq;
+    });
+
+    el.innerHTML =
+      rows.map((r) => r.html).join("") ||
+      `<div class="ledger-empty">推进日程或启动 Agent 后，环境事件与工具动态会出现在这里。</div>`;
+    el.scrollTop = el.scrollHeight;
   }
 
   renderMap(engine) {
@@ -933,7 +1025,7 @@ export class UI {
     return wrap;
   }
 
-  /** Claude-homepage-like agent turn: collapsible Thinking + persistent tool log + answer */
+  /** Claude-homepage-like agent turn: thinking collapsed by default + tool log + answer */
   beginAgentTurn({ time = null } = {}) {
     const wrap = document.createElement("div");
     wrap.className = "bubble agent agent-turn streaming";
@@ -942,9 +1034,9 @@ export class UI {
     wrap.innerHTML = `
       ${timeHtml}
       <div class="bubble-name">Agent</div>
-      <div class="think-block open thinking" data-think>
-        <button type="button" class="think-toggle" aria-expanded="true">
-          <span class="think-chevron">▾</span>
+      <div class="think-block thinking" data-think hidden>
+        <button type="button" class="think-toggle" aria-expanded="false">
+          <span class="think-chevron">▸</span>
           <span class="think-label">Thinking</span>
         </button>
         <div class="think-body"><div class="think-text"></div></div>
@@ -959,6 +1051,8 @@ export class UI {
     });
     wrap._startedAt = Date.now();
     wrap._toolRows = new Map(); // key → row element
+    wrap._activityReplyPushed = false;
+    wrap._simTime = time;
     this.els.chatMessages.appendChild(wrap);
     this._scrollChatToBottom();
     return wrap;
@@ -1017,6 +1111,19 @@ export class UI {
       </div>
       <span class="tool-row-status">${status === "pending" ? "…" : meta.error ? "失败" : "完成"}</span>`;
 
+    // Mirror completed tools into the left event stream (once per row key).
+    if (status === "done" && !row.dataset.streamed) {
+      row.dataset.streamed = "1";
+      this.appendActivityFeed({
+        kind: "agent_tool",
+        icon: meta.icon,
+        who: "工具",
+        body: meta.title,
+        detail: meta.detail,
+        time: wrap._simTime || null,
+      });
+    }
+
     this._scrollChatToBottom();
     return row;
   }
@@ -1052,12 +1159,20 @@ export class UI {
     }
 
     if (phase === "thinking") {
-      thinkBlock?.classList.add("thinking", "open");
+      // Keep collapsed by default — only shimmer the label.
+      thinkBlock?.classList.add("thinking");
+      thinkBlock?.classList.remove("open");
       if (label) label.textContent = "Thinking";
-      wrap.querySelector(".think-chevron").textContent = "▾";
+      const chev = wrap.querySelector(".think-chevron");
+      if (chev) chev.textContent = "▸";
+      wrap.querySelector(".think-toggle")?.setAttribute("aria-expanded", "false");
     } else if (phase === "tool") {
-      thinkBlock?.classList.add("thinking", "open");
+      thinkBlock?.classList.add("thinking");
+      thinkBlock?.classList.remove("open");
       if (label) label.textContent = "Thinking";
+      const chev = wrap.querySelector(".think-chevron");
+      if (chev) chev.textContent = "▸";
+      wrap.querySelector(".think-toggle")?.setAttribute("aria-expanded", "false");
       // Show a pending row immediately; onTool will fill args/result and keep it.
       if (toolHint) {
         this.appendToolCall(wrap, { name: toolHint, args: {}, result: null, status: "pending" });
@@ -1069,17 +1184,30 @@ export class UI {
         const secs = Math.max(1, Math.round((Date.now() - (wrap._startedAt || Date.now())) / 1000));
         label.textContent = `Thought for ${secs}s`;
       }
-      // Auto-collapse thinking when answer starts (Claude-like); tools remain expanded above.
-      if (phase === "answering" && thinking && !wrap._collapsedOnce) {
-        thinkBlock?.classList.remove("open");
-        wrap.querySelector(".think-toggle")?.setAttribute("aria-expanded", "false");
-        const chev = wrap.querySelector(".think-chevron");
-        if (chev) chev.textContent = "▸";
-        wrap._collapsedOnce = true;
-      }
+      // Stay collapsed (default); user can expand manually.
+      thinkBlock?.classList.remove("open");
+      wrap.querySelector(".think-toggle")?.setAttribute("aria-expanded", "false");
+      const chev = wrap.querySelector(".think-chevron");
+      if (chev) chev.textContent = "▸";
     }
 
-    if (content != null && answer) setMarkdown(answer, content);
+    if (content != null && answer) {
+      setMarkdown(answer, content);
+      if (content && !wrap._activityReplyPushed && (phase === "answering" || phase === "done")) {
+        wrap._activityReplyPushed = true;
+        const plain = String(content)
+          .replace(/[#>*`|_\[\]()]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        this.appendActivityFeed({
+          kind: "agent_reply",
+          icon: "💬",
+          who: "Agent",
+          body: truncate(plain || "已回复", 120),
+          time: wrap._simTime || null,
+        });
+      }
+    }
     if (!thinking && thinkBlock && phase !== "thinking") {
       // no thinking payload — hide empty block
       if (!thinkText?.textContent) thinkBlock.hidden = true;
@@ -1115,6 +1243,21 @@ export class UI {
       content: content || "（空回复）",
       phase: "done",
     });
+
+    if (content && !wrap._activityReplyPushed) {
+      wrap._activityReplyPushed = true;
+      const plain = String(content)
+        .replace(/[#>*`|_\[\]()]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      this.appendActivityFeed({
+        kind: "agent_reply",
+        icon: "💬",
+        who: "Agent",
+        body: truncate(plain || "已回复", 120),
+        time: wrap._simTime || null,
+      });
+    }
 
     if (!thinking) {
       if (thinkBlock) thinkBlock.hidden = true;
@@ -1167,6 +1310,18 @@ export class UI {
 
 function $(sel) {
   return document.querySelector(sel);
+}
+
+function streamItemHtml({ id, cls, time, icon, who, body }) {
+  return `
+        <div class="stream-item ${cls || ""}" data-id="${escapeHtml(id || "")}">
+          <div class="stream-time">${escapeHtml(time || "")}</div>
+          <div class="stream-icon">${icon || "•"}</div>
+          <div class="stream-main">
+            <div class="stream-who">${escapeHtml(who || "")}</div>
+            <div class="stream-body">${escapeHtml(body || "")}</div>
+          </div>
+        </div>`;
 }
 
 function toolCallKey(name, args) {

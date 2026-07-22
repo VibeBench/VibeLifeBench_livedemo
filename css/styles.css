@@ -400,6 +400,21 @@ select {
   border-color: #bbf7d0;
 }
 
+.stream-item.kind-agent-tool {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.stream-item.kind-agent-reply {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.stream-item.kind-agent-state {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
 .stream-time {
   font-size: 11px;
   font-weight: 700;
