@@ -594,63 +594,152 @@ export class TravelAgent {
 function mockSearchResults(query, env, state) {
   const q = String(query || "").toLowerCase();
   const loc = state?.location || "";
+  const seen = new Set();
   const out = [];
-  if (/sh80|库克|mt\s*cook|落石|封/i.test(q)) {
-    out.push({
+  const push = (item) => {
+    const key = String(item?.url || item?.title || "").toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(item);
+  };
+
+  if (/sh80|库克|mt\s*cook|aoraki|落石/i.test(q)) {
+    push({
       title: "NZTA：Aoraki/Mt Cook Highway (SH80) 临时管控",
       snippet: "落石风险路段实行间歇性封闭，建议出发前查询实时路况，并预留改道缓冲。",
       url: "nzta.govt.nz/traffic/sh80-mt-cook",
     });
-  }
-  if (/sh94|milford|米尔福德/i.test(q)) {
-    out.push({
-      title: "Milford Road (SH94) 天气与通行提示",
-      snippet: "峡湾天气多变，浓雾/结冰时可能短时封闭。当日自驾请预留折返时间。",
-      url: "milfordroad.co.nz/status",
+    push({
+      title: "DOC · Aoraki/Mt Cook 当日访客提示",
+      snippet: "高山天气变化快，支线封闭时可改走 Twizel / Lake Pukaki 观景，勿强行进入管制区。",
+      url: "doc.govt.nz/aoraki-alerts",
+    });
+    push({
+      title: "改道参考：Twizel ↔ Tekapo 南岛内陆线",
+      snippet: "SH80 不可用时，常见备选是沿 SH8 经 Twizel 衔接后续南下行程。",
+      url: "aa.co.nz/maps/sh8-twizel",
     });
   }
-  if (/营地|holiday|park|tekapo|蒂卡波|住宿/i.test(q)) {
-    out.push({
+  if (/sh94|milford|米尔福德|fiord|峡湾|doubtful|manapouri|马纳普里/i.test(q)) {
+    push({
+      title: "Milford Road (SH94) 天气与通行提示",
+      snippet: "峡湾天气多变，浓雾/结冰/塌方时可能短时封闭。当日自驾请预留折返时间。",
+      url: "milfordroad.co.nz/status",
+    });
+    push({
+      title: "Doubtful Sound 一日游替代方案",
+      snippet: "SH94 封闭时，可从 Manapouri 出发改走疑难峡湾（船+巴士+游船，约 7–8 小时）。",
+      url: "realjourneys.co.nz/doubtful-sound",
+    });
+    push({
+      title: "Fiordland 游船运营商改期说明",
+      snippet: "Milford 当日游船受公路中断影响时可改期或退款，建议保留订单号联系客服。",
+      url: "fiordland.travel/notices",
+    });
+  }
+  if (/营地|holiday|park|tekapo|蒂卡波|住宿|酒店|motel/i.test(q)) {
+    push({
       title: "Tekapo / Lakeview 营地评价摘要",
       snippet: "星空与湖景评分高；旺季建议提前确认 powered site 与取消政策。",
       url: "holidayparks.co.nz/tekapo",
     });
+    push({
+      title: "南岛热门营地可退订对比",
+      snippet: "皇后镇、瓦纳卡、蒂卡波一带来看评分与退改；房车站点晚到可能改无电场地。",
+      url: "bookacamping.co.nz/south-island",
+    });
+    push({
+      title: "DOC 营地与预订须知",
+      snippet: "部分国家公园营地需提前预约；旺季步行抵达营地请预留日照时间。",
+      url: "doc.govt.nz/campsites",
+    });
   }
-  if (/签证|eta|入境/i.test(q)) {
-    out.push({
+  if (/签证|eta|入境|海关/i.test(q)) {
+    push({
       title: "新西兰 NZeTA 办理要点",
       snippet: "多数访客需 NZeTA + IVL；建议出行前 72 小时确认批准状态。",
       url: "immigration.govt.nz/nzeta",
     });
+    push({
+      title: "入境申报与生物安全提示",
+      snippet: "食品、户外装备需如实申报；未申报可能罚款并延误通关。",
+      url: "customs.govt.nz/declare",
+    });
+    push({
+      title: "旅客健康与保险建议",
+      snippet: "山区活动建议确认旅行保险覆盖直升机救援与医疗转运条款。",
+      url: "safetravel.govt.nz/insurance",
+    });
   }
-  if (/渡轮|ferry|库克海峡/i.test(q)) {
-    out.push({
+  if (/渡轮|ferry|库克海峡|interislander|picton|wellington/i.test(q)) {
+    push({
       title: "Interislander 库克海峡渡轮动态",
       snippet: "大风浪时可能延误或改班；房车登船请按航次提前到达码头。",
       url: "interislander.co.nz/status",
     });
+    push({
+      title: "Bluebridge 备选航次与车位",
+      snippet: "高峰日建议同时关注两家渡轮余票；房车高度/长度限制请提前核对。",
+      url: "bluebridge.co.nz/sailings",
+    });
+    push({
+      title: "皮克顿 / 惠灵顿码头到达指引",
+      snippet: "登船截止通常早于开航 45–60 分钟；恶劣天气以码头现场广播为准。",
+      url: "nzta.govt.nz/ferry-terminals",
+    });
   }
-  if (!out.length) {
-    out.push({
-      title: `检索：${query || "新西兰自驾"}`,
+  if (/天气|weather|forecast|风力|降雨/i.test(q)) {
+    push({
+      title: "MetService 南岛山区预报摘要",
       snippet: loc
-        ? `围绕「${loc}」整理了路况、天气与停留建议，可供行程决策参考。`
-        : "已汇总官方路况、营地与签证相关公开信息摘要。",
-      url: "vibelifebench.local/search",
+        ? `关注「${loc}」附近阵风与能见度，峡谷路段午后变化更快。`
+        : "山区午后对流增强，峡谷路段能见度可能骤降。",
+      url: "metservice.com/mountain",
     });
-    out.push({
-      title: "AA Traveller · South Island driving tips",
-      snippet: "南岛山路弯多、补给点稀疏；单日驾驶建议控制在 4–5 小时内。",
-      url: "aa.co.nz/travel",
+    push({
+      title: "驾驶天气安全要点",
+      snippet: "低温路滑时降低车速，峡湾与垭口预留折返窗口，避免夜驶山路。",
+      url: "nzta.govt.nz/winter-driving",
     });
   }
+
   // Surface any currently active road notes
   for (const e of (env?.maps?.road_events || []).filter((x) => Number(x.active) === 1).slice(0, 2)) {
-    out.push({
+    push({
       title: `路况快讯 · ${e.road_id || "road"}`,
       snippet: e.note || "有生效中的道路事件，请结合工具复核。",
       url: `maps.local/${e.road_id || "event"}`,
     });
+  }
+
+  // Always pad to 3–4 results so the map search overlay has a full result list.
+  const pads = [
+    {
+      title: loc ? `当地指南 · ${loc}` : `检索：${query || "新西兰自驾"}`,
+      snippet: loc
+        ? `围绕「${loc}」整理了路况、天气与停留建议，可供行程决策参考。`
+        : "已汇总官方路况、营地与签证相关公开信息摘要。",
+      url: "vibelifebench.local/search",
+    },
+    {
+      title: "AA Traveller · South Island driving tips",
+      snippet: "南岛山路弯多、补给点稀疏；单日驾驶建议控制在 4–5 小时内。",
+      url: "aa.co.nz/travel",
+    },
+    {
+      title: "Tourism NZ · 本周行程灵感",
+      snippet: "湖区、峡湾与地热线路热度高；热门景点建议错峰并预留弹性日。",
+      url: "newzealand.com/tips",
+    },
+    {
+      title: "加油站与补给间距参考",
+      snippet: "南岛部分路段加油站间隔超过 100km，出发前加满并备饮水零食。",
+      url: "gaspy.nz/south-island",
+    },
+  ];
+  for (const p of pads) {
+    if (out.length >= 4) break;
+    push(p);
   }
   return out.slice(0, 5);
 }
