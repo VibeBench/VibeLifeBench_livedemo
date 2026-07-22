@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-13";
-import { DemoEngine } from "./engine.js?v=20260722-13";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-14";
+import { DemoEngine } from "./engine.js?v=20260722-14";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-13";
+} from "./agent.js?v=20260722-14";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-13";
+import { UI } from "./ui.js?v=20260722-14";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -262,17 +262,32 @@ function ensureAgent() {
       // Write / booking tools also leave a durable state card in chat history
       if (/book|cancel|create|send|post|update|write|insert|reserve|confirm|refund/i.test(name || "")) {
         const tab = /notion|page|block/i.test(name) ? "notes" : "trip";
+        let title = "已写入行程状态";
+        if (/hotel/i.test(name)) {
+          title = `预订酒店${args.hotel_name || args.hotel_id || args.name ? ` · ${args.hotel_name || args.hotel_id || args.name}` : ""}`;
+        } else if (/flight|air/i.test(name)) {
+          title = `预订机票${args.flight_no ? ` · ${args.flight_no}` : ""}`;
+        } else if (/notion|page/i.test(name)) {
+          title = "写入游记 / Notion";
+        } else if (/cancel/i.test(name) && /hotel/i.test(name)) {
+          title = "取消酒店预订";
+        } else if (/cancel/i.test(name) && /flight/i.test(name)) {
+          title = "取消机票";
+        } else {
+          title = `已执行 · ${String(name).replace(/[_-]+/g, " ")}`;
+        }
         const detail =
           result?.summary ||
           result?.note ||
           Object.entries(args || {})
+            .filter(([, v]) => v != null && String(v).trim() !== "")
             .map(([k, v]) => `${k}=${v}`)
-            .slice(0, 3)
+            .slice(0, 4)
             .join(" · ");
         ui.notifyStateChange({
           icon: tab === "notes" ? "📝" : /flight|air/i.test(name) ? "✈️" : /hotel|stay/i.test(name) ? "🏨" : "🔧",
-          text: `已执行 · ${name}`,
-          title: `已执行 · ${name}`,
+          text: title,
+          title,
           body: detail,
           tab,
           kind: "tool-write",
