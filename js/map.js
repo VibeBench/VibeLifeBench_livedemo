@@ -289,27 +289,51 @@ function pulsePlaceBubble({ icon, head, sub, kindCls, latlng, durationMs }) {
   if (!leafletMap || !window.L || !latlng) return;
   if (!pulseLayer) pulseLayer = window.L.layerGroup().addTo(leafletMap);
 
-  const html = `
+  const isSms = /^(world|app_notification|sms)$/i.test(String(kindCls || ""));
+  const title = String(head || "").trim();
+  const detail = String(sub || "").trim();
+  // Keep SMS body short — about two lines on the map card.
+  const smsBody = (detail && detail !== title ? detail : title).slice(0, 72);
+  const smsFrom = isSms
+    ? String(icon || "").includes("✉️")
+      ? "邮件"
+      : /移民|签证|NZeTA|海关/i.test(`${title} ${detail}`)
+        ? "新西兰移民局"
+        : "系统通知"
+    : "";
+
+  const html = isSms
+    ? `
+    <div class="map-sms-bubble${kindCls ? ` pulse-${kindCls}` : ""}">
+      <div class="map-sms-head">
+        <span class="map-sms-badge">短信</span>
+        <span class="map-sms-from">${escapeHtml(smsFrom)}</span>
+      </div>
+      <div class="map-sms-body">${escapeHtml(smsBody)}</div>
+      <span class="map-sms-pin" aria-hidden="true"></span>
+    </div>`
+    : `
     <div class="map-place-bubble${sub ? " has-detail" : ""}${kindCls ? ` pulse-${kindCls}` : ""}">
       <span class="map-place-bubble-ico">${icon || "📍"}</span>
       <span class="map-place-bubble-text">
         ${head ? `<span class="map-place-bubble-title">${escapeHtml(head)}</span>` : ""}
-        ${sub ? `<span class="map-place-bubble-detail">${escapeHtml(sub)}</span>` : ""}
+        ${sub ? `<div class="map-place-bubble-detail">${escapeHtml(sub)}</div>` : ""}
       </span>
       <span class="map-place-bubble-pin" aria-hidden="true"></span>
     </div>`;
 
+  // Sit clearly ABOVE the here-orb (orb ~52px + tag). Large iconAnchor Y = more gap.
   const marker = window.L.marker(latlng, {
     icon: window.L.divIcon({
-      className: "map-place-bubble-wrap",
+      className: isSms ? "map-sms-wrap" : "map-place-bubble-wrap",
       html,
-      // Wide card; anchor at bottom-center so the card sits above the place / here-orb.
-      iconSize: [240, 96],
-      iconAnchor: [120, 104],
+      iconSize: [260, 100],
+      iconAnchor: [130, 168],
     }),
     interactive: false,
     keyboard: false,
-    zIndexOffset: 1100,
+    // Above the live "现在" marker (z≈1200) so text is never covered.
+    zIndexOffset: 1600,
   }).addTo(pulseLayer);
 
   // Soft ping under the bubble so the exact spot is clear.
@@ -318,7 +342,9 @@ function pulsePlaceBubble({ icon, head, sub, kindCls, latlng, durationMs }) {
   const fadeAt = Math.max(1800, durationMs - 550);
   const t1 = setTimeout(() => {
     try {
-      const el = marker.getElement()?.querySelector(".map-place-bubble");
+      const el = marker
+        .getElement()
+        ?.querySelector(isSms ? ".map-sms-bubble" : ".map-place-bubble");
       el?.classList.add("is-leaving");
     } catch {
       /* ignore */

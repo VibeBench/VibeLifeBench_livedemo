@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-45";
-import { DemoEngine } from "./engine.js?v=20260722-45";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-46";
+import { DemoEngine } from "./engine.js?v=20260722-46";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,10 +7,10 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-45";
+} from "./agent.js?v=20260722-46";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-45";
-import { isOceanFlightCrossing } from "./map.js?v=20260722-45";
+import { UI } from "./ui.js?v=20260722-46";
+import { isOceanFlightCrossing } from "./map.js?v=20260722-46";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -440,7 +440,6 @@ async function stepOnce() {
     if (event.kind === "user_message") {
       ui.appendChat({ role: "user", text: event.body, from: event.from, time: t });
     } else if (event.kind === "app_notification" || event.kind === "world") {
-      ui.appendChat({ role: "system", text: truncate(event.body, 220), time: t });
       ui.notifyEnvEvent(event);
     } else if (event.kind === "notification") {
       ui.appendChat({ role: "system", text: `🫀 心跳 · ${truncate(event.body, 180)}`, time: t });

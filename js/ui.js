@@ -16,7 +16,7 @@ import {
   playFlightCrossing,
   isOceanFlightCrossing,
   playMapAction,
-} from "./map.js?v=20260722-45";
+} from "./map.js?v=20260722-46";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -604,22 +604,33 @@ export class UI {
       time: event.time || null,
       kind: event.kind,
       from: toast.from || toast.app,
+      // SMS goes into chat via appendSmsChat — skip generic state card.
+      chat: !(event.kind === "world" || event.kind === "app_notification"),
     });
+
+    // World / APP notices arrive as SMS in the phone chat.
+    if (event.kind === "world" || event.kind === "app_notification") {
+      this.appendSmsChat({
+        text: truncate(body || toast.text || title, 160),
+        from: toast.from || toast.app || "短信通知",
+        time: event.time || null,
+      });
+    }
 
     // Location-related env messages: show near the place on the map.
     const blob = `${title} ${body} ${event.user_state?.location || ""}`;
     const placeIds = extractPlaceIdsFromText(blob);
     const roadIds = extractRoadIdsFromText(blob);
     const geoKey = event.user_state?.geo_key || null;
-    if (placeIds.length || roadIds.length || geoKey) {
+    if (placeIds.length || roadIds.length || geoKey || event.kind === "world" || event.kind === "app_notification") {
       this.pulseMapFeedback({
         id: `env:${event.id}`,
-        icon: toast.icon || "📌",
-        title: truncate(title, 42),
+        icon: toast.icon || "💬",
+        title: truncate(title, 36),
         detail: truncate(body && body !== title ? body : toast.text || "", 72),
         kind: event.kind || "",
         placeId: placeIds[0] || null,
-        geoKey,
+        geoKey: geoKey || (placeIds.length || roadIds.length ? null : "shanghai_home"),
         roadId: roadIds[0] || null,
       });
     }
@@ -1461,6 +1472,29 @@ export class UI {
     this.els.chatMessages.appendChild(wrap);
     // User / system messages: stick to bottom so the new message is visible.
     this._scrollChatToBottom({ force: role === "user" || role === "system" });
+    return wrap;
+  }
+
+  /** Incoming SMS-style message (world / app notifications). */
+  appendSmsChat({ text = "", from = "系统通知", time = null } = {}) {
+    const wrap = document.createElement("div");
+    wrap.className = "bubble sms-in";
+    const stamp = formatSimStamp(time);
+    const timeHtml = stamp ? `<div class="bubble-time">${escapeHtml(stamp)}</div>` : "";
+    const sender = String(from || "系统通知").trim() || "系统通知";
+    const body = String(text || "").trim();
+    wrap.innerHTML = `
+      ${timeHtml}
+      <div class="sms-shell">
+        <div class="sms-meta">
+          <span class="sms-badge">短信</span>
+          <span class="sms-from">${escapeHtml(sender)}</span>
+        </div>
+        <div class="sms-text"></div>
+      </div>`;
+    wrap.querySelector(".sms-text").textContent = body;
+    this.els.chatMessages.appendChild(wrap);
+    this._scrollChatToBottom({ force: true });
     return wrap;
   }
 
@@ -2538,6 +2572,20 @@ function shortHotel(name) {
   return s.length > 14 ? s.slice(0, 12) + "…" : s;
 }
 
+/** Guess a readable SMS sender from notification body. */
+function guessSmsSender(body) {
+  const s = String(body || "");
+  if (/移民局|NZeTA|签证|入境/i.test(s)) return "新西兰移民局";
+  if (/NZTA|路况|公路|封闭|封路/i.test(s)) return "NZTA 路况";
+  if (/Interislander|渡轮|Bluebridge/i.test(s)) return "渡轮通知";
+  if (/MetService|天气|风力|降雨/i.test(s)) return "天气提醒";
+  if (/航空|航班|Airport|MU\d+/i.test(s)) return "航班通知";
+  if (/酒店|营地|Holiday\s*Park|住宿/i.test(s)) return "住宿通知";
+  const m = s.match(/^([^：:]{2,12})[：:]/);
+  if (m) return m[1].trim();
+  return "";
+}
+
 /** Map env playback events → phone toast copy (archived to 邮件). */
 function envEventToast(ev) {
   const kind = ev.kind || "";
@@ -2549,20 +2597,20 @@ function envEventToast(ev) {
 
   if (kind === "app_notification") {
     return {
-      icon: isMail ? "✉️" : "🔔",
-      app: isMail ? "邮件" : appName || "APP 通知",
-      from: isMail ? "收件箱" : appName || "APP / 短信",
+      icon: isMail ? "✉️" : "💬",
+      app: isMail ? "邮件" : appName || "短信",
+      from: isMail ? "收件箱" : appName || guessSmsSender(body) || "短信通知",
       tab: "mail",
-      text: snippet || (isMail ? "收到一封新邮件" : `${appName || "APP"}发来一条通知`),
+      text: snippet || (isMail ? "收到一封新邮件" : `${appName || "短信"}发来一条消息`),
     };
   }
   if (kind === "world") {
     return {
-      icon: isMail ? "✉️" : "🌐",
-      app: isMail ? "邮件" : appName || "外部资讯",
-      from: isMail ? "收件箱" : appName || "外部资讯",
+      icon: isMail ? "✉️" : "💬",
+      app: isMail ? "邮件" : "短信",
+      from: isMail ? "收件箱" : appName || guessSmsSender(body) || "外部通知",
       tab: "mail",
-      text: snippet || "收到一条外部资讯",
+      text: snippet || "收到一条短信通知",
     };
   }
   if (kind === "notification") {

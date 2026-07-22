@@ -1811,6 +1811,103 @@ select {
   transform: rotate(45deg);
 }
 
+/* —— Map SMS bubble (world / app notifications) —— */
+.map-sms-wrap {
+  background: transparent !important;
+  border: none !important;
+}
+
+.map-sms-bubble {
+  position: relative;
+  width: min(240px, 92vw);
+  margin: 0 auto;
+  padding: 8px 10px 12px;
+  border-radius: 16px 16px 16px 6px;
+  background: linear-gradient(165deg, #ffffff 0%, #f0fdf4 100%);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+  animation: map-sms-in 0.55s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+  transform-origin: 50% 100%;
+}
+
+.map-sms-bubble.is-leaving {
+  animation: map-sms-out 0.4s ease forwards;
+}
+
+.map-sms-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.map-sms-badge {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.map-sms-from {
+  font-size: 11px;
+  font-weight: 700;
+  color: #166534;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-sms-body {
+  font-size: 12px;
+  font-weight: 560;
+  color: #14532d;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.map-sms-pin {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  background: #f0fdf4;
+  border-right: 1px solid rgba(34, 197, 94, 0.28);
+  border-bottom: 1px solid rgba(34, 197, 94, 0.28);
+  transform: rotate(45deg);
+}
+
+@keyframes map-sms-in {
+  0% {
+    opacity: 0;
+    transform: translateY(28px) scale(0.82);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes map-sms-out {
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.94);
+  }
+}
+
 @keyframes map-place-bubble-in {
   from {
     opacity: 0;
@@ -2295,6 +2392,75 @@ select {
   font-size: 11px;
   max-width: 95%;
   text-align: center;
+}
+
+/* Incoming SMS in the phone chat */
+.bubble.sms-in {
+  align-self: flex-start;
+  max-width: 88%;
+  padding: 0;
+  background: transparent;
+  border: none;
+  animation: sms-arrive 0.55s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+
+.bubble.sms-in .sms-shell {
+  padding: 8px 11px 10px;
+  border-radius: 16px 16px 16px 5px;
+  background: linear-gradient(165deg, #ffffff 0%, #ecfdf5 100%);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.1);
+}
+
+.bubble.sms-in .sms-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.bubble.sms-in .sms-badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.bubble.sms-in .sms-from {
+  font-size: 11px;
+  font-weight: 700;
+  color: #166534;
+}
+
+.bubble.sms-in .sms-text {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #14532d;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bubble.sms-in .bubble-time {
+  text-align: left;
+  margin-bottom: 4px;
+}
+
+@keyframes sms-arrive {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.9);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .bubble.welcome-guide {
