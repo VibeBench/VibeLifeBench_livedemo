@@ -581,7 +581,27 @@ export class TravelAgent {
         };
       }
       case "get_budget_snapshot": {
-        return { ok: true, budget: state.budget || null, location: state.location || null };
+        // Prefer live sticky budget; if somehow missing, rebuild cumulative max from revealed events.
+        let budget = state.budget || null;
+        if (!budget?.total_cny && this.engine?.revealed?.length) {
+          let spent = 0;
+          let total = null;
+          for (const ev of this.engine.revealed) {
+            const b = ev.user_state?.budget;
+            if (!b) continue;
+            if (b.total_cny != null) total = Number(b.total_cny);
+            if (Number(b.spent_cny) > spent) spent = Number(b.spent_cny);
+          }
+          if (total != null) {
+            budget = { total_cny: total, spent_cny: spent, remaining_cny: total - spent };
+          }
+        } else if (budget && budget.total_cny != null && budget.spent_cny != null) {
+          budget = {
+            ...budget,
+            remaining_cny: Number(budget.total_cny) - Number(budget.spent_cny),
+          };
+        }
+        return { ok: true, budget, location: state.location || null };
       }
       case "search_web": {
         const query = String(args.query || "").trim();

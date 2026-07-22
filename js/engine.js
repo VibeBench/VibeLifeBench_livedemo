@@ -201,7 +201,11 @@ export class DemoEngine {
         this.applyMutationTo(env, ev);
       }
       if (ev.user_state) {
-        state = this.applyUserState(ev.user_state, d, { track: false, seedWeather: lastWeather });
+        state = this.applyUserState(ev.user_state, d, {
+          track: false,
+          seedWeather: lastWeather,
+          prevState: state,
+        });
         if (ev.user_state.weather) {
           lastWeather = {
             weather: ev.user_state.weather,
@@ -224,11 +228,25 @@ export class DemoEngine {
   }
 
   /**
-   * Apply event user_state onto a state object, carrying sticky weather when absent.
-   * @param {{ track?: boolean, seedWeather?: object|null }} [opts]
+   * Apply event user_state onto a state object.
+   * - Sticky weather when the new event omits it
+   * - Sticky cumulative budget: spent_cny never drops; missing budget is carried forward
+   * @param {{ track?: boolean, seedWeather?: object|null, prevState?: object|null }} [opts]
    */
-  applyUserState(userState, date, { track = true, seedWeather = null } = {}) {
+  applyUserState(userState, date, { track = true, seedWeather = null, prevState = null } = {}) {
+    const prev = prevState || (track ? this.currentState : null);
     const base = { ...userState, __date: date };
+
+    // Budget is a running total across the trip — weather/location-only events must not wipe it,
+    // and a lower authored spent must not regress below what we already accumulated.
+    const mergedBudget = mergeCumulativeBudget(prev?.budget, userState?.budget);
+    if (mergedBudget) base.budget = mergedBudget;
+
+    // Keep flight plan sticky when later events omit it (same class of bug as budget wipe).
+    if (!userState?.next_flight && prev?.next_flight) {
+      base.next_flight = prev.next_flight;
+    }
+
     if (userState?.weather) {
       const w = {
         weather: userState.weather,
@@ -592,4 +610,42 @@ export class DemoEngine {
 
 function matchesWhere(row, where) {
   return Object.entries(where).every(([k, v]) => String(row[k]) === String(v));
+}
+
+/**
+ * Sticky cumulative budget across events.
+ * - If the new event omits budget, keep the previous one.
+ * - spent_cny is monotonic (max of prev/next) so partial snapshots can't regress totals.
+ * - remaining always follows total - spent when total is known.
+ */
+function mergeCumulativeBudget(prevBudget, nextBudget) {
+  if (!prevBudget && !nextBudget) return null;
+  if (!nextBudget) return { ...prevBudget };
+  if (!prevBudget) {
+    const total = nextBudget.total_cny != null ? Number(nextBudget.total_cny) : null;
+    const spent = Number(nextBudget.spent_cny) || 0;
+    return {
+      total_cny: total,
+      spent_cny: spent,
+      remaining_cny:
+        total != null
+          ? total - spent
+          : nextBudget.remaining_cny != null
+            ? Number(nextBudget.remaining_cny)
+            : null,
+    };
+  }
+
+  const total =
+    nextBudget.total_cny != null
+      ? Number(nextBudget.total_cny)
+      : prevBudget.total_cny != null
+        ? Number(prevBudget.total_cny)
+        : null;
+  const spent = Math.max(Number(prevBudget.spent_cny) || 0, Number(nextBudget.spent_cny) || 0);
+  return {
+    total_cny: total,
+    spent_cny: spent,
+    remaining_cny: total != null ? total - spent : null,
+  };
 }
