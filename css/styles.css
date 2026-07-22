@@ -3161,10 +3161,13 @@ select {
 }
 
 .turn-header-bar .turn-header-ico {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   flex: 0 0 auto;
-  color: #d97706;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  line-height: 1;
 }
 
 .turn-header-bar .turn-header-label {
@@ -3384,21 +3387,12 @@ select {
 }
 
 .rail-ico {
-  width: 16px;
-  height: 16px;
-  color: #64748b;
+  width: 18px;
+  height: 18px;
   display: grid;
   place-items: center;
-}
-
-.rail-ico svg {
-  width: 15px;
-  height: 15px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 1.75;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  font-size: 14px;
+  line-height: 1;
 }
 
 .rail-mono {
