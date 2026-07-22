@@ -118,8 +118,8 @@ export function abortMapPlayback() {
   } catch {
     /* ignore */
   }
-  // Remove floating status-fly cards left mid-animation.
-  for (const el of document.querySelectorAll(".status-fly")) {
+  // Remove floating status sync cards left mid-animation.
+  for (const el of document.querySelectorAll(".status-fly, .status-sync")) {
     try {
       el.remove();
     } catch {

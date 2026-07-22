@@ -19,7 +19,7 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260722-80";
+} from "./map.js?v=20260722-81";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -218,7 +218,7 @@ export class UI {
         /* ignore */
       }
     }
-    for (const el of document.querySelectorAll(".status-fly")) {
+    for (const el of document.querySelectorAll(".status-fly, .status-sync")) {
       try {
         el.remove();
       } catch {
