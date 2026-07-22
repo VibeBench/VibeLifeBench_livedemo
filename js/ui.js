@@ -1,7 +1,7 @@
 /**
  * Dashboard + phone chat rendering
  */
-import { renderLeafletMap, destroyMap, pulseMapEvent } from "./map.js?v=20260722-18";
+import { renderLeafletMap, destroyMap } from "./map.js?v=20260722-19";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -217,16 +217,12 @@ export class UI {
         kind: a.kind || "ledger",
       });
       this.appendActivityFeed({
+        id: `ledger:${a.key}`,
         kind: "agent_state",
         icon: a.icon,
         who: a.app || "账本",
         body: a.title || a.text,
         detail: a.body && a.body !== a.title ? truncate(a.body, 100) : "",
-        pulse: {
-          icon: a.icon,
-          title: truncate(a.title || a.text, 42),
-          detail: truncate(a.body || "", 80),
-        },
         time: a.time || null,
       });
     }
@@ -404,22 +400,14 @@ export class UI {
 
   /**
    * Silent env writes (mutations): not Agent tools.
-   * Timeline still comes from renderEventStream; here we add map toast + chat state card.
-   * Phone banner stays off (Agent must discover via tools).
+   * Timeline still comes from renderEventStream; chat gets a state card.
+   * No map toast / phone banner (Agent must discover via tools).
    */
   notifyMutation(event) {
     if (!event) return "";
     const summary = mutationSummary(event);
     const title = firstLine(summary) || "环境静默写入";
     const detail = summary.replace(/（静默生效[^）]*）$/, "").trim() || title;
-
-    this.pulseMapFeedback({
-      id: `mut:${event.id}`,
-      icon: "⚙️",
-      title: `静默写入 · ${truncate(title, 36)}`,
-      detail: truncate(detail, 90),
-      kind: "mutation",
-    });
 
     this.appendStateCard({
       icon: "⚙️",
@@ -448,14 +436,6 @@ export class UI {
       time: event.time || null,
       kind: event.kind,
       from: toast.from || toast.app,
-    });
-    const km = KIND_META[event.kind] || {};
-    this.pulseMapFeedback({
-      id: `env:${event.id}`,
-      icon: toast.icon || km.icon || "📌",
-      title: truncate(title, 42),
-      detail: truncate(body && body !== title ? body : toast.text || "", 72),
-      kind: event.kind || "",
     });
   }
 
@@ -829,6 +809,7 @@ export class UI {
   /**
    * Mirror Agent tool / reply / booking side-effects into the left dashboard stream.
    * kind: 'agent_tool' | 'agent_reply' | 'agent_state'
+   * Same `id` upserts (used to merge repeated tool calls). No map toasts.
    */
   appendActivityFeed({
     kind = "agent_tool",
@@ -838,13 +819,28 @@ export class UI {
     time = null,
     detail = "",
     id = null,
-    pulse = null,
   } = {}) {
     const km = KIND_META[kind] || KIND_META.agent_tool;
     const text = [body, detail].filter(Boolean).join(" · ");
     if (!String(text || "").trim()) return;
-    this._activitySeq += 1;
-    const feedId = id || `act-${this._activitySeq}`;
+    if (!this._activityFeed) this._activityFeed = [];
+    const feedId = id || `act-${(this._activitySeq || 0) + 1}`;
+    const existingIdx = this._activityFeed.findIndex((a) => a.id === feedId);
+    if (existingIdx >= 0) {
+      const prev = this._activityFeed[existingIdx];
+      this._activityFeed[existingIdx] = {
+        ...prev,
+        kind,
+        icon: icon || prev.icon || km.icon,
+        who: who || prev.who || km.label,
+        body: truncate(text, 180),
+        time: time || prev.time || null,
+        cls: km.cls,
+      };
+      this._paintEventStream();
+      return;
+    }
+    this._activitySeq = (this._activitySeq || 0) + 1;
     this._activityFeed.push({
       id: feedId,
       seq: this._activitySeq,
@@ -859,44 +855,11 @@ export class UI {
       this._activityFeed = this._activityFeed.slice(-100);
     }
     this._paintEventStream();
-    const title = pulse?.title || body || km.label;
-    const sub = pulse?.detail || detail || "";
-    this.pulseMapFeedback({
-      id: feedId,
-      icon: pulse?.icon || icon || km.icon,
-      title,
-      detail: sub,
-      kind,
-    });
   }
 
-  /**
-   * Brief icon bubble near the traveler on the map; auto-fades.
-   */
-  pulseMapFeedback({
-    id = null,
-    icon = "📌",
-    label = "",
-    title = "",
-    detail = "",
-    kind = "",
-  } = {}) {
-    if (!this._mapPulseSeen) this._mapPulseSeen = new Set();
-    const key = id || `${kind}:${title || label}:${Date.now()}`;
-    if (id && this._mapPulseSeen.has(key)) return;
-    if (id) {
-      this._mapPulseSeen.add(key);
-      if (this._mapPulseSeen.size > 200) {
-        this._mapPulseSeen = new Set([...this._mapPulseSeen].slice(-100));
-      }
-    }
-    pulseMapEvent({
-      icon,
-      title: title || label,
-      detail,
-      kind,
-      durationMs: 5600,
-    });
+  /** Map overlay toasts disabled — keep timeline / phone / chat instead. */
+  pulseMapFeedback() {
+    /* no-op */
   }
 
   _paintEventStream() {
@@ -1133,7 +1096,7 @@ export class UI {
   }
 
   /**
-   * Append / update a tool-call row. Rows stay visible after the turn finishes (not collapsed).
+   * Append / update a tool-call row. Same tool name within a turn merges into one row.
    * status: 'pending' | 'done'
    */
   appendToolCall(wrap, { name, args = {}, result = null, status = "done" } = {}) {
@@ -1143,61 +1106,77 @@ export class UI {
     log.hidden = false;
     if (!wrap._toolRows) wrap._toolRows = new Map();
 
-    const key = toolCallKey(name, args);
+    // Merge by tool name within the turn (ignore arg variance).
+    const key = String(name);
     let row = wrap._toolRows.get(key);
-    if (!row && status === "done") {
-      // Upgrade a streaming pending row for the same tool name (args unknown at stream time)
-      for (const [k, el] of wrap._toolRows) {
-        if (el.dataset.toolName === name && el.classList.contains("pending")) {
-          row = el;
-          wrap._toolRows.delete(k);
-          wrap._toolRows.set(key, row);
-          break;
-        }
-      }
-    }
-    if (!row && status === "pending") {
-      for (const el of wrap._toolRows.values()) {
-        if (el.dataset.toolName === name && el.classList.contains("pending")) {
-          row = el;
-          break;
-        }
-      }
-    }
     if (!row) {
       row = document.createElement("div");
       row.className = "tool-row";
       row.dataset.toolName = name;
+      row._calls = [];
       log.appendChild(row);
       wrap._toolRows.set(key, row);
     }
 
+    if (status === "pending") {
+      if (row._calls.length) return row;
+      const meta = describeToolCall(name, args, null);
+      row.classList.add("pending");
+      row.classList.remove("done", "error");
+      row.innerHTML = `
+        <span class="tool-row-ico">${meta.icon}</span>
+        <div class="tool-row-main">
+          <div class="tool-row-title">${escapeHtml(meta.title)}</div>
+          <div class="tool-row-detail">调用中…</div>
+        </div>
+        <span class="tool-row-status">…</span>`;
+      this._scrollChatToBottom();
+      return row;
+    }
+
     const meta = describeToolCall(name, args, result);
-    row.classList.toggle("pending", status === "pending");
-    row.classList.toggle("done", status !== "pending");
-    row.classList.toggle("stateful", meta.stateful);
-    row.classList.toggle("error", meta.error);
+    row._calls.push({ args, result, meta });
+    const n = row._calls.length;
+    const baseLabel =
+      (TOOL_META[name] && TOOL_META[name].label) || humanizeToolName(name);
+    const title = n > 1 ? `${baseLabel} · ${n} 次` : meta.title;
+    const details = [];
+    const seen = new Set();
+    for (const c of row._calls) {
+      const bit = String(c.meta.detail || c.meta.title || "").trim();
+      if (!bit || seen.has(bit)) continue;
+      seen.add(bit);
+      details.push(bit);
+    }
+    const detail =
+      details.length > 3
+        ? `${details.slice(0, 3).join("； ")}；…共 ${details.length} 条`
+        : details.join("； ");
+    const anyError = row._calls.some((c) => c.meta.error);
+    const anyStateful = row._calls.some((c) => c.meta.stateful);
+
+    row.classList.remove("pending");
+    row.classList.add("done");
+    row.classList.toggle("stateful", anyStateful);
+    row.classList.toggle("error", anyError);
     row.innerHTML = `
       <span class="tool-row-ico">${meta.icon}</span>
       <div class="tool-row-main">
-        <div class="tool-row-title">${escapeHtml(meta.title)}</div>
-        ${meta.detail ? `<div class="tool-row-detail">${escapeHtml(meta.detail)}</div>` : ""}
+        <div class="tool-row-title">${escapeHtml(title)}</div>
+        ${detail ? `<div class="tool-row-detail">${escapeHtml(detail)}</div>` : ""}
       </div>
-      <span class="tool-row-status">${status === "pending" ? "…" : meta.error ? "失败" : "完成"}</span>`;
+      <span class="tool-row-status">${anyError ? "失败" : n > 1 ? `${n} 次` : "完成"}</span>`;
 
-    // Mirror completed tools into the left event stream (once per row key).
-    if (status === "done" && !row.dataset.streamed) {
-      row.dataset.streamed = "1";
-      this.appendActivityFeed({
-        kind: "agent_tool",
-        icon: meta.icon,
-        who: "Agent 工具",
-        body: meta.title,
-        detail: meta.detail,
-        pulse: meta.pulse,
-        time: wrap._simTime || null,
-      });
-    }
+    // One timeline row per tool name per turn; upsert as more calls arrive.
+    this.appendActivityFeed({
+      id: `tool:${wrap._simTime || "t"}:${name}`,
+      kind: "agent_tool",
+      icon: meta.icon,
+      who: "Agent 工具",
+      body: title,
+      detail,
+      time: wrap._simTime || null,
+    });
 
     this._scrollChatToBottom();
     return row;
@@ -1268,20 +1247,7 @@ export class UI {
 
     if (content != null && answer) {
       setMarkdown(answer, content);
-      if (content && !wrap._activityReplyPushed && (phase === "answering" || phase === "done")) {
-        wrap._activityReplyPushed = true;
-        const plain = String(content)
-          .replace(/[#>*`|_\[\]()]/g, " ")
-          .replace(/\s+/g, " ")
-          .trim();
-        this.appendActivityFeed({
-          kind: "agent_reply",
-          icon: "💬",
-          who: "Agent",
-          body: truncate(plain || "已回复", 120),
-          time: wrap._simTime || null,
-        });
-      }
+      // Do not push timeline on first streamed chars — wait for finishAgentTurn.
     }
     if (!thinking && thinkBlock && phase !== "thinking") {
       // no thinking payload — hide empty block
@@ -1326,15 +1292,11 @@ export class UI {
         .replace(/\s+/g, " ")
         .trim();
       this.appendActivityFeed({
+        id: `reply:${wrap._simTime || Date.now()}`,
         kind: "agent_reply",
         icon: "💬",
         who: "Agent",
         body: truncate(plain || "已回复", 140),
-        pulse: {
-          icon: "💬",
-          title: "Agent 回复",
-          detail: truncate(plain || "已生成行程建议", 90),
-        },
         time: wrap._simTime || null,
       });
     }
@@ -1402,14 +1364,6 @@ function streamItemHtml({ id, cls, time, icon, who, body }) {
             <div class="stream-body">${escapeHtml(body || "")}</div>
           </div>
         </div>`;
-}
-
-function toolCallKey(name, args) {
-  try {
-    return `${name}:${JSON.stringify(args || {})}`;
-  } catch {
-    return `${name}:`;
-  }
 }
 
 const TOOL_META = {
