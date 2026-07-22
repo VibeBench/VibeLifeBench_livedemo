@@ -1186,7 +1186,8 @@ function paintLeafletBase(ctx) {
         iconSize: [0, 0],
         iconAnchor: [-12, 8],
       }),
-      zIndexOffset: 450,
+      // Keep closure tags above the live "现在" marker so status caption never covers them.
+      zIndexOffset: 1600,
       interactive: true,
     })
       .addTo(leafletLayer)
@@ -1759,14 +1760,14 @@ async function paintLiveActivity(ctx, token) {
   if (token !== drawToken) return;
 
   if ((act.kind === "driving" || act.kind === "ferry" || act.kind === "cruise") && path.length >= 2) {
+    // Status text lives under the here-marker — no side tooltip on the path.
     window.L.polyline(path, {
       color: "#16a34a",
       weight: 8,
       opacity: 0.95,
       className: "route-live-line",
-    })
-      .addTo(activityLayer)
-      .bindTooltip(`${act.emoji} ${act.label}`);
+      interactive: false,
+    }).addTo(activityLayer);
 
     startTravelerAnim(path, act.emoji, act.label);
     return;
@@ -2188,7 +2189,8 @@ function emojiIcon(emoji, extraClass = "") {
 function hereMarkerIcon(emoji, label = "") {
   const raw = String(label || "").trim();
   const tip = escapeHtml(raw);
-  const short = escapeHtml(raw.length > 10 ? `${raw.slice(0, 9)}…` : raw);
+  // Keep caption short so it stays under the pin and does not fan out sideways.
+  const short = escapeHtml(raw.length > 8 ? `${raw.slice(0, 7)}…` : raw);
   return window.L.divIcon({
     className: "map-here-wrap",
     html: `
@@ -2203,8 +2205,9 @@ function hereMarkerIcon(emoji, label = "") {
         </div>
         ${short ? `<div class="map-here-caption">${short}</div>` : ""}
       </div>`,
-    iconSize: [120, 86],
-    iconAnchor: [60, 36],
+    // Narrow footprint: orb centered, caption tucked directly underneath.
+    iconSize: [88, 92],
+    iconAnchor: [44, 36],
   });
 }
 
