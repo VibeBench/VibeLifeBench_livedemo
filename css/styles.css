@@ -2224,6 +2224,82 @@ select {
   word-break: break-word;
 }
 
+/* SMS / email: emoji ping on the traveler marker (shake, no text bubble) */
+.map-sms-ping-wrap {
+  background: transparent !important;
+  border: none !important;
+}
+
+.map-sms-ping {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.28));
+  animation: map-sms-ping-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.map-sms-ping.is-leaving {
+  animation: map-sms-ping-out 0.35s ease forwards;
+}
+
+.map-sms-ping-ico {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #fbbf24;
+  font-size: 20px;
+  line-height: 1;
+  animation: map-sms-shake 0.42s ease-in-out 4;
+}
+
+@keyframes map-sms-ping-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes map-sms-ping-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.85);
+  }
+}
+
+@keyframes map-sms-shake {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  12% {
+    transform: translateX(-4px) rotate(-10deg);
+  }
+  24% {
+    transform: translateX(4px) rotate(10deg);
+  }
+  36% {
+    transform: translateX(-3px) rotate(-8deg);
+  }
+  48% {
+    transform: translateX(3px) rotate(8deg);
+  }
+  60% {
+    transform: translateX(-2px) rotate(-4deg);
+  }
+  72% {
+    transform: translateX(2px) rotate(4deg);
+  }
+}
+
 /* Place-anchored message bubble — tip sits on latlng (0×0 Leaflet icon) */
 .map-place-bubble-wrap,
 .map-sms-wrap {

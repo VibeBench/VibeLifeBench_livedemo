@@ -196,6 +196,16 @@ export function pulseMapEvent({
     });
   }
 
+  // SMS / email / world notices: pan to the traveler and shake an emoji on their pin.
+  if (/^(world|app_notification|sms|email|mail)$/i.test(kindCls)) {
+    const isMail =
+      /^(email|mail)$/i.test(kindCls) || String(icon || "").includes("✉️");
+    return pulseSmsOnUser({
+      icon: icon || (isMail ? "✉️" : "💬"),
+      durationMs: Math.min(2800, totalMs),
+    });
+  }
+
   if (at) {
     const p = pulsePlaceBubble({
       icon,
@@ -372,6 +382,75 @@ function pulseWeatherEmoji({ icon = "🌦️", durationMs = 3200, holdMs = 2000,
       resolve(true);
     }, total);
     pulseTimers.push(t1, t2);
+  });
+}
+
+/** Traveler / home pin latlng for SMS ping + camera focus. */
+function resolveUserLatLng() {
+  if (!window.L || !lastCtx) return null;
+  if (lastCtx.isHome && lastCtx.home?.lat != null) {
+    return window.L.latLng(lastCtx.home.lat, lastCtx.home.lng);
+  }
+  const here = placeLatLng(lastCtx);
+  if (here) return window.L.latLng(here[0], here[1]);
+  if (lastCtx.home?.lat != null) {
+    return window.L.latLng(lastCtx.home.lat, lastCtx.home.lng);
+  }
+  return null;
+}
+
+/**
+ * Short message cue: pan to the user marker and shake a notification emoji on it.
+ * (No map SMS bubble — phone chat already shows the text.)
+ */
+function pulseSmsOnUser({ icon = "💬", durationMs = 2600 } = {}) {
+  return new Promise((resolve) => {
+    if (!leafletMap || !window.L) {
+      resolve(false);
+      return;
+    }
+    const latlng = resolveUserLatLng();
+    if (!latlng) {
+      pulseTinyPin({ icon, durationMs: Math.min(2400, durationMs) });
+      resolve(true);
+      return;
+    }
+
+    setViewInSafeArea(latlng, lastCtx?.isHome ? 10 : 11);
+
+    if (!pulseLayer) pulseLayer = window.L.layerGroup().addTo(leafletMap);
+    const emoji = String(icon || "💬").trim() || "💬";
+    const marker = window.L.marker(latlng, {
+      icon: window.L.divIcon({
+        className: "map-sms-ping-wrap",
+        html: `<div class="map-sms-ping" aria-hidden="true"><span class="map-sms-ping-ico">${emoji}</span></div>`,
+        iconSize: [44, 44],
+        // Sit just above the「现在」orb / home emoji center.
+        iconAnchor: [22, 58],
+      }),
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: 2200,
+    }).addTo(pulseLayer);
+
+    const total = Math.max(1800, Number(durationMs) || 2600);
+    const t1 = setTimeout(() => {
+      try {
+        marker.getElement()?.querySelector(".map-sms-ping")?.classList.add("is-leaving");
+      } catch {
+        /* ignore */
+      }
+    }, Math.max(1000, total - 380));
+    const t2 = setTimeout(() => {
+      try {
+        pulseLayer?.removeLayer(marker);
+      } catch {
+        /* ignore */
+      }
+      resolve(true);
+    }, total);
+    pulseTimers.push(t1, t2);
+    if (pulseTimers.length > 64) pulseTimers = pulseTimers.slice(-32);
   });
 }
 

@@ -19,7 +19,7 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260722-76";
+} from "./map.js?v=20260722-77";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -607,7 +607,7 @@ export class UI {
       chat: !(event.kind === "world" || event.kind === "app_notification"),
     });
 
-    // World / APP notices arrive as SMS/邮件 bubbles in the phone chat (yellow).
+    // World / APP notices → chat SMS bubble + map: pan to user + shake emoji on pin.
     if (event.kind === "world" || event.kind === "app_notification") {
       const isMail =
         toast.app === "邮件" ||
@@ -619,26 +619,31 @@ export class UI {
         time: event.time || null,
         channel: isMail ? "email" : "sms",
       });
+      this.pulseMapFeedback({
+        id: `env:${event.id}`,
+        icon: toast.icon || (isMail ? "✉️" : "💬"),
+        title: truncate(title, 36),
+        detail: truncate(body && body !== title ? body : toast.text || "", 72),
+        kind: isMail ? "email" : "sms",
+        holdMs: 1600,
+      });
+      return;
     }
 
-    // Location-related env messages: show near the place on the map.
+    // Other location-related env messages: place bubble on the map.
     const blob = `${title} ${body} ${event.user_state?.location || ""}`;
     const placeIds = extractPlaceIdsFromText(blob);
     const roadIds = extractRoadIdsFromText(blob);
     const geoKey = event.user_state?.geo_key || null;
-    if (placeIds.length || roadIds.length || geoKey || event.kind === "world" || event.kind === "app_notification") {
-      const isMailPulse =
-        toast.app === "邮件" ||
-        /email/i.test(String(event.channel || event.source || "")) ||
-        /邮件|收件箱|@/.test(`${toast.from || ""} ${body || ""}`);
+    if (placeIds.length || roadIds.length || geoKey) {
       this.pulseMapFeedback({
         id: `env:${event.id}`,
-        icon: toast.icon || (isMailPulse ? "✉️" : "💬"),
+        icon: toast.icon || "📌",
         title: truncate(title, 36),
         detail: truncate(body && body !== title ? body : toast.text || "", 72),
-        kind: isMailPulse ? "email" : event.kind || "sms",
+        kind: event.kind || "env",
         placeId: placeIds[0] || null,
-        geoKey: geoKey || (placeIds.length || roadIds.length ? null : "shanghai_home"),
+        geoKey,
         roadId: roadIds[0] || null,
       });
     }
