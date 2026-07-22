@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-15";
-import { DemoEngine } from "./engine.js?v=20260722-15";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-16";
+import { DemoEngine } from "./engine.js?v=20260722-16";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-15";
+} from "./agent.js?v=20260722-16";
 import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-15";
+import { UI } from "./ui.js?v=20260722-16";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -527,6 +527,7 @@ function bindChrome() {
     saveSettingsFromForm();
     const a = ensureAgent();
     syncConsoleOnboard();
+    applySettingsToForm();
     if (!a) {
       ui.toast("请填写 API Key 后再保存");
       document.querySelector("#apiKey")?.focus();
@@ -536,6 +537,9 @@ function bindChrome() {
     showEntryGuide();
     pulseAutoplayButton();
     ui.toast("已连接 · 点「开始自动演示」或顶部自动播放");
+  });
+  document.querySelector("#btnClearKey")?.addEventListener("click", () => {
+    clearSavedApiKey({ toast: true });
   });
   document.querySelector("#btnExport").addEventListener("click", () => {
     if (!trajectory) return;
@@ -627,11 +631,45 @@ function openConsole(show) {
 }
 
 function loadSettings() {
+  let raw = {};
   try {
-    return JSON.parse(localStorage.getItem("vibelifebench_demo_settings") || "{}");
+    raw = JSON.parse(localStorage.getItem("vibelifebench_demo_settings") || "{}");
   } catch {
-    return {};
+    raw = {};
   }
+  // One-time wipe: drop previously saved keys so they no longer sit in localStorage / UI.
+  const wipeFlag = "vibelifebench_key_wipe_20260722";
+  if (!localStorage.getItem(wipeFlag)) {
+    if (raw.apiKey) {
+      delete raw.apiKey;
+      try {
+        localStorage.setItem("vibelifebench_demo_settings", JSON.stringify(raw));
+      } catch {
+        /* ignore */
+      }
+    }
+    localStorage.setItem(wipeFlag, "1");
+  }
+  return raw;
+}
+
+function clearSavedApiKey({ toast = false } = {}) {
+  settings.apiKey = "";
+  try {
+    const next = { ...settings };
+    delete next.apiKey;
+    localStorage.setItem("vibelifebench_demo_settings", JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+  const input = document.querySelector("#apiKey");
+  if (input) input.value = "";
+  agent = null;
+  applySettingsToForm();
+  ensureAgent();
+  syncConsoleOnboard();
+  showEntryGuide();
+  if (toast) ui.toast("已清除本机 API Key");
 }
 
 function fillProviderSelect() {
@@ -695,7 +733,24 @@ function applySettingsToForm() {
   const provider = settings.provider || DEFAULT_PROVIDER;
   const sel = document.querySelector("#apiProvider");
   if (sel) sel.value = PROVIDERS[provider] ? provider : "custom";
-  document.querySelector("#apiKey").value = settings.apiKey || "";
+  // Never paint the saved secret into the DOM.
+  const keyInput = document.querySelector("#apiKey");
+  if (keyInput) {
+    keyInput.value = "";
+    keyInput.placeholder = hasApiKeyConfigured()
+      ? "已保存（留空沿用）· 输入新 Key 可更换"
+      : "粘贴 API Key（保存后不会回显）";
+  }
+  const keyHint = document.querySelector("#apiKeyHint");
+  if (keyHint) {
+    if (hasApiKeyConfigured()) {
+      keyHint.hidden = false;
+      keyHint.textContent = "本机已保存 Key，输入框故意留空以免泄露；点「清除 Key」可删除。";
+    } else {
+      keyHint.hidden = true;
+      keyHint.textContent = "";
+    }
+  }
   document.querySelector("#apiBase").value =
     settings.baseUrl || PROVIDERS[provider]?.base || DEFAULT_BASE;
   document.querySelector("#apiModel").value = settings.model || DEFAULT_MODEL;
@@ -720,7 +775,9 @@ function applySettingsToForm() {
 function saveSettingsFromForm() {
   const provider = document.querySelector("#apiProvider")?.value || DEFAULT_PROVIDER;
   settings.provider = provider;
-  settings.apiKey = document.querySelector("#apiKey").value.trim();
+  const typedKey = document.querySelector("#apiKey")?.value.trim() || "";
+  // Empty input keeps the previously saved key (field is intentionally blank).
+  if (typedKey) settings.apiKey = typedKey;
   settings.baseUrl = document.querySelector("#apiBase").value.trim() || PROVIDERS[provider]?.base || DEFAULT_BASE;
   settings.model = document.querySelector("#apiModel").value.trim() || DEFAULT_MODEL;
   settings.thinking = Boolean(document.querySelector("#apiThinking")?.checked);

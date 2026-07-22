@@ -2573,6 +2573,12 @@ select {
   color: var(--ink);
 }
 
+.phone-settings .field-hint {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.35;
+}
+
 .phone-settings .field input,
 .phone-settings .field select {
   border: 1px solid var(--line);
