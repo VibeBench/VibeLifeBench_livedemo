@@ -52,28 +52,17 @@ let dismissedAlertKey = null;
 let mapResizeObs = null;
 let mapResizeTimer = null;
 let pulseTimers = [];
-let activePulseSlots = [];
 
 function clearPulseTimers() {
   for (const t of pulseTimers) clearTimeout(t);
   pulseTimers = [];
-  activePulseSlots = [];
-}
-
-function allocPulseSlot() {
-  const used = new Set(activePulseSlots.map((s) => s.slot));
-  let slot = 0;
-  while (used.has(slot) && slot < 12) slot += 1;
-  return slot;
-}
-
-function releasePulseSlot(slot) {
-  activePulseSlots = activePulseSlots.filter((s) => s.slot !== slot);
+  const rail = document.querySelector("#mapToastRail");
+  if (rail) rail.replaceChildren();
 }
 
 /**
- * Transient map feedback for timeline / agent events.
- * Stacks in screen space (no overlap), auto-fades.
+ * Transient feedback: text cards in the fixed mid rail + a tiny ping on the map.
+ * Avoids covering the top status strip / bottom docks.
  */
 export function pulseMapEvent({
   icon = "📌",
@@ -83,27 +72,6 @@ export function pulseMapEvent({
   kind = "",
   durationMs = 5600,
 } = {}) {
-  if (!leafletMap || !window.L) return false;
-  if (!pulseLayer) {
-    pulseLayer = window.L.layerGroup().addTo(leafletMap);
-  }
-
-  const here = lastCtx ? placeLatLng(lastCtx) : null;
-  const center = leafletMap.getCenter();
-  const baseLatLng = window.L.latLng(here?.[0] ?? center.lat, here?.[1] ?? center.lng);
-
-  const slot = allocPulseSlot();
-  const entry = { slot, until: Date.now() + durationMs };
-  activePulseSlots.push(entry);
-
-  // Pixel stack: upward column + slight L/R alternate so cards never sit on each other.
-  const pt = leafletMap.latLngToContainerPoint(baseLatLng);
-  const col = slot % 2 === 0 ? -1 : 1;
-  const row = Math.floor(slot / 2);
-  const offsetX = col * (18 + row * 12);
-  const offsetY = -(56 + slot * 78);
-  const placed = leafletMap.containerPointToLatLng(window.L.point(pt.x + offsetX, pt.y + offsetY));
-
   const head = String(title || label || "")
     .replace(/\s+/g, " ")
     .trim()
@@ -116,43 +84,71 @@ export function pulseMapEvent({
     .replace(/[^a-z0-9_-]/gi, "")
     .slice(0, 24);
 
-  const marker = window.L.marker(placed, {
+  pushToastRail({ icon, head, sub, kindCls, durationMs });
+  pulseTinyPin({ icon, durationMs: Math.min(2800, durationMs) });
+  return true;
+}
+
+function pushToastRail({ icon, head, sub, kindCls, durationMs }) {
+  const rail = document.querySelector("#mapToastRail");
+  if (!rail) return;
+
+  while (rail.children.length >= 3) {
+    rail.firstElementChild?.remove();
+  }
+
+  const card = document.createElement("div");
+  card.className = `map-pulse-card${sub ? " has-detail" : ""}${kindCls ? ` pulse-${kindCls}` : ""}`;
+  card.innerHTML = `
+    <span class="map-pulse-ring" aria-hidden="true"></span>
+    <span class="map-pulse-ico">${icon}</span>
+    <span class="map-pulse-text">
+      ${head ? `<span class="map-pulse-title">${escapeHtml(head)}</span>` : ""}
+      ${sub ? `<span class="map-pulse-detail">${escapeHtml(sub)}</span>` : ""}
+    </span>`;
+  rail.appendChild(card);
+
+  const fadeAt = Math.max(1600, durationMs - 500);
+  const t1 = setTimeout(() => card.classList.add("is-leaving"), fadeAt);
+  const t2 = setTimeout(() => {
+    try {
+      card.remove();
+    } catch {
+      /* ignore */
+    }
+  }, durationMs);
+  pulseTimers.push(t1, t2);
+  if (pulseTimers.length > 48) pulseTimers = pulseTimers.slice(-24);
+}
+
+function pulseTinyPin({ icon = "📌", durationMs = 2400 } = {}) {
+  if (!leafletMap || !window.L) return;
+  if (!pulseLayer) pulseLayer = window.L.layerGroup().addTo(leafletMap);
+
+  const here = lastCtx ? placeLatLng(lastCtx) : null;
+  const center = leafletMap.getCenter();
+  const latlng = window.L.latLng(here?.[0] ?? center.lat, here?.[1] ?? center.lng);
+
+  const marker = window.L.marker(latlng, {
     icon: window.L.divIcon({
-      className: `map-event-pulse ${kindCls ? `pulse-${kindCls}` : ""}`,
-      html: `<div class="map-pulse-card${sub ? " has-detail" : ""}">
-        <span class="map-pulse-ring" aria-hidden="true"></span>
-        <span class="map-pulse-ico">${icon}</span>
-        <span class="map-pulse-text">
-          ${head ? `<span class="map-pulse-title">${escapeHtml(head)}</span>` : ""}
-          ${sub ? `<span class="map-pulse-detail">${escapeHtml(sub)}</span>` : ""}
-        </span>
-      </div>`,
-      iconSize: [280, sub ? 64 : 44],
-      iconAnchor: [140, sub ? 64 : 44],
+      className: "map-event-ping",
+      html: `<span class="map-ping-ring"></span><span class="map-ping-ico">${icon}</span>`,
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
     }),
     interactive: false,
     keyboard: false,
-    zIndexOffset: 950 + slot,
+    zIndexOffset: 900,
   }).addTo(pulseLayer);
 
-  const fadeAt = Math.max(1600, durationMs - 600);
-  const t1 = setTimeout(() => {
-    const el = marker.getElement();
-    if (el) el.classList.add("is-leaving");
-  }, fadeAt);
-  const t2 = setTimeout(() => {
+  const t = setTimeout(() => {
     try {
       pulseLayer?.removeLayer(marker);
     } catch {
       /* ignore */
     }
-    releasePulseSlot(slot);
   }, durationMs);
-  pulseTimers.push(t1, t2);
-  if (pulseTimers.length > 48) {
-    pulseTimers = pulseTimers.slice(-24);
-  }
-  return true;
+  pulseTimers.push(t);
 }
 
 export function ensureMapContainer(panelEl) {

@@ -1,7 +1,7 @@
 /**
  * Dashboard + phone chat rendering
  */
-import { renderLeafletMap, destroyMap, pulseMapEvent } from "./map.js?v=20260722-11";
+import { renderLeafletMap, destroyMap, pulseMapEvent } from "./map.js?v=20260722-12";
 import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
 
 const KIND_META = {
@@ -697,14 +697,10 @@ export class UI {
     this.els.statusGrid.innerHTML = cards
       .map(
         (c) => `
-      <article class="status-card">
-        <div class="status-icon">${c.icon}</div>
-        <div class="status-body">
-          <div class="status-label">${c.label}</div>
-          <div class="status-value">${escapeHtml(c.value)}</div>
-          <div class="status-sub">${escapeHtml(c.sub)}</div>
-        </div>
-      </article>`
+      <div class="status-chip" title="${escapeHtml(c.label)}${c.sub ? " · " + escapeHtml(c.sub) : ""}">
+        <span class="status-chip-ico">${c.icon}</span>
+        <span class="status-chip-val">${escapeHtml(c.value)}</span>
+      </div>`
       )
       .join("");
   }
