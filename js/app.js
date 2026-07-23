@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-93";
-import { DemoEngine } from "./engine.js?v=20260723-93";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-94";
+import { DemoEngine } from "./engine.js?v=20260723-94";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,10 +7,15 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260723-93";
-import { Trajectory } from "./trajectory.js?v=20260723-93";
-import { UI } from "./ui.js?v=20260723-93";
-import { isOceanFlightCrossing, isDomesticTransfer, playDriveHop } from "./map.js?v=20260723-93";
+} from "./agent.js?v=20260723-94";
+import { Trajectory } from "./trajectory.js?v=20260723-94";
+import { UI } from "./ui.js?v=20260723-94";
+import {
+  isOceanFlightCrossing,
+  isDomesticTransfer,
+  playDriveHop,
+  commitAgentItineraryPlan,
+} from "./map.js?v=20260723-94";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -128,9 +133,37 @@ function bootCase(data) {
 }
 
 function agentPlanContext() {
+  const ledger = engine?.ledgerView?.() || engine?.env?.ledger || {};
+  const fromLedger = ledger.hotels || engine?.env?.ledger?.hotels || [];
+  // Also surface live env.hotels in case ledger merge lagged a tick.
+  const fromEnv = Object.values(engine?.env?.hotels || {}).map((h) => ({
+    ...h,
+    name: h.name || h.hotel_name,
+    place_id: h.place_id || null,
+  }));
+  const hotels = [...fromLedger];
+  const seen = new Set(hotels.map((h) => `${h.hotel_id || h.id}_${h.check_in || ""}`));
+  for (const h of fromEnv) {
+    const key = `${h.hotel_id || h.id}_${h.check_in || ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    hotels.push(h);
+  }
+  const calendar = [
+    ...(ledger.calendar || []),
+    ...(engine?.env?.agent_calendar || []),
+  ];
+  const seenCal = new Set();
+  const calendarDedup = [];
+  for (const c of calendar) {
+    if (!c?.id || seenCal.has(c.id)) continue;
+    seenCal.add(c.id);
+    calendarDedup.push(c);
+  }
   return {
     tripDays: engine?.meta?.trip_days || [],
-    calendar: engine?.env?.ledger?.calendar || engine?.ledgerView?.()?.calendar || [],
+    calendar: calendarDedup,
+    hotels,
   };
 }
 
@@ -363,6 +396,22 @@ function ensureAgent() {
       }
       // Wait for this tool's map cinematic (+ status check) before the next tool runs.
       await Promise.resolve(ui.focusMapFromTool(name, args || {}, result));
+      // Calendar / hotel writes: refresh stay markers immediately so edits show live.
+      if (/calendar|schedule|book_hotel|cancel_hotel/i.test(name || "")) {
+        const ctx = agentPlanContext();
+        if (ui._streamBubble) {
+          ui._streamBubble._planContext = ctx;
+          ui._streamBubble._planToolCalls = ui._streamBubble._planToolCalls || [];
+          ui._streamBubble._planToolCalls.push({ name, args: args || {}, result });
+        }
+        commitAgentItineraryPlan({
+          ...ctx,
+          toolCalls: ui._streamBubble?._planToolCalls || [{ name, args: args || {}, result }],
+          content: ui._streamBubble?.querySelector?.(".answer-text")?.innerText || "",
+          thinking: "",
+          fit: "auto",
+        }).catch(() => {});
+      }
       // write_journal / calendar：工具调用卡已展示，不再重复刷聊天状态卡
       // Booking tools leave a durable state card in chat history
       if (!isJournalOrCal && isWriteTool) {
@@ -532,7 +581,7 @@ async function stepOnce() {
           time: t,
         });
       } else {
-        ui._streamBubble = ui.beginAgentTurn({ time: t });
+        ui._streamBubble = ui.beginAgentTurn({ time: t, planContext: agentPlanContext() });
         try {
           const turn = await a.handleEnvEvent(agentText);
           if (epoch !== playbackEpoch) return;
@@ -589,7 +638,7 @@ async function sendUserChat(text) {
   ui.appendChat({ role: "user", text, from: "wang_li", time: simTime });
   trajectory.pushUserChat({ text, from: "live_user" });
   document.querySelector("#chatInput").value = "";
-  ui._streamBubble = ui.beginAgentTurn({ time: simTime });
+  ui._streamBubble = ui.beginAgentTurn({ time: simTime, planContext: agentPlanContext() });
   try {
     const turn = await a.handleUserChat(text);
     if (epoch !== playbackEpoch) return;

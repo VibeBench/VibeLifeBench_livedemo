@@ -16,7 +16,7 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-93";
+} from "./routing.js?v=20260723-94";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -1094,9 +1094,11 @@ function looksLikePlanCommit(text, toolCalls = []) {
 }
 
 /**
- * Build a live itinerary plan from the agent's own outputs (calendar writes + reply text).
+ * Build a live itinerary plan from the agent's own outputs (calendar writes + reply text + hotels).
  * Day numbers are supervised against case trip_days / calendar dates — never raw list index
  * (which wrongly painted 库克山 as D1 when it is trip Day 4).
+ *
+ * Sources are merged so each plan revision replaces the map overlay.
  */
 function buildPlanFromAgentOutputs({
   content = "",
@@ -1104,12 +1106,33 @@ function buildPlanFromAgentOutputs({
   toolCalls = [],
   calendar = [],
   tripDays = [],
+  hotels = [],
 } = {}) {
   const blob = `${content || ""}\n${thinking || ""}`;
   const days = Array.isArray(tripDays) ? tripDays : [];
+  const byPlace = new Map(); // placeId -> stay (later sources can refine)
 
-  // 1) Calendar events written this turn (tool args) — strongest signal for adjustments
-  const fromTools = [];
+  const upsert = (row, { prefer = false } = {}) => {
+    if (!row?.placeId || row.placeId === "shanghai_home") return;
+    const prev = byPlace.get(row.placeId);
+    if (!prev) {
+      byPlace.set(row.placeId, { ...row });
+      return;
+    }
+    // Prefer dated / day-labeled rows; allow prefer flag for this-turn tool writes.
+    const score = (s) => (s.date ? 4 : 0) + (s.day != null ? 2 : 0) + (s.label ? 1 : 0);
+    if (prefer || score(row) >= score(prev)) {
+      byPlace.set(row.placeId, {
+        ...prev,
+        ...row,
+        day: row.day != null ? row.day : prev.day,
+        date: row.date || prev.date,
+        label: row.label || prev.label,
+      });
+    }
+  };
+
+  // 1) Calendar events written this turn (tool args) — strongest for live edits
   for (const tc of toolCalls || []) {
     if (!/calendar|schedule/i.test(String(tc?.name || ""))) continue;
     const args = tc.args || {};
@@ -1119,61 +1142,105 @@ function buildPlanFromAgentOutputs({
     const date = String(args.date || ev.date || "").slice(0, 10) || null;
     const ids = extractPlaceIdsFromText(`${title} ${note}`);
     if (!ids[0]) continue;
-    fromTools.push({
-      day: null,
-      date,
-      placeId: ids[0],
-      label: title || placeLabel(ids[0]),
-    });
-  }
-  if (fromTools.length >= 2) {
-    return staysToPlan(superviseStays(fromTools, days, blob), "行程规划 · 日程");
+    upsert(
+      {
+        day: null,
+        date,
+        placeId: ids[0],
+        label: title || placeLabel(ids[0]),
+      },
+      { prefer: true }
+    );
   }
 
-  // 2) Accumulated agent calendar in ledger (sorted by date)
+  // 2) Hotel bookings (tool this turn + ledger)
+  for (const tc of toolCalls || []) {
+    if (!/book_hotel|hotel/i.test(String(tc?.name || ""))) continue;
+    if (/cancel/i.test(String(tc?.name || ""))) continue;
+    const args = tc.args || {};
+    const hotel = tc.result?.hotel || {};
+    const name = String(args.hotel_name || args.name || hotel.name || hotel.hotel_name || "").trim();
+    const date = String(args.check_in || hotel.check_in || "").slice(0, 10) || null;
+    const ids = extractPlaceIdsFromText(
+      `${name} ${args.hotel_id || ""} ${hotel.hotel_id || ""} ${hotel.place_id || ""}`
+    );
+    const placeId = hotel.place_id || args.place_id || ids[0];
+    if (!placeId) continue;
+    upsert(
+      {
+        day: null,
+        date,
+        placeId,
+        label: name || placeLabel(placeId),
+        kind: "hotel",
+      },
+      { prefer: true }
+    );
+  }
+  for (const h of hotels || []) {
+    if (!h || h.status === "cancelled") continue;
+    const placeId = h.place_id || extractPlaceIdsFromText(`${h.name || ""} ${h.hotel_id || ""}`)[0];
+    if (!placeId) continue;
+    upsert({
+      day: null,
+      date: h.check_in ? String(h.check_in).slice(0, 10) : null,
+      placeId,
+      label: h.name || placeLabel(placeId),
+      kind: "hotel",
+    });
+  }
+
+  // 3) Accumulated agent calendar in ledger
   const calAgent = (calendar || [])
     .filter((c) => c?.source === "agent" || c?.kind === "plan")
     .slice()
     .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
-  const fromCal = [];
   for (const c of calAgent) {
     const ids = extractPlaceIdsFromText(`${c.title || ""} ${c.note || ""} ${c.summary || ""}`);
     if (!ids[0]) continue;
-    if (fromCal.length && fromCal[fromCal.length - 1].placeId === ids[0]) continue;
-    fromCal.push({
+    upsert({
       day: null,
       date: c.date ? String(c.date).slice(0, 10) : null,
       placeId: ids[0],
       label: c.title || c.summary || placeLabel(ids[0]),
     });
   }
-  if (fromCal.length >= 2) {
-    return staysToPlan(superviseStays(fromCal, days, blob), "行程规划 · 日程");
-  }
 
-  // 3) Day-structured lines in the reply (Day 4 库克山 / 第5天·皇后镇)
-  const fromDays = parseDayPlaceStays(blob);
-  if (fromDays.length >= 2) {
-    return staysToPlan(superviseStays(fromDays, days, blob), "行程规划");
-  }
+  // 4) Day-structured lines in the reply (Day 4 库克山 / 第5天·皇后镇)
+  for (const row of parseDayPlaceStays(blob)) upsert(row, { prefer: true });
 
-  // 4) Ordered place mentions — align to trip_days chronology, not mention order alone
-  const ids = extractPlaceIdsFromText(blob).filter((id) => id !== "shanghai_home");
-  if (ids.length >= 2) {
+  // 5) Ordered place mentions when we still have too few stays
+  if (byPlace.size < 2) {
+    const ids = extractPlaceIdsFromText(blob).filter((id) => id !== "shanghai_home");
     const uniq = [];
     for (const id of ids) {
       if (uniq[uniq.length - 1] !== id) uniq.push(id);
     }
-    const stays = uniq.map((id) => ({
-      day: null,
-      placeId: id,
-      label: placeLabel(id),
-      date: null,
-    }));
-    return staysToPlan(superviseStays(stays, days, blob), "行程规划");
+    for (const id of uniq) {
+      upsert({ day: null, placeId: id, label: placeLabel(id), date: null });
+    }
   }
 
-  return null;
+  // 6) Keep prior plan stays if this turn only patches one night (so edits accumulate).
+  // Full rewrites (Day-N list / 「重新规划」) replace the previous overlay.
+  const dayStays = parseDayPlaceStays(blob);
+  const fullRewrite =
+    dayStays.length >= 2 ||
+    /重新规划|整段行程|完整行程|行程如下|调整后的行程|改成如下/i.test(blob);
+  if (!fullRewrite && lastAgentPlan?.stays?.length && byPlace.size > 0) {
+    for (const s of lastAgentPlan.stays) {
+      if (!byPlace.has(s.placeId)) upsert(s);
+    }
+  }
+
+  const merged = [...byPlace.values()];
+  if (!merged.length) return null;
+
+  const label =
+    calAgent.length || merged.some((s) => s.kind === "hotel")
+      ? "行程规划 · 住宿"
+      : "行程规划";
+  return staysToPlan(superviseStays(merged, days, blob), label);
 }
 
 /**
@@ -1352,9 +1419,21 @@ function parseDayPlaceStays(text) {
   return dedup;
 }
 
+function shouldFitAgentPlanCamera() {
+  // Prep + booked flight: keep PVG→CHC framing; still paint stays underneath.
+  if (!lastCtx?.isHome) return true;
+  return !(
+    lockedFlightArcs.has("flt_outbound") ||
+    lastCtx?.flags?.flightBooked ||
+    lastCtx?.flags?.showPlannedArrival ||
+    lastCtx?.flags?.showOutboundFlightArc
+  );
+}
+
 /**
  * After the agent commits / adjusts an itinerary, paint corridor + stays from model output.
- * Always rebuilds from the latest reply / calendar writes (never the hardcoded case spine).
+ * Always rebuilds from the latest reply / calendar / hotel writes (never the hardcoded case spine).
+ * Call on every plan revision so markers track edits.
  */
 export async function commitAgentItineraryPlan({
   content = "",
@@ -1362,27 +1441,47 @@ export async function commitAgentItineraryPlan({
   toolCalls = [],
   tripDays = [],
   calendar = [],
+  hotels = [],
+  fit = "auto",
 } = {}) {
   const blob = `${content || ""}\n${thinking || ""}`;
   const calAgent = (calendar || []).filter((c) => c?.source === "agent" || c?.kind === "plan");
-  const calTools = (toolCalls || []).filter((t) => /calendar|schedule/i.test(String(t?.name || "")));
+  const calTools = (toolCalls || []).filter((t) =>
+    /calendar|schedule|book_hotel/i.test(String(t?.name || ""))
+  );
+  const hotelRows = (hotels || []).filter((h) => h && h.status !== "cancelled");
+  // Prefer agent-booked stays so case itinerary hotels don't force an overlay on unrelated turns.
+  const agentHotels = hotelRows.filter(
+    (h) => h.source === "agent" || h.note === "Agent 预订" || /agent/i.test(String(h.id || ""))
+  );
+  const hotelsForPlan =
+    agentHotels.length || calTools.length || calAgent.length || looksLikePlanCommit(blob, toolCalls)
+      ? agentHotels.length
+        ? agentHotels
+        : hotelRows
+      : [];
   const force =
     looksLikePlanCommit(blob, toolCalls) ||
-    calAgent.length >= 2 ||
+    calAgent.length >= 1 ||
     calTools.length >= 1 ||
-    extractPlaceIdsFromText(blob).length >= 3;
+    agentHotels.length >= 1 ||
+    Boolean(lastAgentPlan?.stays?.length) ||
+    extractPlaceIdsFromText(blob).length >= 2 ||
+    parseDayPlaceStays(blob).length >= 1;
   if (!force) return false;
 
-  // Always rebuild from the latest model/calendar output, then supervise day # vs case trip_days.
   const plan = buildPlanFromAgentOutputs({
     content,
     thinking,
     toolCalls,
     calendar,
     tripDays,
+    hotels: hotelsForPlan,
   });
-  if ((plan?.stays || []).length < 2) return false;
-  return showAgentPlan(plan, { fit: true });
+  // Show even a single overnight — edits often arrive one stay at a time.
+  if (!(plan?.stays || []).length) return false;
+  const doFit = fit === "auto" ? shouldFitAgentPlanCamera() : Boolean(fit);
+  return showAgentPlan(plan, { fit: doFit });
 }
 
 /** Paint / refresh the committed agent itinerary plan on the map. */
@@ -1504,7 +1603,7 @@ async function repaintAgentPlan({ fit = false } = {}) {
 
   const n = seen.size;
   setAgentPlanBadge(`行程规划 · ${n} 个住宿点`);
-  if (fit) fitAgentPlanBounds();
+  if (fit && shouldFitAgentPlanCamera()) fitAgentPlanBounds();
   return true;
 }
 

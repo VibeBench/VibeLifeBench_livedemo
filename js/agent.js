@@ -781,8 +781,6 @@ export class TravelAgent {
         const title = String(args.title || "行程节点").trim();
         const date = String(args.date || state.__date || this.engine.latestDate() || "").slice(0, 10);
         const note = String(args.note || "").trim();
-        env.ledger = env.ledger || {};
-        env.ledger.calendar = env.ledger.calendar || [];
         const item = {
           id: `cal_agent_${Date.now()}`,
           date,
@@ -792,6 +790,11 @@ export class TravelAgent {
           kind: "plan",
           source: "agent",
         };
+        // Durable across refreshLedger (prep plans often target future trip dates).
+        env.agent_calendar = env.agent_calendar || [];
+        env.agent_calendar.push(item);
+        env.ledger = env.ledger || {};
+        env.ledger.calendar = env.ledger.calendar || [];
         env.ledger.calendar.push(item);
         this.engine.refreshLedger?.();
         return { ok: true, written: true, event: item };
@@ -887,17 +890,25 @@ export class TravelAgent {
         const hotel_id = args.hotel_id || `htl_${String(args.hotel_name || "stay").slice(0, 12)}`;
         const check_in = args.check_in || state.__date || this.engine.latestDate();
         const key = `${hotel_id}_${check_in || ""}`;
+        const place_id =
+          args.place_id ||
+          resolvePlaceIdFromText(
+            `${args.hotel_name || ""} ${args.location || ""} ${args.geo_key || ""} ${hotel_id}`
+          );
         env.hotels[key] = {
           ...(env.hotels[key] || {}),
           hotel_id,
           hotel_name: args.hotel_name,
           name: args.hotel_name,
+          place_id: place_id || env.hotels[key]?.place_id || null,
           check_in,
           check_out: args.check_out || null,
           nightly_price: args.price_nzd ?? null,
           price_nzd: args.price_nzd ?? null,
           refundable: args.refundable !== false,
           status: "confirmed",
+          source: "agent",
+          note: args.note || "Agent 预订",
         };
         this.engine.refreshLedger?.();
         return {
@@ -1052,6 +1063,29 @@ export class TravelAgent {
         return { ok: false, error: `unknown tool ${name}` };
     }
   }
+}
+
+/** Map free-text hotel / location names to demo place_ids for map markers. */
+function resolvePlaceIdFromText(text) {
+  const s = String(text || "");
+  if (!s.trim()) return null;
+  const rules = [
+    [/库克山|Mt\.?\s*Cook|Aoraki/i, "pl_mt_cook"],
+    [/蒂卡波|Tekapo/i, "pl_tekapo"],
+    [/皇后镇|Queenstown/i, "pl_queenstown"],
+    [/瓦纳卡|Wanaka/i, "pl_wanaka"],
+    [/米尔福德|马纳普里|蒂阿瑙|Milford|Manapouri|Te\s*Anau/i, "pl_milford"],
+    [/皮克顿|Picton/i, "pl_picton"],
+    [/惠灵顿|Wellington/i, "pl_wellington"],
+    [/陶波|Taup[oō]/i, "pl_taupo"],
+    [/罗托鲁阿|Rotorua/i, "pl_rotorua"],
+    [/奥克兰|Auckland/i, "pl_akl_airport"],
+    [/基督城|Christchurch|\bCHC\b/i, "pl_chc_airport"],
+  ];
+  for (const [re, id] of rules) {
+    if (re.test(s)) return id;
+  }
+  return null;
 }
 
 function mockSearchResults(query, env, state) {

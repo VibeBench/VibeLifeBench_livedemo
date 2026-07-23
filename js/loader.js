@@ -222,6 +222,7 @@ function emptyEnv() {
     },
     flights: {},
     hotels: {},
+    agent_calendar: [],
     ledger: {
       flights: [],
       hotels: [],

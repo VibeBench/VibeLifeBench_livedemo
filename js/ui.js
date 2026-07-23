@@ -21,8 +21,8 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260723-93";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-93";
+} from "./map.js?v=20260723-94";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-94";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -1508,11 +1508,13 @@ export class UI {
   }
 
   /** Agent turn: thinking quote + 「正在使用工具」card + answer */
-  beginAgentTurn({ time = null } = {}) {
+  beginAgentTurn({ time = null, planContext = null } = {}) {
     clearPlanning({ immediate: true });
     clearTimeout(this._planThinkTimer);
     this._planThinkTimer = null;
     this._lastPlanThinkLen = 0;
+    clearTimeout(this._stayPlanTimer);
+    this._stayPlanTimer = null;
     const wrap = document.createElement("div");
     wrap.className = "bubble agent agent-turn streaming";
     const stamp = formatSimStamp(time);
@@ -1596,6 +1598,8 @@ export class UI {
     wrap._activityReplyPushed = false;
     wrap._simTime = time;
     wrap._railExpanded = false;
+    wrap._planContext = planContext || null;
+    wrap._planToolCalls = [];
     this.els.chatMessages.appendChild(wrap);
     this._scrollChatToBottom();
     return wrap;
@@ -1622,6 +1626,40 @@ export class UI {
       this._lastPlanThinkLen = text.length;
       syncPlanningFromText(text).catch(() => {});
     }, 380);
+  }
+
+  /**
+   * While the model is answering / after tools, refresh stay markers whenever
+   * the itinerary text or hotel/calendar state changes.
+   */
+  syncMapStaysFromAgent({
+    content = "",
+    thinking = "",
+    toolCalls = [],
+    planContext = null,
+    force = false,
+  } = {}) {
+    const text = String(content || "");
+    const hasStaySignal =
+      force ||
+      /Day\s*\d+|第\s*\d+\s*天|过夜|住宿|营地|Hotel|Motel|Holiday\s*Park|改订|换住|行程安排|调整行程/i.test(
+        text
+      ) ||
+      (toolCalls || []).some((t) => /calendar|schedule|book_hotel/i.test(String(t?.name || "")));
+    if (!hasStaySignal && text.length < 40) return;
+    clearTimeout(this._stayPlanTimer);
+    this._stayPlanTimer = setTimeout(() => {
+      const ctx = planContext || {};
+      commitAgentItineraryPlan({
+        content: text,
+        thinking: thinking || "",
+        toolCalls: toolCalls || [],
+        tripDays: ctx.tripDays || [],
+        calendar: ctx.calendar || [],
+        hotels: ctx.hotels || [],
+        fit: "auto",
+      }).catch(() => {});
+    }, force ? 80 : 480);
   }
 
   focusMapFromTool(name, args = {}, result = null) {
@@ -2307,6 +2345,14 @@ export class UI {
 
     if (content != null && answer) {
       setMarkdown(answer, content);
+      if (phase === "answering" || phase === "done") {
+        this.syncMapStaysFromAgent({
+          content,
+          thinking: thinking || wrap.querySelector("[data-think-full]")?.textContent || "",
+          toolCalls: wrap._planToolCalls || [],
+          planContext: wrap._planContext || null,
+        });
+      }
     }
     if (!thinking && thinkBlock && phase !== "thinking") {
       const hasText = Boolean(fullEl?.textContent || summaryEl?.textContent);
@@ -2355,6 +2401,7 @@ export class UI {
       phase: "done",
     });
 
+    if (planContext) wrap._planContext = planContext;
     const afterPlan = () => {
       this.endMapPlanning();
       if (planContext) {
@@ -2364,6 +2411,8 @@ export class UI {
           toolCalls: toolCalls || [],
           tripDays: planContext.tripDays || [],
           calendar: planContext.calendar || [],
+          hotels: planContext.hotels || [],
+          fit: "auto",
         }).catch(() => {});
       }
     };

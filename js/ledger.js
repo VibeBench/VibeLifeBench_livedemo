@@ -365,17 +365,62 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       place: day.place,
     });
   }
-  // Agent-written calendar rows (title → summary)
-  for (const c of env.ledger?.calendar || []) {
-    if (!c?.date) continue;
+  // Agent-written calendar rows (durable env.agent_calendar + any still on env.ledger)
+  // Do NOT gate by latestDate — prep-phase plans often target future trip nights.
+  const agentCal = [...(env.agent_calendar || []), ...(env.ledger?.calendar || [])];
+  const seenCal = new Set(ledger.calendar.map((x) => x.id));
+  for (const c of agentCal) {
+    if (!c?.date || !c?.id) continue;
     if (dateEnd && c.date > dateEnd) continue;
-    if (preOnly) continue;
-    if (!latestDate || c.date > latestDate) continue;
-    if (ledger.calendar.some((x) => x.id === c.id)) continue;
+    if (preOnly && first && c.date >= first) continue;
+    if (seenCal.has(c.id)) continue;
+    if (c.source !== "agent" && c.kind !== "plan") {
+      if (!latestDate || c.date > latestDate) continue;
+    }
+    seenCal.add(c.id);
     ledger.calendar.push({
       ...c,
       summary: c.summary || c.title || "日程",
       title: c.title || c.summary,
+    });
+  }
+
+  // Agent / live hotel bookings from env.hotels (book_hotel mock writes)
+  const seenHotel = new Set(ledger.hotels.map((h) => `${h.hotel_id || h.id}_${h.check_in || ""}`));
+  for (const h of Object.values(env.hotels || {})) {
+    if (!h) continue;
+    const check_in = h.check_in ? String(h.check_in).slice(0, 10) : "";
+    const key = `${h.hotel_id || h.id || h.name}_${check_in}`;
+    if (seenHotel.has(key)) {
+      // Prefer live env row for status/price updates
+      const idx = ledger.hotels.findIndex(
+        (x) => `${x.hotel_id || x.id}_${x.check_in || ""}` === key
+      );
+      if (idx >= 0) {
+        ledger.hotels[idx] = {
+          ...ledger.hotels[idx],
+          ...h,
+          id: ledger.hotels[idx].id || h.hotel_id || key,
+          name: h.name || h.hotel_name || ledger.hotels[idx].name,
+          place_id: h.place_id || ledger.hotels[idx].place_id || null,
+        };
+      }
+      continue;
+    }
+    seenHotel.add(key);
+    ledger.hotels.push({
+      id: h.hotel_id || key,
+      hotel_id: h.hotel_id || key,
+      name: h.name || h.hotel_name || "住宿",
+      place_id: h.place_id || null,
+      check_in: check_in || null,
+      check_out: h.check_out || null,
+      status: h.status || "confirmed",
+      refundable: h.refundable !== false,
+      price_nzd: h.price_nzd ?? h.nightly_price ?? null,
+      note: h.note || "Agent 预订",
+      source: h.source || "agent",
+      booked_at: check_in || latestDate,
     });
   }
   if (ledger.calendar.length) {
