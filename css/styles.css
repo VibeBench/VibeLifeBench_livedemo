@@ -4668,6 +4668,59 @@ select {
   color: #c2410c;
 }
 
+.ledger-row.flight {
+  border-left: 3px solid #38bdf8;
+}
+
+.ledger-row.hotel {
+  border-left: 3px solid #a78bfa;
+}
+
+.ledger-row.hotel.surged .lr-meta {
+  color: #c2410c;
+}
+
+.ledger-row.cal {
+  border-left: 3px solid #94a3b8;
+}
+
+.ledger-row.rental {
+  border-left: 3px solid #f59e0b;
+}
+
+.ledger-row.rental.active .lr-meta {
+  color: #b45309;
+}
+
+.ledger-row.rental.returned .lr-meta {
+  color: #64748b;
+}
+
+.ledger-row.rental.incident {
+  border-left-color: #f43f5e;
+  opacity: 0.95;
+}
+
+.ledger-row.visa {
+  border-left: 3px solid #22c55e;
+}
+
+.ledger-row.visa.approved .lr-meta {
+  color: #15803d;
+}
+
+.ledger-row.visa.processing .lr-meta {
+  color: #ca8a04;
+}
+
+.ledger-row.order {
+  border-left: 3px solid #0ea5e9;
+}
+
+.ledger-row.order.delivered .lr-meta {
+  color: #0369a1;
+}
+
 .notion-section {
   border: 1px solid var(--line);
   border-radius: 10px;

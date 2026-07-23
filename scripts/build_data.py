@@ -21,7 +21,7 @@ except ImportError as e:  # pragma: no cover
     raise SystemExit("PyYAML required: pip install pyyaml") from e
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CASE = ROOT.parent / "newzealand_drive_30d_fix"
+DEFAULT_CASE = ROOT.parent / "newzealand_drive_30d_v3"
 DEFAULT_OUT = ROOT / "data"
 
 # Trip calendar day labels for the day ribbon (override per case via meta).
@@ -75,10 +75,90 @@ def _strip_sql_line_comments(sql_text: str) -> str:
     return "\n".join(out)
 
 
-def _extract_insert_values_blob(sql_text: str, table: str) -> list[tuple[str, str]]:
-    """Find INSERT INTO table (cols) VALUES ... ; respecting quotes (notes may contain ';')."""
+# Column order for INSERT INTO t VALUES (...) forms (no column list).
+_SQL_TABLE_COLS: dict[str, list[str]] = {
+    "rental_locations": [
+        "location_id",
+        "name",
+        "city",
+        "address",
+        "lat",
+        "lng",
+        "hours_json",
+        "note",
+        "website",
+    ],
+    "vehicles": [
+        "vehicle_id",
+        "name",
+        "category",
+        "fuel",
+        "berths",
+        "luggage",
+        "length_mm",
+        "height_mm",
+        "fuel_l_per_100km",
+        "fuel_unit",
+        "code",
+        "notes",
+        "website",
+    ],
+    "insurance_plans": [
+        "plan_id",
+        "name",
+        "daily_price",
+        "currency",
+        "terms_json",
+        "notes",
+    ],
+    "rental_offers": [
+        "offer_id",
+        "vehicle_id",
+        "pickup_location_id",
+        "return_location_id",
+        "pickup_at",
+        "return_at",
+        "daily_price",
+        "currency",
+        "bond_nzd",
+        "one_way_fee_nzd",
+        "extras_nzd",
+        "fuel_json",
+        "return_checklist_json",
+        "seats",
+        "cancel_policy",
+        "website",
+        "notes",
+    ],
+    "bookings": [
+        "booking_ref",
+        "user_id",
+        "offer_id",
+        "insurance_plan_id",
+        "status",
+        "created_at",
+        "history_json",
+        "pickup_condition_json",
+        "return_condition_json",
+    ],
+    "incident_reports": [
+        "incident_id",
+        "booking_ref",
+        "user_id",
+        "at",
+        "location",
+        "description",
+        "photo_count",
+        "case_ref",
+        "status",
+    ],
+}
+
+
+def _extract_insert_values_blob(sql_text: str, table: str) -> list[tuple[str | None, str]]:
+    """Find INSERT INTO table [(cols)] VALUES ... ; respecting quotes (notes may contain ';')."""
     sql_text = _strip_sql_line_comments(sql_text)
-    out: list[tuple[str, str]] = []
+    out: list[tuple[str | None, str]] = []
     needle = f"INSERT INTO {table}"
     lower = sql_text.lower()
     start = 0
@@ -86,41 +166,49 @@ def _extract_insert_values_blob(sql_text: str, table: str) -> list[tuple[str, st
         idx = lower.find(needle.lower(), start)
         if idx < 0:
             break
-        rest = sql_text[idx + len(needle) :]
-        # columns
-        paren = rest.find("(")
-        if paren < 0:
-            break
-        depth = 0
-        i = paren
-        while i < len(rest):
-            ch = rest[i]
-            if ch == "'" :
-                i += 1
-                while i < len(rest):
-                    if rest[i] == "'" and i + 1 < len(rest) and rest[i + 1] == "'":
-                        i += 2
-                        continue
-                    if rest[i] == "'":
-                        i += 1
-                        break
-                    i += 1
-                continue
-            if ch == "(":
-                depth += 1
-            elif ch == ")":
-                depth -= 1
-                if depth == 0:
-                    cols = rest[paren + 1 : i]
-                    break
-            i += 1
+        rest = sql_text[idx + len(needle) :].lstrip()
+        cols: str | None = None
+        values_part = ""
+
+        # Form A: INSERT INTO t VALUES (...)
+        if rest.upper().startswith("VALUES"):
+            values_part = rest[6:].lstrip()
         else:
-            break
-        after_cols = rest[i + 1 :].lstrip()
-        if not after_cols.upper().startswith("VALUES"):
-            start = idx + 1
-            continue
-        values_part = after_cols[6:].lstrip()
+            # Form B: INSERT INTO t (cols) VALUES (...)
+            paren = rest.find("(")
+            if paren < 0:
+                break
+            depth = 0
+            i = paren
+            while i < len(rest):
+                ch = rest[i]
+                if ch == "'":
+                    i += 1
+                    while i < len(rest):
+                        if rest[i] == "'" and i + 1 < len(rest) and rest[i + 1] == "'":
+                            i += 2
+                            continue
+                        if rest[i] == "'":
+                            i += 1
+                            break
+                        i += 1
+                    continue
+                if ch == "(":
+                    depth += 1
+                elif ch == ")":
+                    depth -= 1
+                    if depth == 0:
+                        cols = rest[paren + 1 : i]
+                        break
+                i += 1
+            else:
+                break
+            after_cols = rest[i + 1 :].lstrip()
+            if not after_cols.upper().startswith("VALUES"):
+                start = idx + 1
+                continue
+            values_part = after_cols[6:].lstrip()
+
         # scan until ; outside quotes/parens
         in_str = False
         depth = 0
@@ -153,7 +241,12 @@ def _parse_sql_inserts(sql_text: str, table: str) -> list[dict]:
     """Very small INSERT parser for seed SQL used in this repo."""
     rows: list[dict] = []
     for cols_raw, values_blob in _extract_insert_values_blob(sql_text, table):
-        cols = [c.strip() for c in cols_raw.split(",")]
+        if cols_raw is None:
+            cols = _SQL_TABLE_COLS.get(table) or []
+        else:
+            cols = [c.strip() for c in cols_raw.split(",")]
+        if not cols:
+            continue
         # Split top-level tuples (geom JSON may contain nested brackets — keep shallow)
         tuples = re.findall(r"\(([^()]*(?:\([^()]*\)[^()]*)*)\)", values_blob)
         for t in tuples:
@@ -249,9 +342,17 @@ def _parse_json_field(value):
     return value
 
 
+def _first_init_sql(case_dir: Path, server: str) -> Path | None:
+    preferred = case_dir / "envs" / server / "newzealand_drive_30d" / "init.sql"
+    if preferred.exists():
+        return preferred
+    cands = list((case_dir / "envs" / server).glob("*/init.sql"))
+    return cands[0] if cands else None
+
+
 def load_env_mock(case_dir: Path) -> dict:
     env: dict = {
-        "weather": {"locations": [], "daily_weather": []},
+        "weather": {"locations": [], "daily_weather": [], "alerts": []},
         "maps": {
             "places": [],
             "roads": [],
@@ -261,22 +362,29 @@ def load_env_mock(case_dir: Path) -> dict:
             "transit_events": [],
         },
         "flights": {},
+        "hotels": {},
+        "emails": [],
+        # v3 backend mocks (browser-side stubs; mutated by engine sql_file handlers)
+        "rental": {
+            "locations": [],
+            "vehicles": [],
+            "insurance_plans": [],
+            "offers": [],
+            "bookings": [],
+            "incidents": [],
+        },
+        "visa": {"applications": []},
+        "orders": [],
     }
-    weather_sql = case_dir / "envs/weather/newzealand_drive_30d/init.sql"
-    # Prefer case-named folder; fall back to any init.sql under weather/
-    if not weather_sql.exists():
-        cands = list((case_dir / "envs/weather").glob("*/init.sql"))
-        weather_sql = cands[0] if cands else weather_sql
-    if weather_sql.exists():
+    weather_sql = _first_init_sql(case_dir, "weather")
+    if weather_sql and weather_sql.exists():
         txt = weather_sql.read_text(encoding="utf-8")
         env["weather"]["locations"] = _parse_sql_inserts(txt, "locations")
         env["weather"]["daily_weather"] = _parse_sql_inserts(txt, "daily_weather")
+        env["weather"]["alerts"] = _parse_sql_inserts(txt, "alerts")
 
-    maps_sql = case_dir / "envs/maps/newzealand_drive_30d/init.sql"
-    if not maps_sql.exists():
-        cands = list((case_dir / "envs/maps").glob("*/init.sql"))
-        maps_sql = cands[0] if cands else maps_sql
-    if maps_sql.exists():
+    maps_sql = _first_init_sql(case_dir, "maps")
+    if maps_sql and maps_sql.exists():
         txt = maps_sql.read_text(encoding="utf-8")
         env["maps"]["places"] = _parse_sql_inserts(txt, "places")
         env["maps"]["roads"] = _parse_sql_inserts(txt, "roads")
@@ -306,9 +414,33 @@ def load_env_mock(case_dir: Path) -> dict:
             "pl_akl_airport": "auckland",
         }
 
+    rental_sql = _first_init_sql(case_dir, "car_rental")
+    if rental_sql and rental_sql.exists():
+        txt = rental_sql.read_text(encoding="utf-8")
+        env["rental"]["locations"] = _parse_sql_inserts(txt, "rental_locations")
+        env["rental"]["vehicles"] = _parse_sql_inserts(txt, "vehicles")
+        env["rental"]["insurance_plans"] = _parse_sql_inserts(txt, "insurance_plans")
+        env["rental"]["offers"] = _parse_sql_inserts(txt, "rental_offers")
+        env["rental"]["bookings"] = _parse_sql_inserts(txt, "bookings")
+        env["rental"]["incidents"] = _parse_sql_inserts(txt, "incident_reports")
+
+    visa_sql = _first_init_sql(case_dir, "visa_and_advisory")
+    if visa_sql and visa_sql.exists():
+        txt = visa_sql.read_text(encoding="utf-8")
+        apps = _parse_sql_inserts(txt, "visa_applications")
+        if not apps:
+            apps = _parse_sql_inserts(txt, "applications")
+        env["visa"]["applications"] = apps
+
+    ecom_sql = _first_init_sql(case_dir, "ecommerce")
+    if ecom_sql and ecom_sql.exists():
+        txt = ecom_sql.read_text(encoding="utf-8")
+        env["orders"] = _parse_sql_inserts(txt, "orders")
+
     # Flight delay seed from event mutations / known case facts
     env["flights"] = {
         "MU779": {"date": "2026-10-10", "status": "on_time", "delay_min": 0, "depart": "11:00", "note": "去程 PVG→CHC"},
+        "NZ517": {"date": "2026-10-10", "status": "on_time", "delay_min": 0, "note": "联程 NZ517"},
         "MU780": {"date": "2026-10-24", "status": "on_time", "delay_min": 0, "depart": "11:30", "gate": "15", "note": "返程 AKL→PVG"},
     }
     return env

@@ -16,7 +16,7 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260720-52";
+} from "./routing.js?v=20260723-90";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -2450,15 +2450,24 @@ function classifyActivity(action, { isHome = false } = {}) {
     if (isHome) return { kind: "home", emoji: "🏠", label: "行前准备" };
     return { kind: "idle", emoji: "📍", label: "待更新" };
   }
+  if (/授权提交|授权预订|授权购买|授权上报|授权去程|授权处理/.test(a)) {
+    return { kind: "authorize", emoji: "📝", label: a };
+  }
+  if (/记录取车|取车车况|上报车辆|划痕/.test(a)) return { kind: "rental_log", emoji: "🚐", label: a };
+  if (/记录还车|还车/.test(a) && !/机场/.test(a)) return { kind: "rental_return", emoji: "🚐", label: a };
+  if (/值机/.test(a)) return { kind: "checkin", emoji: "✈️", label: a };
   if (/自驾|转场自驾|高速|山路/.test(a)) return { kind: "driving", emoji: "🚗", label: a };
   if (/飞行|空中|飞往|巡航|起飞后/.test(a)) return { kind: "flying", emoji: "✈️", label: a };
   if (/游船|峡湾游/.test(a)) return { kind: "cruise", emoji: "🛳️", label: a };
   if (/渡轮|登船|甲板/.test(a)) return { kind: "ferry", emoji: "⛴️", label: a };
   if (/温泉/.test(a)) return { kind: "hotspring", emoji: "♨️", label: a };
   if (/露营|营地/.test(a)) return { kind: "camp", emoji: "⛺", label: a };
-  if (/机场|候机|落地|还车/.test(a)) return { kind: "airport", emoji: "✈️", label: a };
+  if (/机场|候机|落地/.test(a)) return { kind: "airport", emoji: "✈️", label: a };
   if (/漫步|游览|景点|地热|湖畔休息|市区/.test(a)) return { kind: "sightseeing", emoji: "📸", label: a };
-  if (/在家|规划|签证|比较|核对|查询|邮件|收尾|整理|准备/.test(a)) return { kind: "home", emoji: "🏠", label: a };
+  if (/比较房车|房车/.test(a)) return { kind: "rental", emoji: "🚐", label: a };
+  if (/在家|规划|签证|比较|核对|查询|邮件|收尾|整理|准备|天气预警|出发前/.test(a)) {
+    return { kind: "home", emoji: "🏠", label: a };
+  }
   // Explicit junk defaults some models/UI used before
   if (a === "行程中") {
     return isHome

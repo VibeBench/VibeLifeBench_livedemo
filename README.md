@@ -26,8 +26,8 @@ Browser CORS: pick provider **本地 CORS 代理**, Base `http://127.0.0.1:8787`
 ## Rebuild data
 
 ```bash
-python3 scripts/build_data.py --case /path/to/newzealand_drive_30d_fix --out data
+python3 scripts/build_data.py --case /path/to/newzealand_drive_30d_v3 --out data
 python3 scripts/fetch_routes.py --out data
 ```
 
-Case data is prebuilt under `data/` for static hosting (80 events, 15 trip days, road-following routes).
+Case data is prebuilt under `data/` for static hosting (96 events, 15 trip days, road-following routes). Includes car_rental / visa / ecommerce seeds and sql_file mutation stubs.

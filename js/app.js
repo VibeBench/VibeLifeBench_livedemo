@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260722-83";
-import { DemoEngine } from "./engine.js?v=20260722-83";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-90";
+import { DemoEngine } from "./engine.js?v=20260723-90";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,10 +7,10 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260722-83";
-import { Trajectory } from "./trajectory.js?v=20260720-27";
-import { UI } from "./ui.js?v=20260722-83";
-import { isOceanFlightCrossing, isDomesticTransfer, playDriveHop } from "./map.js?v=20260722-83";
+} from "./agent.js?v=20260723-90";
+import { Trajectory } from "./trajectory.js?v=20260723-90";
+import { UI } from "./ui.js?v=20260723-90";
+import { isOceanFlightCrossing, isDomesticTransfer, playDriveHop } from "./map.js?v=20260723-90";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -99,7 +99,7 @@ async function main() {
   try {
     caseData = await loadDefaultCase("./data");
     bootCase(caseData);
-    ui.toast("已加载 newzealand_drive_30d_fix");
+    ui.toast("已加载 newzealand_drive_30d_v3");
     maybeAutoOpenConsole();
   } catch (e) {
     console.error(e);
@@ -353,21 +353,38 @@ function ensureAgent() {
       await Promise.resolve(ui.focusMapFromTool(name, args || {}, result));
       // write_journal / calendar：工具调用卡已展示，不再重复刷状态卡
       const isJournalOrCal = /write_journal|notion|journal|page|block|calendar|schedule/i.test(name || "");
+      const isWriteTool =
+        /book|cancel|create|send|post|update|write|insert|reserve|confirm|refund|submit_nzeta|place_gear|record_pickup|report_scratch|record_return|checkin_flight/i.test(
+          name || ""
+        );
       // Booking tools leave a durable state card in chat history
-      if (
-        !isJournalOrCal &&
-        /book|cancel|create|send|post|update|write|insert|reserve|confirm|refund/i.test(name || "")
-      ) {
+      if (!isJournalOrCal && isWriteTool) {
         const tab = "trip";
         let title = "已写入行程状态";
+        let icon = "🔧";
         if (/hotel/i.test(name)) {
           title = `预订酒店${args.hotel_name || args.hotel_id || args.name ? ` · ${args.hotel_name || args.hotel_id || args.name}` : ""}`;
-        } else if (/flight|air/i.test(name)) {
-          title = `预订机票${args.flight_no ? ` · ${args.flight_no}` : ""}`;
+          icon = "🏨";
+        } else if (/checkin|flight|air/i.test(name)) {
+          title = /checkin/i.test(name)
+            ? `值机${args.flight_no ? ` · ${args.flight_no}` : ""}`
+            : `预订机票${args.flight_no ? ` · ${args.flight_no}` : ""}`;
+          icon = "✈️";
+        } else if (/nzeta|visa/i.test(name)) {
+          title = result?.summary || "NZeTA 已提交";
+          icon = "🛂";
+        } else if (/campervan|pickup|return|scratch/i.test(name)) {
+          title = result?.summary || "房车状态已更新";
+          icon = /scratch/i.test(name) ? "🩹" : "🚐";
+        } else if (/gear|order/i.test(name)) {
+          title = result?.summary || "装备订单已写入";
+          icon = "📦";
         } else if (/cancel/i.test(name) && /hotel/i.test(name)) {
           title = "取消酒店预订";
+          icon = "🏨";
         } else if (/cancel/i.test(name) && /flight/i.test(name)) {
           title = "取消机票";
+          icon = "✈️";
         } else {
           title = `已执行 · ${String(name).replace(/[_-]+/g, " ")}`;
         }
@@ -380,7 +397,7 @@ function ensureAgent() {
             .slice(0, 4)
             .join(" · ");
         ui.notifyStateChange({
-          icon: /flight|air/i.test(name) ? "✈️" : /hotel|stay/i.test(name) ? "🏨" : "🔧",
+          icon,
           text: title,
           title,
           body: detail,
@@ -388,6 +405,7 @@ function ensureAgent() {
           kind: "tool-write",
           key: `tool-write:${name}:${JSON.stringify(args || {}).slice(0, 80)}`,
         });
+        refreshDashboard();
       }
     },
   });
@@ -418,6 +436,8 @@ function refreshDashboard() {
 
   const view = engine.mapView();
   const flags = engine.progressFlags();
+  const ledger = engine.ledgerView();
+  ui._ledgerSnap = ledger;
   ui.renderStatus(view.state, view.env, {
     budgetDisclosed: flags.budgetDisclosed,
     budgetSettled: flags.budgetSettled,
@@ -425,7 +445,6 @@ function refreshDashboard() {
     flags,
   });
 
-  const ledger = engine.ledgerView();
   const expandDate = viewDate || liveDate || undefined;
   ui.renderTripLedger(ledger, { expandDate });
   ui.renderNotionLedger(ledger);

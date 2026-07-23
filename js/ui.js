@@ -21,8 +21,8 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260722-83";
-import { groupLedgerByDate } from "./ledger.js?v=20260720-33";
+} from "./map.js?v=20260723-90";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-90";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -905,6 +905,20 @@ export class UI {
       ? liveFlight?.note || flight.note || (flags.atDepartureAirport ? "已确认到机场" : "已出票")
       : "选定机票后更新";
 
+    const rentalRow = (this._ledgerSnap?.rentals || [])[0] || null;
+    const rentalStatus = rentalRow?.status || "";
+    const rentalValue =
+      rentalStatus === "returned"
+        ? "已还车"
+        : rentalStatus === "active"
+          ? "使用中"
+          : rentalStatus === "held"
+            ? "已预订"
+            : "—";
+    const rentalSub =
+      rentalRow?.vehicle_name ||
+      (rentalStatus ? `房车 · ${rentalStatus}` : "授权预订后更新");
+
     const cards = [
       { key: "location", icon: "📍", label: "当前位置", value: state?.location || "—", sub: state?.geo_key || "" },
       {
@@ -927,6 +941,13 @@ export class UI {
         label: "预算状态",
         value: budgetValue,
         sub: budgetSub,
+      },
+      {
+        key: "rental",
+        icon: "🚐",
+        label: "房车",
+        value: rentalValue,
+        sub: rentalSub,
       },
       {
         key: "flight",
@@ -1117,18 +1138,21 @@ export class UI {
   renderTripLedger(ledger, { expandDate } = {}) {
     const el = this.els.tripLedger;
     if (!el) return;
+    this._ledgerSnap = ledger || {};
     const groups = groupLedgerByDate(ledger || {}, { expandDate });
     if (!groups.length) {
-      el.innerHTML = `<div class="ledger-empty">暂无行程记录。预订机票 / 酒店或推进日程后会出现在这里。</div>`;
+      el.innerHTML = `<div class="ledger-empty">暂无行程记录。预订机票 / 酒店 / 房车或推进日程后会出现在这里。</div>`;
       return;
     }
     el.innerHTML = groups
       .map((g) => {
-        const md = g.date.slice(5).replace("-", "/");
+        const md = String(g.date || "").slice(5).replace("-", "/");
         const rows = [];
         for (const c of g.calendar) {
           rows.push(
-            `<div class="ledger-row cal"><span class="lr-ico">📅</span><span class="lr-main">${escapeHtml(c.summary)}</span></div>`
+            `<div class="ledger-row cal"><span class="lr-ico">📅</span><span class="lr-main">${escapeHtml(
+              c.summary || c.title || ""
+            )}</span></div>`
           );
         }
         for (const f of g.flights) {
@@ -1143,12 +1167,52 @@ export class UI {
         }
         for (const h of g.hotels) {
           const cancelled = h.status === "cancelled";
+          const surged = /涨价|modified/i.test(`${h.note || ""} ${h.status || ""}`);
           rows.push(
-            `<div class="ledger-row hotel ${cancelled ? "cancelled" : "confirmed"}"><span class="lr-ico">🏨</span><span class="lr-main">${escapeHtml(
+            `<div class="ledger-row hotel ${cancelled ? "cancelled" : surged ? "surged" : "confirmed"}"><span class="lr-ico">🏨</span><span class="lr-main">${escapeHtml(
               h.name
             )}</span><span class="lr-meta">${cancelled ? "cancelled" : "confirmed"}${
               h.price_nzd != null ? ` · NZ$${h.price_nzd}` : ""
             }${h.refundable ? " · 可退" : ""}${h.note ? ` · ${escapeHtml(h.note)}` : ""}</span></div>`
+          );
+        }
+        for (const r of g.rentals || []) {
+          rows.push(
+            `<div class="ledger-row rental ${escapeHtml(r.status || "held")}"><span class="lr-ico">🚐</span><span class="lr-main">${escapeHtml(
+              r.vehicle_name || "房车"
+            )}</span><span class="lr-meta">${escapeHtml(r.status || "")}${
+              r.insurance ? ` · ${escapeHtml(r.insurance)}` : ""
+            }${r.bond_nzd != null ? ` · 押金 NZ$${r.bond_nzd}` : ""}${
+              r.note ? ` · ${escapeHtml(r.note)}` : ""
+            }</span></div>`
+          );
+          if (r.incident) {
+            rows.push(
+              `<div class="ledger-row rental incident"><span class="lr-ico">🩹</span><span class="lr-main">划痕上报 · ${escapeHtml(
+                r.incident.case_ref || ""
+              )}</span><span class="lr-meta">${escapeHtml(
+                r.incident.description || ""
+              )}</span></div>`
+            );
+          }
+        }
+        for (const v of g.visas || []) {
+          rows.push(
+            `<div class="ledger-row visa ${escapeHtml(v.status || "processing")}"><span class="lr-ico">🛂</span><span class="lr-main">${escapeHtml(
+              v.product || "NZeTA"
+            )} · ${escapeHtml(v.traveler || "")}</span><span class="lr-meta">${escapeHtml(
+              v.note || v.status || ""
+            )}</span></div>`
+          );
+        }
+        for (const o of g.orders || []) {
+          const items = Array.isArray(o.items) ? o.items.join(" / ") : String(o.items || "装备");
+          rows.push(
+            `<div class="ledger-row order ${escapeHtml(o.status || "paid")}"><span class="lr-ico">📦</span><span class="lr-main">${escapeHtml(
+              items
+            )}</span><span class="lr-meta">${escapeHtml(o.note || o.status || "")}${
+              o.order_id ? ` · ${escapeHtml(o.order_id)}` : ""
+            }</span></div>`
           );
         }
         return `<section class="ledger-day">
@@ -1771,6 +1835,30 @@ export class UI {
         // Unique per write so rapid successive adds each get an animation.
         fingerprint: `calendar:${calDate}:${calTitle}:${ev.id || Date.now()}`,
       });
+    } else if (
+      /submit_nzeta|book_campervan|place_gear_order|record_pickup|report_scratch|record_return|checkin_flight|book_flight|book_hotel/.test(
+        name
+      )
+    ) {
+      const icon = TOOL_META[name]?.icon || meta.icon || "🔧";
+      const title = TOOL_META[name]?.label || meta.title || name;
+      const detail = result?.summary || meta.detail || "";
+      const placeId =
+        /campervan|pickup|return|scratch/i.test(name)
+          ? "pl_chc_airport"
+          : /checkin|flight/i.test(name)
+            ? "pl_chc_airport"
+            : /hotel/i.test(name)
+              ? "pl_queenstown"
+              : null;
+      return this.pulseMapFeedback({
+        id: `tool-write:${name}:${JSON.stringify(args || {}).slice(0, 60)}`,
+        icon,
+        title,
+        detail,
+        kind: "agent_tool",
+        placeId,
+      });
     }
 
     // Place bubble for location lookups (weather / traffic / flight).
@@ -2361,8 +2449,15 @@ const TOOL_META = {
     label: "加入日程",
     focus: "日期 · 行程节点",
   },
+  submit_nzeta: { icon: "🛂", label: "提交 NZeTA", focus: "两人入境授权" },
+  book_campervan: { icon: "🚐", label: "预订房车", focus: "车型 · 保险 · 押金" },
   book_hotel: { icon: "🏨", label: "预订酒店", focus: "入住日期 · 房价 · 确认状态" },
   book_flight: { icon: "✈️", label: "预订机票", focus: "航班号 · 航线 · 出票状态" },
+  place_gear_order: { icon: "📦", label: "下单装备", focus: "护膝 · 喷雾 · 插头" },
+  record_pickup: { icon: "🚐", label: "记录取车", focus: "里程 · 油量 · 车况" },
+  report_scratch: { icon: "🩹", label: "上报划痕", focus: "incident · 照片" },
+  record_return: { icon: "🚐", label: "记录还车", focus: "验车 · 押金待处理" },
+  checkin_flight: { icon: "✈️", label: "航班值机", focus: "座位 · 登机牌" },
   cancel_hotel: { icon: "🏨", label: "取消酒店", focus: "取消确认" },
   cancel_flight: { icon: "✈️", label: "取消机票", focus: "取消确认" },
   write_notion_page: { icon: "📝", label: "写入游记", focus: "Notion 页面更新" },
@@ -2944,6 +3039,56 @@ function collectLedgerAlerts(ledger) {
       text: title,
       title,
       body,
+      kind: "ledger",
+    });
+  }
+  for (const r of ledger.rentals || []) {
+    const title =
+      r.status === "returned"
+        ? "房车已还车"
+        : r.status === "active"
+          ? "房车已取车"
+          : "房车已预订";
+    out.push({
+      key: `rental:${r.id}:${r.status}:${r.incident?.case_ref || ""}`,
+      tab: "trip",
+      app: "行程账本",
+      from: "房车租赁",
+      icon: "🚐",
+      text: title,
+      title,
+      body: [r.vehicle_name, r.insurance, r.bond_nzd != null ? `押金 NZ$${r.bond_nzd}` : null, r.note]
+        .filter(Boolean)
+        .join(" · "),
+      kind: "ledger",
+    });
+  }
+  for (const v of ledger.visas || []) {
+    const title = v.status === "approved" ? `NZeTA 已批准 · ${v.traveler}` : `NZeTA 已提交 · ${v.traveler}`;
+    out.push({
+      key: `visa:${v.id}:${v.status}`,
+      tab: "trip",
+      app: "行程账本",
+      from: "签证/入境",
+      icon: "🛂",
+      text: title,
+      title,
+      body: v.note || v.status,
+      kind: "ledger",
+    });
+  }
+  for (const o of ledger.orders || []) {
+    const title = o.status === "delivered" ? "装备已送达" : "装备已下单";
+    const items = Array.isArray(o.items) ? o.items.join(" / ") : String(o.items || "");
+    out.push({
+      key: `order:${o.id}:${o.status}`,
+      tab: "trip",
+      app: "行程账本",
+      from: "电商订单",
+      icon: "📦",
+      text: title,
+      title,
+      body: [items, o.note].filter(Boolean).join(" · "),
       kind: "ledger",
     });
   }

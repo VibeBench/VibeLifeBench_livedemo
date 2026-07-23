@@ -5,8 +5,8 @@
  * uiFocus holds a read-only snapshot when the user clicks a past/current day
  * on the ribbon (map + status follow the snapshot; agent tools still use live env).
  */
-import { renderEventForAgent } from "./loader.js?v=20260720-41";
-import { buildLedger, emptyLedger } from "./ledger.js?v=20260720-33";
+import { renderEventForAgent } from "./loader.js?v=20260723-90";
+import { buildLedger, emptyLedger } from "./ledger.js?v=20260723-90";
 
 export class DemoEngine {
   constructor(caseData) {
@@ -514,12 +514,12 @@ export class DemoEngine {
     const results = [];
     for (const entry of ev.apply || []) {
       const server = entry.server;
-      if (entry.table && (entry.op === "update" || entry.op === "upsert")) {
+      if (entry.table && (entry.op === "update" || entry.op === "upsert" || entry.op === "insert")) {
         results.push(this.applyTableUpdate(env, server, entry, ev));
       } else if (entry.tool_call) {
         results.push({ server, tool_call: entry.tool_call.name, note: "tool_call recorded (demo mock)" });
       } else if (entry.sql_file) {
-        results.push({ server, sql_file: entry.sql_file, note: "sql_file skipped in browser demo" });
+        results.push(applySqlFileStub(env, ev, entry));
       } else {
         results.push({ server, note: "generic mutation", entry });
       }
@@ -567,11 +567,33 @@ export class DemoEngine {
       env.hotels[key] = { ...(env.hotels[key] || {}), ...where, ...set };
       return { server, table, updated: 1, key, set };
     } else if (server === "weather") {
-      collection = env.weather.daily_weather;
+      if (table === "alerts") {
+        env.weather = env.weather || {};
+        env.weather.alerts = env.weather.alerts || [];
+        collection = env.weather.alerts;
+      } else {
+        collection = env.weather.daily_weather;
+      }
+    } else if (server === "car_rental") {
+      env.rental = env.rental || { bookings: [], incidents: [] };
+      if (table === "bookings") collection = env.rental.bookings = env.rental.bookings || [];
+      else if (table === "incident_reports") collection = env.rental.incidents = env.rental.incidents || [];
+    } else if (server === "visa_and_advisory") {
+      env.visa = env.visa || { applications: [] };
+      if (table === "visa_applications" || table === "applications") {
+        collection = env.visa.applications = env.visa.applications || [];
+      }
+    } else if (server === "ecommerce") {
+      env.orders = env.orders || [];
+      if (table === "orders") collection = env.orders;
     } else if (server === "email") {
       env.emails = env.emails || [];
       const row = { ...where, ...set, mutation: true };
       const id = row.id ?? row.message_id;
+      if (entry.op === "insert") {
+        env.emails.push(row);
+        return { server, table, inserted: 1 };
+      }
       if (id != null) {
         const idx = env.emails.findIndex((e) => (e.id ?? e.message_id) === id);
         if (idx >= 0) env.emails[idx] = { ...env.emails[idx], ...row };
@@ -584,6 +606,29 @@ export class DemoEngine {
 
     if (!collection) {
       return { server, table, updated: 0, note: "no collection", set };
+    }
+
+    if (entry.op === "insert") {
+      const row = { ...set };
+      const idKey =
+        table === "alerts"
+          ? "alert_id"
+          : table === "bookings"
+            ? "booking_ref"
+            : table === "orders"
+              ? "order_id"
+              : table === "visa_applications" || table === "applications"
+                ? "application_id"
+                : null;
+      if (idKey && row[idKey] != null) {
+        const idx = collection.findIndex((r) => String(r[idKey]) === String(row[idKey]));
+        if (idx >= 0) {
+          collection[idx] = { ...collection[idx], ...row };
+          return { server, table, updated: 1, set: row };
+        }
+      }
+      collection.push(row);
+      return { server, table, inserted: 1, set: row };
     }
 
     let updated = 0;
@@ -610,6 +655,168 @@ export class DemoEngine {
 
 function matchesWhere(row, where) {
   return Object.entries(where).every(([k, v]) => String(row[k]) === String(v));
+}
+
+/** Browser-side stubs for case sql_file mutations (no SQL parser). */
+function applySqlFileStub(env, ev, entry) {
+  const server = entry.server;
+  const id = ev?.id || "";
+  const path = String(entry.sql_file || "");
+
+  ensureEnvCollections(env);
+
+  if (id === "D6_mut_nzeta_approved" || /approve_nzeta/i.test(path)) {
+    let n = 0;
+    for (const app of env.visa.applications) {
+      if (app.product_id === "vp_nz_eta" && app.status === "processing") {
+        app.status = "approved";
+        app.decision_day = 3;
+        app.decision_note = "NZeTa approved";
+        app.evisa_doc_ref = `doc://nzeta/approved/${app.application_id}`;
+        app.updated_at = "2026-10-06T08:00:00Z";
+        n += 1;
+      }
+    }
+    // If agent/auth never wrote rows, seed two approved apps so ledger can show them.
+    if (!n && !env.visa.applications.length) {
+      for (const traveler of ["wang_li", "zhao_mei"]) {
+        env.visa.applications.push({
+          application_id: `nzeta_${traveler}`,
+          product_id: "vp_nz_eta",
+          user_id: traveler,
+          traveler_name: traveler === "wang_li" ? "王力" : "赵梅",
+          status: "approved",
+          decision_note: "NZeTa approved",
+          updated_at: "2026-10-06T08:00:00Z",
+        });
+        n += 1;
+      }
+    }
+    return { server, sql_file: path, stub: "nzeta_approved", updated: n };
+  }
+
+  if (id === "D6_mut_gear_delivered" || /deliver_gear/i.test(path)) {
+    let n = 0;
+    for (const o of env.orders) {
+      if (o.user_id === "wang_li" && ["paid", "shipped"].includes(String(o.status))) {
+        o.status = "delivered";
+        o.delivered_at = "2026-10-06T08:05:00Z";
+        n += 1;
+      }
+    }
+    if (!n && !env.orders.length) {
+      env.orders.push({
+        order_id: "ord_gear_prep",
+        user_id: "wang_li",
+        status: "delivered",
+        items: ["膝关节护具", "沙蝇喷雾", "Type I 转换插头"],
+        delivered_at: "2026-10-06T08:05:00Z",
+      });
+      n = 1;
+    }
+    return { server, sql_file: path, stub: "gear_delivered", updated: n };
+  }
+
+  if (id === "D7_mut_rental_active" || /activate_booking/i.test(path)) {
+    const bookings = env.rental.bookings;
+    let hit =
+      bookings.find(
+        (b) => b.user_id === "wang_li" && b.offer_id === "offer_venturer_2b" && b.status === "held"
+      ) || bookings.find((b) => b.status === "held");
+    if (!hit) {
+      hit = {
+        booking_ref: "BK-VENTURER-001",
+        user_id: "wang_li",
+        offer_id: "offer_venturer_2b",
+        vehicle_name: "Britz Venturer 2-Berth",
+        insurance_plan_id: "ins_zero_excess",
+        status: "held",
+        bond_nzd: 1500,
+        daily_price: 165,
+        one_way_fee_nzd: 200,
+        created_at: "2026-09-26T15:00:00+13:00",
+      };
+      bookings.push(hit);
+    }
+    hit.status = "active";
+    hit.activated_at = "2026-10-11T09:05:00+13:00";
+    return { server, sql_file: path, stub: "rental_active", booking_ref: hit.booking_ref };
+  }
+
+  if (id === "D20_mut_rental_returned" || /return_booking/i.test(path)) {
+    const bookings = env.rental.bookings;
+    let hit =
+      bookings.find(
+        (b) => b.user_id === "wang_li" && b.offer_id === "offer_venturer_2b" && b.status === "active"
+      ) || bookings.find((b) => b.status === "active");
+    if (!hit) {
+      hit = {
+        booking_ref: "BK-VENTURER-001",
+        user_id: "wang_li",
+        offer_id: "offer_venturer_2b",
+        vehicle_name: "Britz Venturer 2-Berth",
+        status: "active",
+      };
+      bookings.push(hit);
+    }
+    hit.status = "returned";
+    hit.returned_at = "2026-10-24T11:05:00+13:00";
+    return { server, sql_file: path, stub: "rental_returned", booking_ref: hit.booking_ref };
+  }
+
+  if (id === "D11_mut_hotel_price_surge" || /reprice_lakeview/i.test(path)) {
+    env.hotels = env.hotels || {};
+    const key = "htl_qtown_lakeview_2026-10-14";
+    env.hotels[key] = {
+      ...(env.hotels[key] || {}),
+      hotel_id: "htl_qtown_lakeview",
+      date: "2026-10-14",
+      nightly_price: 145,
+      status: "modified",
+      inventory_remaining: 1,
+      updated_at: "2026-10-14T07:00:00Z",
+    };
+    return { server, sql_file: path, stub: "hotel_price_surge", nightly_price: 145 };
+  }
+
+  if (id === "D16_mut_notion_menu_external_edit" || /external_menu_note/i.test(path)) {
+    env.ledger = env.ledger || {};
+    env.ledger.notion = env.ledger.notion || {
+      title: "NZ Road Trip 2026 — Journal",
+      sections: { journal: "", expense: "", safety: "" },
+    };
+    const mark =
+      "【外部写入】Rotorua dinner — menu changed; low-salt unconfirmed; cancellation pending.";
+    const journal = env.ledger.notion.sections.journal || "";
+    if (!journal.includes("外部写入") && !journal.includes("menu changed")) {
+      env.ledger.notion.sections.journal = journal ? `${journal}\n${mark}` : mark;
+    }
+    env._externalNotionMenu = true;
+    return { server, sql_file: path, stub: "notion_external_menu" };
+  }
+
+  return { server, sql_file: path, note: "sql_file stub unmatched", id };
+}
+
+function ensureEnvCollections(env) {
+  env.weather = env.weather || { locations: [], daily_weather: [], alerts: [] };
+  env.weather.alerts = env.weather.alerts || [];
+  env.rental = env.rental || {
+    locations: [],
+    vehicles: [],
+    insurance_plans: [],
+    offers: [],
+    bookings: [],
+    incidents: [],
+  };
+  env.rental.bookings = env.rental.bookings || [];
+  env.rental.incidents = env.rental.incidents || [];
+  env.visa = env.visa || { applications: [] };
+  env.visa.applications = env.visa.applications || [];
+  env.orders = env.orders || [];
+  env.hotels = env.hotels || {};
+  env.flights = env.flights || {};
+  env.emails = env.emails || [];
 }
 
 /**

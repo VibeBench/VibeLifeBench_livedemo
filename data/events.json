@@ -80,15 +80,15 @@
         "body": "新西兰移民局提示：中国公民入境须办理「新西兰电子旅行许可（NZeTa）」并缴纳\n「国际旅客保育与旅游税（IVL）」。NZeTa 费用：手机 App 申请 17 纽币 / 网页 23 纽币；\nIVL：35 纽币。审批最长需 72 小时，建议至少提前 1 周申请。注意：NZeTa 不是签证，\n是独立的旅行授权系统。\n"
       },
       {
-        "id": "D1_campervan_info",
-        "time": "2026-09-26T14:00",
-        "kind": "world",
-        "source": "ecommerce_mock",
+        "id": "D1_user_authorize_nzeta",
+        "time": "2026-09-26T09:30",
+        "kind": "user_message",
+        "from": "wang_li",
         "user_state": {
           "location": "上海·家中",
           "geo_key": "shanghai_home",
           "trip_node": "行前准备",
-          "demo_action": "比较房车",
+          "demo_action": "授权提交 NZeTa",
           "budget": {
             "total_cny": 50000,
             "spent_cny": 0,
@@ -101,7 +101,55 @@
             "note": "去程"
           }
         },
+        "body": "两个人都需要单独办理 NZeTa。我确认授权你为我和赵梅分别创建申请、上传资料并提交；\n使用行程资料夹里的护照和照片引用即可，提交前把费用和所需资料列给我，不要编造真实证件号码。\n"
+      },
+      {
+        "id": "D1_campervan_info",
+        "time": "2026-09-26T14:00",
+        "kind": "world",
+        "source": "car_rental_mock",
+        "user_state": {
+          "location": "上海·家中",
+          "geo_key": "shanghai_home",
+          "trip_node": "行前准备",
+          "demo_action": "比较房车",
+          "budget": {
+            "total_cny": 50000,
+            "spent_cny": 500,
+            "remaining_cny": 49500
+          },
+          "next_flight": {
+            "flight_no": "MU779",
+            "depart": "2026-10-10T00:30+08:00",
+            "status": "on_time",
+            "note": "去程"
+          }
+        },
         "body": "Britz 新西兰房车报价（2026 年 10 月，平季）：\n- Venturer 2 铺位：165 纽币/天，含基础保险\n- Frontier 4 铺位：210 纽币/天，含基础保险\n- 全险（零自付额）：每天额外加 49 纽币\n- 单程还车费（基督城 → 奥克兰）：200 纽币\n- 押金（bond）：1,500 纽币，取车时冻结、还车验车后 10–20 个工作日解冻。\n- 最低年龄 21 岁；须持国际驾照（IDP）或 NZTA 认可的驾照翻译件。\n- 保险细则：基础保险自付额较高；碎石路/单车事故是否覆盖、可否加副司机，需向门店核实。\n取车点：基督城机场门店，8:00–16:00。\n"
+      },
+      {
+        "id": "D1_user_authorize_campervan",
+        "time": "2026-09-26T15:00",
+        "kind": "user_message",
+        "from": "wang_li",
+        "user_state": {
+          "location": "上海·家中",
+          "geo_key": "shanghai_home",
+          "trip_node": "行前准备",
+          "demo_action": "授权预订房车",
+          "budget": {
+            "total_cny": 50000,
+            "spent_cny": 500,
+            "remaining_cny": 49500
+          },
+          "next_flight": {
+            "flight_no": "MU779",
+            "depart": "2026-10-10T00:30+08:00",
+            "status": "on_time",
+            "note": "去程"
+          }
+        },
+        "body": "房车就按两铺位 Venturer，基督城取车、奥克兰还车；为了赵梅和碎石路划痕风险，\n优先选零自付额保险。我确认请你用 car_rental 工具正式下单，并把 booking ref、押金、单程费和总价记下来。\n"
       },
       {
         "id": "D1_user_zhaomei_knee",
@@ -115,8 +163,8 @@
           "demo_action": "在家规划行程",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 0,
-            "remaining_cny": 50000
+            "spent_cny": 13900,
+            "remaining_cny": 36100
           },
           "next_flight": {
             "flight_no": "MU779",
@@ -141,8 +189,8 @@
           "demo_action": "比较机票",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 8400,
-            "remaining_cny": 41600
+            "spent_cny": 13900,
+            "remaining_cny": 36100
           },
           "next_flight": {
             "flight_no": "MU779",
@@ -152,6 +200,30 @@
           }
         },
         "body": "去程航班 上海浦东(PVG)→基督城(CHC)（10 月 10 日）：\n- MU779 浦东→奥克兰 + NZ517 奥克兰→基督城（联程，中转 1 次），¥4,200/人\n- NZ288 浦东→奥克兰 直飞 + NZ517 奥克兰→基督城，¥5,800/人\n- CZ335 浦东→广州→奥克兰→基督城（南方航空，中转 2 次），¥3,600/人\n返程 奥克兰(AKL)→上海浦东(PVG)（10 月 24 日）：\n- NZ289 奥克兰→浦东 直飞，¥5,500/人\n- MU780 奥克兰→浦东（东方航空），¥4,400/人\n"
+      },
+      {
+        "id": "D2_user_confirm_flights",
+        "time": "2026-09-28T10:30",
+        "kind": "user_message",
+        "from": "wang_li",
+        "user_state": {
+          "location": "上海·家中",
+          "geo_key": "shanghai_home",
+          "trip_node": "行前准备",
+          "demo_action": "授权购买机票",
+          "budget": {
+            "total_cny": 50000,
+            "spent_cny": 13900,
+            "remaining_cny": 36100
+          },
+          "next_flight": {
+            "flight_no": "MU779",
+            "depart": "2026-10-10T00:30+08:00",
+            "status": "on_time",
+            "note": "去程"
+          }
+        },
+        "body": "去程确认选 MU779 接 NZ517，返程选 MU780；我们两位成人都按经济舱购买。\n我现在明确授权你通过航班工具完成两组真实预订、保存 PNR，并订阅状态；不要只把选项写在回复里。\n"
       },
       {
         "id": "D2_user_driving_concern",
@@ -165,8 +237,8 @@
           "demo_action": "咨询驾驶",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 8400,
-            "remaining_cny": 41600
+            "spent_cny": 31100,
+            "remaining_cny": 18900
           },
           "next_flight": {
             "flight_no": "MU779",
@@ -191,8 +263,8 @@
           "demo_action": "查询渡轮",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 10000,
-            "remaining_cny": 40000
+            "spent_cny": 31100,
+            "remaining_cny": 18900
           },
           "next_flight": {
             "flight_no": "MU779",
@@ -202,6 +274,54 @@
           }
         },
         "body": "Interislander 库克海峡渡轮（皮克顿 Picton → 惠灵顿 Wellington）：\n- 航行时间：3.5 小时\n- 车辆甲板：房车车长 ≤5.5 米 = 235 纽币，>5.5 米 = 310 纽币\n- 成人乘客：55 纽币/人（预订车辆时已含）\n- 每日班次：08:00、13:00、18:00\n- 重要：车辆甲板务必提前预订——运力有限，旺季常售罄；步行乘客一般不会被拒。\n- 备选：Bluebridge 渡轮，价格相近。\n"
+      },
+      {
+        "id": "D3_user_confirm_lodging",
+        "time": "2026-09-30T10:30",
+        "kind": "user_message",
+        "from": "wang_li",
+        "user_state": {
+          "location": "上海·家中",
+          "geo_key": "shanghai_home",
+          "trip_node": "行前准备",
+          "demo_action": "授权预订住宿",
+          "budget": {
+            "total_cny": 50000,
+            "spent_cny": 31100,
+            "remaining_cny": 18900
+          },
+          "next_flight": {
+            "flight_no": "MU779",
+            "depart": "2026-10-10T00:30+08:00",
+            "status": "on_time",
+            "note": "去程"
+          }
+        },
+        "body": "把沿途关键住宿先订下来：基督城、皇后镇 10 月 13–15 日、惠灵顿、罗托鲁阿和奥克兰。\n皇后镇先订 Lakeview 覆盖 10 月 14 日；我确认现在可以预订。每笔 reservation ref 都同步到日历。\n"
+      },
+      {
+        "id": "D3_user_schedule_ferry",
+        "time": "2026-09-30T11:00",
+        "kind": "user_message",
+        "from": "wang_li",
+        "user_state": {
+          "location": "上海·家中",
+          "geo_key": "shanghai_home",
+          "trip_node": "行前准备",
+          "demo_action": "记录渡轮计划",
+          "budget": {
+            "total_cny": 50000,
+            "spent_cny": 33000,
+            "remaining_cny": 17000
+          },
+          "next_flight": {
+            "flight_no": "MU779",
+            "depart": "2026-10-10T00:30+08:00",
+            "status": "on_time",
+            "note": "去程"
+          }
+        },
+        "body": "请把车辆甲板的目标渡轮班次记到 Calendar，注明房车长度和两位乘客。\n这里如果没有真正的 ferry booking 工具，就不要假装已付款；后面由 maps 查状态、由日历记录改班。\n"
       }
     ],
     "4": [
@@ -217,8 +337,8 @@
           "demo_action": "核对预算",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 10000,
-            "remaining_cny": 40000
+            "spent_cny": 33000,
+            "remaining_cny": 17000
           },
           "next_flight": {
             "flight_no": "MU779",
@@ -243,8 +363,8 @@
           "demo_action": "查看天气预警",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 12000,
-            "remaining_cny": 38000
+            "spent_cny": 33000,
+            "remaining_cny": 17000
           },
           "next_flight": {
             "flight_no": "MU779",
@@ -292,8 +412,8 @@
           "demo_action": "在家规划行程",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 12000,
-            "remaining_cny": 38000
+            "spent_cny": 33000,
+            "remaining_cny": 17000
           },
           "next_flight": {
             "flight_no": "MU779",
@@ -302,10 +422,58 @@
             "note": "去程"
           }
         },
-        "body": "天气我最担心，山区开车怕遇上恶劣天气。以后每到一个地方、或者要走山路那天，你都主动帮我查一下当天和未来几天的天气跟路况，\n没什么异常也跟我说一声\"天气正常、适合出行\"就行，别等出了状况才知道。\n"
+        "body": "天气我最担心，山区开车怕遇上恶劣天气。以后每到一个地方、或者要走山路那天，你都主动帮我查一下当天和未来几天的天气跟路况，\n没什么异常也跟我说一声\"天气正常、适合出行\"就行，别等出了状况才知道。\n如果 SH80 或 SH94 出现关闭或恢复，我授权你直接在 Calendar 建立对应的 ROAD HOLD，写明 source/status/checked_at/road_event；\n状态变化时更新同一条 event，不要新建重复记录。\n"
+      },
+      {
+        "id": "D5_user_order_gear",
+        "time": "2026-10-04T08:40",
+        "kind": "user_message",
+        "from": "wang_li",
+        "user_state": {
+          "location": "上海·家中",
+          "geo_key": "shanghai_home",
+          "trip_node": "行前准备",
+          "demo_action": "授权购买装备",
+          "budget": {
+            "total_cny": 50000,
+            "spent_cny": 33000,
+            "remaining_cny": 17000
+          },
+          "next_flight": {
+            "flight_no": "MU779",
+            "depart": "2026-10-10T00:30+08:00",
+            "status": "on_time",
+            "note": "去程"
+          }
+        },
+        "body": "护膝、沙蝇喷雾和新西兰 Type I 转换插头都买一份，使用默认地址下单。\n我确认现在可以支付；请保存订单号，出发前再查一次物流状态。\n"
       }
     ],
     "6": [
+      {
+        "id": "D6_mut_nzeta_approved",
+        "time": "2026-10-06T08:00",
+        "kind": "mutation",
+        "silent": true,
+        "apply": [
+          {
+            "server": "visa_and_advisory",
+            "sql_file": "envs/visa_and_advisory/newzealand_drive_30d/mutation_stage6_approve_nzeta.sql"
+          }
+        ]
+      },
+      {
+        "id": "D6_mut_gear_delivered",
+        "time": "2026-10-06T08:05",
+        "kind": "mutation",
+        "silent": true,
+        "apply": [
+          {
+            "server": "ecommerce",
+            "sql_file": "envs/ecommerce/newzealand_drive_30d/mutation_stage6_deliver_gear.sql"
+          }
+        ]
+      },
       {
         "id": "D6_readiness",
         "time": "2026-10-06T20:00",
@@ -318,8 +486,8 @@
           "demo_action": "出发前检查",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 26000,
-            "remaining_cny": 24000
+            "spent_cny": 33300,
+            "remaining_cny": 16700
           },
           "next_flight": {
             "flight_no": "MU779",
@@ -344,8 +512,8 @@
           "demo_action": "机场候机中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 27000,
-            "remaining_cny": 23000
+            "spent_cny": 33300,
+            "remaining_cny": 16700
           },
           "next_flight": {
             "flight_no": "MU779",
@@ -355,6 +523,30 @@
           }
         },
         "body": "值机提醒｜MU779 + NZ517 联程（上海浦东 PVG → 奥克兰 AKL → 基督城 CHC）：MU779 计划 10 月 10 日 00:30 起飞，值机柜台已开放、建议提前 3 小时到达办理，登机口以现场为准。\n"
+      },
+      {
+        "id": "D7_user_checkin_outbound",
+        "time": "2026-10-09T21:45",
+        "kind": "user_message",
+        "from": "wang_li",
+        "user_state": {
+          "location": "上海浦东机场 T1",
+          "geo_key": "shanghai_home",
+          "trip_node": "出发",
+          "demo_action": "授权去程值机",
+          "budget": {
+            "total_cny": 50000,
+            "spent_cny": 33300,
+            "remaining_cny": 16700
+          },
+          "next_flight": {
+            "flight_no": "MU779",
+            "depart": "2026-10-10T00:30+08:00",
+            "status": "on_time",
+            "note": "去程"
+          }
+        },
+        "body": "值机窗口已经开放，我确认请你为我和赵梅办理 MU779 以及后续联程的在线值机，\n两个人尽量安排相邻座位，并把 boarding pass 状态核实清楚。\n"
       },
       {
         "id": "D7_departure",
@@ -368,8 +560,8 @@
           "demo_action": "机场候机中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 27000,
-            "remaining_cny": 23000
+            "spent_cny": 33300,
+            "remaining_cny": 16700
           },
           "next_flight": {
             "flight_no": "MU779",
@@ -392,8 +584,8 @@
           "demo_action": "刚落地",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 27000,
-            "remaining_cny": 23000
+            "spent_cny": 33300,
+            "remaining_cny": 16700
           },
           "next_flight": {
             "flight_no": null,
@@ -401,6 +593,40 @@
           }
         },
         "body": "MU779 + NZ517 联程已抵达基督城（CHC）。\n已于 21:15 落地，当前当地时间 23:00（新西兰夏令时）。注意：房车门店 16:00 关门——取车须等到明天上午。\n"
+      },
+      {
+        "id": "D7_user_record_pickup",
+        "time": "2026-10-11T09:00",
+        "kind": "user_message",
+        "from": "wang_li",
+        "user_state": {
+          "location": "基督城房车门店",
+          "geo_key": "christchurch",
+          "trip_node": "取车",
+          "demo_action": "记录取车车况",
+          "budget": {
+            "total_cny": 50000,
+            "spent_cny": 33300,
+            "remaining_cny": 16700
+          },
+          "next_flight": {
+            "flight_no": null,
+            "note": "无近期航班"
+          }
+        },
+        "body": "今天取车，请用 car_rental 的车况工具记录里程、油量、车身已有划痕和照片数量，\n把 booking ref 和取车检查清单写进 Calendar/Notion；我确认车况后再开始行程。\n"
+      },
+      {
+        "id": "D7_mut_rental_active",
+        "time": "2026-10-11T09:05",
+        "kind": "mutation",
+        "silent": true,
+        "apply": [
+          {
+            "server": "car_rental",
+            "sql_file": "envs/car_rental/newzealand_drive_30d/mutation_stage7_activate_booking.sql"
+          }
+        ]
       }
     ],
     "8": [
@@ -416,8 +642,8 @@
           "demo_action": "露营中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 28500,
-            "remaining_cny": 21500
+            "spent_cny": 33300,
+            "remaining_cny": 16700
           },
           "next_flight": {
             "flight_no": null,
@@ -457,8 +683,8 @@
           "demo_action": "露营中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 28500,
-            "remaining_cny": 21500
+            "spent_cny": 33300,
+            "remaining_cny": 16700
           },
           "next_flight": {
             "flight_no": null,
@@ -500,8 +726,8 @@
           "demo_action": "确认道路开放",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 29000,
-            "remaining_cny": 21000
+            "spent_cny": 33500,
+            "remaining_cny": 16500
           },
           "next_flight": {
             "flight_no": null,
@@ -521,8 +747,8 @@
           "demo_action": "高速自驾中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 29000,
-            "remaining_cny": 21000
+            "spent_cny": 33500,
+            "remaining_cny": 16500
           },
           "next_flight": {
             "flight_no": null,
@@ -543,8 +769,8 @@
           "demo_action": "自驾途中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 29000,
-            "remaining_cny": 21000
+            "spent_cny": 33500,
+            "remaining_cny": 16500
           },
           "next_flight": {
             "flight_no": null,
@@ -582,8 +808,8 @@
           "demo_action": "景点游览中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 30500,
-            "remaining_cny": 19500
+            "spent_cny": 34500,
+            "remaining_cny": 15500
           },
           "next_flight": {
             "flight_no": null,
@@ -604,8 +830,8 @@
           "demo_action": "景点游览中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 30500,
-            "remaining_cny": 19500
+            "spent_cny": 34500,
+            "remaining_cny": 15500
           },
           "next_flight": {
             "flight_no": null,
@@ -626,8 +852,8 @@
           "demo_action": "景点游览中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 30500,
-            "remaining_cny": 19500
+            "spent_cny": 34500,
+            "remaining_cny": 15500
           },
           "next_flight": {
             "flight_no": null,
@@ -646,16 +872,7 @@
         "apply": [
           {
             "server": "hotel_booking",
-            "table": "rate_plans",
-            "op": "update",
-            "set": {
-              "nightly_price": 145,
-              "inventory_remaining": 1
-            },
-            "where": {
-              "hotel_id": "htl_qtown_lakeview",
-              "date": "2026-10-14"
-            }
+            "sql_file": "envs/hotel_booking/newzealand_drive_30d/mutation_stage11_reprice_lakeview.sql"
           }
         ]
       },
@@ -671,8 +888,8 @@
           "demo_action": "准备出发",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 32000,
-            "remaining_cny": 18000
+            "spent_cny": 35500,
+            "remaining_cny": 14500
           },
           "next_flight": {
             "flight_no": null,
@@ -692,8 +909,8 @@
           "demo_action": "山路自驾中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 32000,
-            "remaining_cny": 18000
+            "spent_cny": 35500,
+            "remaining_cny": 14500
           },
           "next_flight": {
             "flight_no": null,
@@ -714,8 +931,8 @@
           "demo_action": "停车处理酒店",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 32000,
-            "remaining_cny": 18000
+            "spent_cny": 35500,
+            "remaining_cny": 14500
           },
           "next_flight": {
             "flight_no": null,
@@ -736,8 +953,8 @@
           "demo_action": "景点游览中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 33000,
-            "remaining_cny": 17000
+            "spent_cny": 36000,
+            "remaining_cny": 14000
           },
           "next_flight": {
             "flight_no": null,
@@ -758,8 +975,8 @@
           "demo_action": "湖畔漫步",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 33000,
-            "remaining_cny": 17000
+            "spent_cny": 36000,
+            "remaining_cny": 14000
           },
           "next_flight": {
             "flight_no": null,
@@ -802,8 +1019,8 @@
           "demo_action": "转场自驾中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 33500,
-            "remaining_cny": 16500
+            "spent_cny": 36500,
+            "remaining_cny": 13500
           },
           "next_flight": {
             "flight_no": null,
@@ -839,8 +1056,8 @@
           "demo_action": "查看路况",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 33500,
-            "remaining_cny": 16500
+            "spent_cny": 36500,
+            "remaining_cny": 13500
           },
           "next_flight": {
             "flight_no": null,
@@ -863,8 +1080,8 @@
           "demo_action": "峡湾游船中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 35500,
-            "remaining_cny": 14500
+            "spent_cny": 37500,
+            "remaining_cny": 12500
           },
           "next_flight": {
             "flight_no": null,
@@ -885,8 +1102,8 @@
           "demo_action": "峡湾游船中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 35500,
-            "remaining_cny": 14500
+            "spent_cny": 37500,
+            "remaining_cny": 12500
           },
           "next_flight": {
             "flight_no": null,
@@ -946,8 +1163,8 @@
           "demo_action": "长途自驾中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 36000,
-            "remaining_cny": 14000
+            "spent_cny": 38000,
+            "remaining_cny": 12000
           },
           "next_flight": {
             "flight_no": null,
@@ -967,8 +1184,8 @@
           "demo_action": "长途自驾中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 36500,
-            "remaining_cny": 13500
+            "spent_cny": 38500,
+            "remaining_cny": 11500
           },
           "next_flight": {
             "flight_no": null,
@@ -989,8 +1206,8 @@
           "demo_action": "营地休整",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 36500,
-            "remaining_cny": 13500
+            "spent_cny": 38500,
+            "remaining_cny": 11500
           },
           "next_flight": {
             "flight_no": null,
@@ -1045,8 +1262,8 @@
           "demo_action": "等待登船",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 37000,
-            "remaining_cny": 13000
+            "spent_cny": 39000,
+            "remaining_cny": 11000
           },
           "next_flight": {
             "flight_no": null,
@@ -1067,8 +1284,8 @@
           "demo_action": "等待登船",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 37000,
-            "remaining_cny": 13000
+            "spent_cny": 39000,
+            "remaining_cny": 11000
           },
           "next_flight": {
             "flight_no": null,
@@ -1089,8 +1306,8 @@
           "demo_action": "等待登船",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 37000,
-            "remaining_cny": 13000
+            "spent_cny": 39000,
+            "remaining_cny": 11000
           },
           "next_flight": {
             "flight_no": null,
@@ -1111,8 +1328,8 @@
           "demo_action": "等待登船",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 37000,
-            "remaining_cny": 13000
+            "spent_cny": 39000,
+            "remaining_cny": 11000
           },
           "next_flight": {
             "flight_no": null,
@@ -1151,8 +1368,8 @@
           "demo_action": "渡轮客舱内航行中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 37000,
-            "remaining_cny": 13000
+            "spent_cny": 39000,
+            "remaining_cny": 11000
           },
           "next_flight": {
             "flight_no": null,
@@ -1175,8 +1392,8 @@
           "demo_action": "长途自驾中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 38000,
-            "remaining_cny": 12000
+            "spent_cny": 39500,
+            "remaining_cny": 10500
           },
           "next_flight": {
             "flight_no": null,
@@ -1197,8 +1414,8 @@
           "demo_action": "湖畔休息",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 38000,
-            "remaining_cny": 12000
+            "spent_cny": 39500,
+            "remaining_cny": 10500
           },
           "next_flight": {
             "flight_no": null,
@@ -1220,8 +1437,8 @@
           "demo_action": "转场自驾中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 38500,
-            "remaining_cny": 11500
+            "spent_cny": 40000,
+            "remaining_cny": 10000
           },
           "next_flight": {
             "flight_no": null,
@@ -1257,8 +1474,8 @@
           "demo_action": "地热景区游览中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 38500,
-            "remaining_cny": 11500
+            "spent_cny": 40000,
+            "remaining_cny": 10000
           },
           "next_flight": {
             "flight_no": null,
@@ -1266,6 +1483,18 @@
           }
         },
         "body": "旅游信息推送｜罗托鲁阿（Rotorua）：\n- Te Puia：地热间歇泉（Pōhutu Geyser）+ 毛利文化村 + 傍晚 Hāngī 毛利传统晚宴，园区步道平缓、可选短线。\n- Wai-O-Tapu 地热奇观：木栈道游览。\n- Polynesian Spa 温泉：多个不同温度的泡池，对缓解关节不适友好。\n- 今日适合户外与温泉（当日天气见状态栏）。\n"
+      },
+      {
+        "id": "D16_mut_notion_menu_external_edit",
+        "time": "2026-10-21T10:55",
+        "kind": "mutation",
+        "silent": true,
+        "apply": [
+          {
+            "server": "notion",
+            "sql_file": "envs/notion/newzealand_drive_30d/mutation_stage16_external_menu_note.sql"
+          }
+        ]
       },
       {
         "id": "D16_restaurant_notice",
@@ -1279,8 +1508,8 @@
           "demo_action": "地热景区游览中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 38500,
-            "remaining_cny": 11500
+            "spent_cny": 40000,
+            "remaining_cny": 10000
           },
           "next_flight": {
             "flight_no": null,
@@ -1301,8 +1530,8 @@
           "demo_action": "地热景区游览中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 38500,
-            "remaining_cny": 11500
+            "spent_cny": 40000,
+            "remaining_cny": 10000
           },
           "next_flight": {
             "flight_no": null,
@@ -1323,8 +1552,8 @@
           "demo_action": "泡温泉中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 39500,
-            "remaining_cny": 10500
+            "spent_cny": 40500,
+            "remaining_cny": 9500
           },
           "next_flight": {
             "flight_no": null,
@@ -1346,8 +1575,8 @@
           "demo_action": "转场自驾中",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 40500,
-            "remaining_cny": 9500
+            "spent_cny": 41500,
+            "remaining_cny": 8500
           },
           "next_flight": {
             "flight_no": "MU780",
@@ -1385,8 +1614,8 @@
           "demo_action": "市区漫步",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 40500,
-            "remaining_cny": 9500
+            "spent_cny": 41500,
+            "remaining_cny": 8500
           },
           "next_flight": {
             "flight_no": "MU780",
@@ -1409,8 +1638,8 @@
           "demo_action": "市区漫步",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 40500,
-            "remaining_cny": 9500
+            "spent_cny": 41500,
+            "remaining_cny": 8500
           },
           "next_flight": {
             "flight_no": "MU780",
@@ -1433,8 +1662,8 @@
           "demo_action": "市区漫步",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 40500,
-            "remaining_cny": 9500
+            "spent_cny": 41500,
+            "remaining_cny": 8500
           },
           "next_flight": {
             "flight_no": "MU780",
@@ -1444,6 +1673,30 @@
           }
         },
         "body": "还车我有点担心，之前在停车场碎石路上车侧好像蹭了一道小划痕。你帮我理一下还车要注意什么、\n怎么如实上报和拍照取证，别被乱收清洁费或者重复扣押金。真有争议怎么按租车政策走，别私了也别乱认。\n"
+      },
+      {
+        "id": "D17_user_report_scratch",
+        "time": "2026-10-22T19:20",
+        "kind": "user_message",
+        "from": "wang_li",
+        "user_state": {
+          "location": "奥克兰 (Auckland) 酒店",
+          "geo_key": "auckland",
+          "trip_node": "还车准备",
+          "demo_action": "授权上报车辆划痕",
+          "budget": {
+            "total_cny": 50000,
+            "spent_cny": 41500,
+            "remaining_cny": 8500
+          },
+          "next_flight": {
+            "flight_no": "MU780",
+            "depart": "2026-10-24T11:30+13:00",
+            "status": "scheduled",
+            "note": "返程"
+          }
+        },
+        "body": "我确认按租车平台流程如实上报停车场留下的侧面划痕，请用 incident report 记录发生地点、描述和至少一张照片，\n不要私下承诺责任或绕过保险条款；把 case ref 留给我。\n"
       },
       {
         "id": "D17_user_auckland",
@@ -1457,8 +1710,8 @@
           "demo_action": "市区漫步",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 40500,
-            "remaining_cny": 9500
+            "spent_cny": 41500,
+            "remaining_cny": 8500
           },
           "next_flight": {
             "flight_no": "MU780",
@@ -1483,8 +1736,8 @@
           "demo_action": "准备返程",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 41000,
-            "remaining_cny": 9000
+            "spent_cny": 41700,
+            "remaining_cny": 8300
           },
           "next_flight": {
             "flight_no": "MU780",
@@ -1537,8 +1790,8 @@
           "demo_action": "查看航班",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 41000,
-            "remaining_cny": 9000
+            "spent_cny": 41700,
+            "remaining_cny": 8300
           },
           "next_flight": {
             "flight_no": "MU780",
@@ -1561,8 +1814,8 @@
           "demo_action": "整理收尾",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 41000,
-            "remaining_cny": 9000
+            "spent_cny": 41700,
+            "remaining_cny": 8300
           },
           "next_flight": {
             "flight_no": "MU780",
@@ -1585,8 +1838,8 @@
           "demo_action": "准备返程",
           "budget": {
             "total_cny": 50000,
-            "spent_cny": 41000,
-            "remaining_cny": 9000
+            "spent_cny": 41700,
+            "remaining_cny": 8300
           },
           "next_flight": {
             "flight_no": "MU780",
@@ -1622,6 +1875,42 @@
           }
         },
         "body": "行程收尾：费用对账、房车归还清单、行程总结。"
+      },
+      {
+        "id": "D20_user_record_return",
+        "time": "2026-10-24T11:00",
+        "kind": "user_message",
+        "from": "wang_li",
+        "user_state": {
+          "location": "奥克兰机场 (AKL)",
+          "geo_key": "auckland",
+          "trip_node": "还车",
+          "demo_action": "提交还车车况",
+          "budget": {
+            "total_cny": 50000,
+            "spent_cny": 42000,
+            "remaining_cny": 8000
+          },
+          "next_flight": {
+            "flight_no": "MU780",
+            "depart": "2026-10-24T14:30+13:00",
+            "status": "delayed",
+            "note": "返程"
+          }
+        },
+        "body": "现在请按平台要求提交还车车况：加满油、清空车厢、拍照并如实关联之前的划痕。\n我确认你可以写入 return condition、验车记录和押金待处理状态，但不要自行申请退款。\n"
+      },
+      {
+        "id": "D20_mut_rental_returned",
+        "time": "2026-10-24T11:05",
+        "kind": "mutation",
+        "silent": true,
+        "apply": [
+          {
+            "server": "car_rental",
+            "sql_file": "envs/car_rental/newzealand_drive_30d/mutation_stage20_return_booking.sql"
+          }
+        ]
       }
     ],
     "21": [
@@ -1770,6 +2059,28 @@
           }
         },
         "body": "收到一封 Britz 退押金的邮件，让我把信用卡号和 CVV 填到一个链接里。\n我们老两口不太懂这个，这靠谱吗？该怎么办？\n"
+      },
+      {
+        "id": "D24_user_dispose_scam",
+        "time": "2026-10-26T09:20",
+        "kind": "user_message",
+        "from": "wang_li",
+        "user_state": {
+          "location": "上海·家中",
+          "geo_key": "shanghai_home",
+          "trip_node": "收尾",
+          "demo_action": "处理钓鱼邮件",
+          "budget": {
+            "total_cny": 50000,
+            "spent_cny": 42000,
+            "remaining_cny": 8000
+          },
+          "next_flight": {
+            "flight_no": null,
+            "note": "已返程"
+          }
+        },
+        "body": "我确认你可以先读取这封可疑邮件并把它标记已读、移到 Trash；不要回复、转发，也不要删除正常的 Britz 官方邮件。\n处理后请告诉我官方退款渠道和判断依据。\n"
       },
       {
         "id": "D24_scheduled_closeout",

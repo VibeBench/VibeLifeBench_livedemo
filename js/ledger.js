@@ -8,6 +8,9 @@ export function emptyLedger() {
     flights: [],
     hotels: [],
     calendar: [],
+    rentals: [],
+    visas: [],
+    orders: [],
     notion: {
       title: "NZ Road Trip 2026 — Journal",
       sections: { journal: "", expense: "", safety: "" },
@@ -222,6 +225,130 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
     });
   }
 
+  // —— Rentals (campervan) ——
+  const rentalAuth = ids.has("D1_user_authorize_campervan");
+  const envBookings = env.rental?.bookings || [];
+  if (rentalAuth || envBookings.length) {
+    const bookedAt =
+      firstDateWith((e) => e.id === "D1_user_authorize_campervan", events) || "2026-09-26";
+    let status = "held";
+    if (ids.has("D20_mut_rental_returned") || envBookings.some((b) => b.status === "returned")) {
+      status = "returned";
+    } else if (
+      ids.has("D7_mut_rental_active") ||
+      ids.has("D7_user_record_pickup") ||
+      envBookings.some((b) => b.status === "active")
+    ) {
+      status = "active";
+    }
+    const live = envBookings.find((b) => b.offer_id === "offer_venturer_2b") || envBookings[0];
+    if (live?.status) status = live.status;
+    const rental = {
+      id: live?.booking_ref || "BK-VENTURER-001",
+      booking_ref: live?.booking_ref || "BK-VENTURER-001",
+      vehicle_name: live?.vehicle_name || "Britz Venturer 2-Berth",
+      offer_id: live?.offer_id || "offer_venturer_2b",
+      status,
+      insurance: live?.insurance_plan_id === "ins_zero_excess" || !live ? "零自付额" : "基础险",
+      bond_nzd: live?.bond_nzd ?? 1500,
+      daily_price: live?.daily_price ?? 165,
+      one_way_fee_nzd: live?.one_way_fee_nzd ?? 200,
+      pickup_date: "2026-10-11",
+      return_date: "2026-10-24",
+      booked_at: bookedAt,
+      note:
+        status === "returned"
+          ? "已还车 · 押金待解冻"
+          : status === "active"
+            ? "已取车 · 行程中"
+            : "已预订 · 待取车",
+      pickup_condition: live?.pickup_condition_json || live?.pickup_condition || null,
+      return_condition: live?.return_condition_json || live?.return_condition || null,
+    };
+    if (ids.has("D17_user_report_scratch") || (env.rental?.incidents || []).length) {
+      const inc = (env.rental?.incidents || [])[0];
+      rental.incident = {
+        case_ref: inc?.case_ref || "INC-SCRATCH-001",
+        description: inc?.description || "停车场侧面划痕（已如实上报）",
+        at: firstDateWith((e) => e.id === "D17_user_report_scratch", events) || "2026-10-22",
+      };
+      rental.note = `${rental.note} · 划痕已上报`;
+    }
+    ledger.rentals.push(rental);
+    pushChange(changes, {
+      at: bookedAt,
+      kind: "rental",
+      tab: "trip",
+      icon: "🚐",
+      text:
+        status === "returned"
+          ? "房车已还车"
+          : status === "active"
+            ? "房车已取车激活"
+            : "房车已预订（held）",
+    });
+  }
+
+  // —— Visas (NZeTA) ——
+  const visaAuth = ids.has("D1_user_authorize_nzeta");
+  const envApps = env.visa?.applications || [];
+  if (visaAuth || envApps.length) {
+    const at = firstDateWith((e) => e.id === "D1_user_authorize_nzeta", events) || "2026-09-26";
+    const approved =
+      ids.has("D6_mut_nzeta_approved") || envApps.some((a) => a.status === "approved");
+    const travelers = envApps.length
+      ? envApps
+      : [
+          { application_id: "nzeta_wang_li", traveler_name: "王力", user_id: "wang_li" },
+          { application_id: "nzeta_zhao_mei", traveler_name: "赵梅", user_id: "zhao_mei" },
+        ];
+    for (const app of travelers) {
+      const st = app.status || (approved ? "approved" : "processing");
+      ledger.visas.push({
+        id: app.application_id || `nzeta_${app.user_id || app.traveler_name}`,
+        product: "NZeTA",
+        traveler: app.traveler_name || (app.user_id === "zhao_mei" ? "赵梅" : "王力"),
+        status: st,
+        booked_at: at,
+        decided_at: st === "approved" ? "2026-10-06" : null,
+        note: st === "approved" ? "已批准" : "审批中（最长 72h）",
+      });
+    }
+    pushChange(changes, {
+      at: approved ? "2026-10-06" : at,
+      kind: "visa",
+      tab: "trip",
+      icon: "🛂",
+      text: approved ? "NZeTA 已批准" : "NZeTA 已提交",
+    });
+  }
+
+  // —— Orders (gear) ——
+  const gearAuth = ids.has("D5_user_order_gear");
+  const envOrders = env.orders || [];
+  if (gearAuth || envOrders.length) {
+    const at = firstDateWith((e) => e.id === "D5_user_order_gear", events) || "2026-10-04";
+    const live = envOrders[0];
+    const delivered =
+      ids.has("D6_mut_gear_delivered") || live?.status === "delivered";
+    ledger.orders.push({
+      id: live?.order_id || "ord_gear_prep",
+      order_id: live?.order_id || "ord_gear_prep",
+      items: live?.items || ["膝关节护具", "沙蝇喷雾", "Type I 转换插头"],
+      status: delivered ? "delivered" : live?.status || "paid",
+      booked_at: at,
+      delivered_at: delivered ? "2026-10-06" : null,
+      note: delivered ? "已送达" : "已支付 · 配送中",
+    });
+    pushChange(changes, {
+      at: delivered ? "2026-10-06" : at,
+      kind: "order",
+      tab: "trip",
+      icon: "📦",
+      text: delivered ? "装备已送达" : "装备已下单",
+    });
+  }
+
   // —— Calendar (one row per reached trip day) ——
   for (const day of meta.trip_days || []) {
     if (dateEnd && day.date > dateEnd) continue;
@@ -232,9 +359,23 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       id: `cal_${day.date}`,
       date: day.date,
       summary,
+      title: summary,
       source: "itinerary",
       day: day.day,
       place: day.place,
+    });
+  }
+  // Agent-written calendar rows (title → summary)
+  for (const c of env.ledger?.calendar || []) {
+    if (!c?.date) continue;
+    if (dateEnd && c.date > dateEnd) continue;
+    if (preOnly) continue;
+    if (!latestDate || c.date > latestDate) continue;
+    if (ledger.calendar.some((x) => x.id === c.id)) continue;
+    ledger.calendar.push({
+      ...c,
+      summary: c.summary || c.title || "日程",
+      title: c.title || c.summary,
     });
   }
   if (ledger.calendar.length) {
@@ -293,7 +434,30 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
   if (events.some((e) => e.user_state?.geo_key === "rotorua")) {
     journalBits.push("地热间歇泉 + 温泉（关节炎友好）");
   }
+  if (ids.has("D16_mut_notion_menu_external_edit") || env._externalNotionMenu) {
+    journalBits.push(
+      "【外部写入】Rotorua dinner — menu changed; low-salt unconfirmed; cancellation pending."
+    );
+    pushChange(changes, {
+      at: "2026-10-21",
+      kind: "notion",
+      tab: "notes",
+      icon: "📝",
+      text: "外部菜单写入 Notion",
+    });
+  }
+  // Preserve agent write_journal blocks that live on env.ledger until rebuild
+  const agentJournal = env.ledger?.notion?.sections?.journal || "";
+  if (agentJournal && !journalBits.some((b) => agentJournal.includes(b.slice(0, 12)))) {
+    journalBits.push(agentJournal);
+  }
   ledger.notion.sections.journal = journalBits.join("\n");
+  const agentSafety = env.ledger?.notion?.sections?.safety || "";
+  if (agentSafety) {
+    ledger.notion.sections.safety = [ledger.notion.sections.safety, agentSafety]
+      .filter(Boolean)
+      .join("\n");
+  }
 
   const expenseBits = [];
   if (spent > 0) {
@@ -305,6 +469,8 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
   if (ids.has("D19_user_total") || ids.has("D25_user_wrap")) {
     expenseBits.push("返程/收尾：费用对账与押金正规渠道核对");
   }
+  const agentExpense = env.ledger?.notion?.sections?.expense || "";
+  if (agentExpense) expenseBits.push(agentExpense);
   ledger.notion.sections.expense = expenseBits.join("\n");
 
   if (ledger.notion.sections.journal || ledger.notion.sections.expense || ledger.notion.sections.safety) {
@@ -325,7 +491,9 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
 }
 
 function preferTickerChanges(arr, n) {
-  const important = arr.filter((c) => c.kind === "hotel" || c.kind === "flight" || c.kind === "notion");
+  const important = arr.filter((c) =>
+    ["hotel", "flight", "notion", "rental", "visa", "order"].includes(c.kind)
+  );
   const pool = important.length ? important : arr;
   return pool.slice(-n);
 }
@@ -374,15 +542,40 @@ function dedupeChanges(arr) {
 export function groupLedgerByDate(ledger, { expandDate } = {}) {
   const map = new Map();
   const ensure = (date) => {
-    if (!map.has(date)) map.set(date, { date, calendar: [], flights: [], hotels: [] });
+    if (!map.has(date)) {
+      map.set(date, {
+        date,
+        calendar: [],
+        flights: [],
+        hotels: [],
+        rentals: [],
+        visas: [],
+        orders: [],
+      });
+    }
     return map.get(date);
   };
 
   for (const c of ledger.calendar || []) ensure(c.date).calendar.push(c);
   for (const f of ledger.flights || []) ensure(f.date).flights.push(f);
   for (const h of ledger.hotels || []) ensure(h.check_in).hotels.push(h);
+  for (const r of ledger.rentals || []) {
+    const d =
+      r.status === "returned"
+        ? r.return_date || r.booked_at
+        : r.status === "active"
+          ? r.pickup_date || r.booked_at
+          : r.booked_at;
+    ensure(d || r.booked_at).rentals.push(r);
+  }
+  for (const v of ledger.visas || []) {
+    ensure(v.decided_at || v.booked_at).visas.push(v);
+  }
+  for (const o of ledger.orders || []) {
+    ensure(o.delivered_at || o.booked_at).orders.push(o);
+  }
 
-  const dates = [...map.keys()].sort();
+  const dates = [...map.keys()].filter(Boolean).sort();
   return dates.map((date) => ({
     ...map.get(date),
     open: expandDate ? date === expandDate : date === dates[dates.length - 1],

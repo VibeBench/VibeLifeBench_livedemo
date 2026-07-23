@@ -52,6 +52,7 @@ export function buildSystemPrompt(workspace, meta) {
     "安全第一：靠左驾驶、疲劳驾驶、天气路况。赵梅有轻度关节炎，活动安排须低强度。",
     "遇到静默变更（mutation）相关线索时，请主动调用工具查询天气/路况/航班，不要假设一切正常。",
     "需要外部资讯时用 search_web；确认的行程要点可 write_journal / add_calendar_event 写入游记与日程。",
+    "用户明确授权后可用 submit_nzeta / book_campervan / book_flight / book_hotel / place_gear_order 等写入工具；取还车用 record_pickup / report_scratch / record_return；值机用 checkin_flight。",
     "重大不可退或单笔超过 ¥3000 的预订先征询用户；医疗结论绝不代下。",
     "回复使用标准 Markdown。对比/清单用 GFM 表格（必须含表头分隔行），例如：",
     "| 项目 | 金额 |\n| --- | --- |\n| 已花 | ¥33,000 |\n| 剩余 | ¥17,000 |",
@@ -185,6 +186,151 @@ export function buildTools() {
             note: { type: "string", description: "补充说明" },
           },
           required: ["title"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "submit_nzeta",
+        description: "为旅客提交 NZeTA 申请（演示写入，需用户授权）",
+        parameters: {
+          type: "object",
+          properties: {
+            travelers: {
+              type: "array",
+              items: { type: "string" },
+              description: "旅客姓名，如 [\"王力\",\"赵梅\"]",
+            },
+          },
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "book_campervan",
+        description: "预订房车（演示写入 held 状态，需用户授权）",
+        parameters: {
+          type: "object",
+          properties: {
+            offer_id: { type: "string", description: "默认 offer_venturer_2b" },
+            insurance_plan_id: { type: "string", description: "默认 ins_zero_excess" },
+            vehicle_name: { type: "string" },
+          },
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "book_flight",
+        description: "确认机票出票（演示写入）",
+        parameters: {
+          type: "object",
+          properties: {
+            flight_no: { type: "string" },
+            route: { type: "string" },
+            date: { type: "string" },
+            note: { type: "string" },
+          },
+          required: ["flight_no"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "book_hotel",
+        description: "确认酒店/营地预订（演示写入）",
+        parameters: {
+          type: "object",
+          properties: {
+            hotel_id: { type: "string" },
+            hotel_name: { type: "string" },
+            check_in: { type: "string" },
+            check_out: { type: "string" },
+            price_nzd: { type: "number" },
+            refundable: { type: "boolean" },
+          },
+          required: ["hotel_name"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "place_gear_order",
+        description: "下单护膝/沙蝇喷雾/转换插头等装备（演示写入）",
+        parameters: {
+          type: "object",
+          properties: {
+            items: { type: "array", items: { type: "string" } },
+          },
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "record_pickup",
+        description: "记录取车车况并激活预订（演示写入）",
+        parameters: {
+          type: "object",
+          properties: {
+            booking_ref: { type: "string" },
+            odometer_km: { type: "number" },
+            fuel_level: { type: "string" },
+            existing_damage: { type: "string" },
+            photo_count: { type: "integer" },
+          },
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "report_scratch",
+        description: "上报车辆划痕 incident（演示写入）",
+        parameters: {
+          type: "object",
+          properties: {
+            booking_ref: { type: "string" },
+            location: { type: "string" },
+            description: { type: "string" },
+            photo_count: { type: "integer" },
+          },
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "record_return",
+        description: "记录还车车况（演示写入 returned）",
+        parameters: {
+          type: "object",
+          properties: {
+            booking_ref: { type: "string" },
+            odometer_km: { type: "number" },
+            fuel_level: { type: "string" },
+            notes: { type: "string" },
+          },
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "checkin_flight",
+        description: "航班值机（演示写入 checked_in）",
+        parameters: {
+          type: "object",
+          properties: {
+            flight_no: { type: "string" },
+            seat: { type: "string" },
+          },
+          required: ["flight_no"],
         },
       },
     },
@@ -574,6 +720,7 @@ export class TravelAgent {
           ok: true,
           road_events: (env.maps.road_events || []).filter((e) => Number(e.active) === 1),
           transit_events: (env.maps.transit_events || []).filter((e) => Number(e.active) === 1),
+          weather_alerts: (env.weather?.alerts || []).filter((e) => Number(e.active) === 1),
           hotels: env.hotels || {},
           flights: Object.fromEntries(
             Object.entries(env.flights || {}).filter(([, v]) => v.status && v.status !== "on_time")
@@ -640,12 +787,266 @@ export class TravelAgent {
           id: `cal_agent_${Date.now()}`,
           date,
           title,
+          summary: title,
           note,
           kind: "plan",
           source: "agent",
         };
         env.ledger.calendar.push(item);
+        this.engine.refreshLedger?.();
         return { ok: true, written: true, event: item };
+      }
+      case "submit_nzeta": {
+        env.visa = env.visa || { applications: [] };
+        env.visa.applications = env.visa.applications || [];
+        const names = Array.isArray(args.travelers) && args.travelers.length
+          ? args.travelers.map(String)
+          : ["王力", "赵梅"];
+        const apps = [];
+        for (const name of names) {
+          const user_id = /赵|mei/i.test(name) ? "zhao_mei" : "wang_li";
+          const application_id = `nzeta_${user_id}`;
+          let row = env.visa.applications.find((a) => a.application_id === application_id);
+          if (!row) {
+            row = {
+              application_id,
+              product_id: "vp_nz_eta",
+              user_id,
+              traveler_name: name,
+              status: "processing",
+              created_at: new Date().toISOString(),
+            };
+            env.visa.applications.push(row);
+          } else if (row.status !== "approved") {
+            row.status = "processing";
+            row.traveler_name = name;
+          }
+          apps.push(row);
+        }
+        this.engine.refreshLedger?.();
+        return {
+          ok: true,
+          written: true,
+          summary: `已提交 ${apps.length} 份 NZeTA`,
+          applications: apps,
+        };
+      }
+      case "book_campervan": {
+        env.rental = env.rental || { bookings: [], incidents: [] };
+        env.rental.bookings = env.rental.bookings || [];
+        const offer_id = args.offer_id || "offer_venturer_2b";
+        const insurance_plan_id = args.insurance_plan_id || "ins_zero_excess";
+        let booking = env.rental.bookings.find((b) => b.offer_id === offer_id);
+        if (!booking) {
+          booking = {
+            booking_ref: "BK-VENTURER-001",
+            user_id: "wang_li",
+            offer_id,
+            vehicle_name: args.vehicle_name || "Britz Venturer 2-Berth",
+            insurance_plan_id,
+            status: "held",
+            bond_nzd: 1500,
+            daily_price: 165,
+            one_way_fee_nzd: 200,
+            created_at: new Date().toISOString(),
+          };
+          env.rental.bookings.push(booking);
+        } else {
+          booking.status = booking.status === "returned" ? booking.status : booking.status || "held";
+          booking.insurance_plan_id = insurance_plan_id;
+          if (args.vehicle_name) booking.vehicle_name = args.vehicle_name;
+        }
+        this.engine.refreshLedger?.();
+        return {
+          ok: true,
+          written: true,
+          summary: `房车预订 ${booking.booking_ref} · ${booking.status}`,
+          booking,
+        };
+      }
+      case "book_flight": {
+        const flight_no = String(args.flight_no || "").toUpperCase();
+        env.flights = env.flights || {};
+        env.flights[flight_no] = {
+          ...(env.flights[flight_no] || {}),
+          status: "confirmed",
+          date: args.date || env.flights[flight_no]?.date,
+          note: args.note || env.flights[flight_no]?.note || "已出票",
+          route: args.route || env.flights[flight_no]?.route,
+        };
+        this.engine.refreshLedger?.();
+        return {
+          ok: true,
+          written: true,
+          summary: `机票 ${flight_no} 已确认`,
+          flight: env.flights[flight_no],
+        };
+      }
+      case "book_hotel": {
+        env.hotels = env.hotels || {};
+        const hotel_id = args.hotel_id || `htl_${String(args.hotel_name || "stay").slice(0, 12)}`;
+        const check_in = args.check_in || state.__date || this.engine.latestDate();
+        const key = `${hotel_id}_${check_in || ""}`;
+        env.hotels[key] = {
+          ...(env.hotels[key] || {}),
+          hotel_id,
+          hotel_name: args.hotel_name,
+          name: args.hotel_name,
+          check_in,
+          check_out: args.check_out || null,
+          nightly_price: args.price_nzd ?? null,
+          price_nzd: args.price_nzd ?? null,
+          refundable: args.refundable !== false,
+          status: "confirmed",
+        };
+        this.engine.refreshLedger?.();
+        return {
+          ok: true,
+          written: true,
+          summary: `住宿已订 · ${args.hotel_name}`,
+          hotel: env.hotels[key],
+        };
+      }
+      case "place_gear_order": {
+        env.orders = env.orders || [];
+        const items =
+          Array.isArray(args.items) && args.items.length
+            ? args.items.map(String)
+            : ["膝关节护具", "沙蝇喷雾", "Type I 转换插头"];
+        let order = env.orders.find((o) => o.user_id === "wang_li");
+        if (!order) {
+          order = {
+            order_id: `ord_gear_${Date.now().toString(36).slice(-6)}`,
+            user_id: "wang_li",
+            items,
+            status: "paid",
+            created_at: new Date().toISOString(),
+          };
+          env.orders.push(order);
+        } else if (order.status !== "delivered") {
+          order.items = items;
+          order.status = "paid";
+        }
+        this.engine.refreshLedger?.();
+        return {
+          ok: true,
+          written: true,
+          summary: `装备订单 ${order.order_id} · ${order.status}`,
+          order,
+        };
+      }
+      case "record_pickup": {
+        env.rental = env.rental || { bookings: [], incidents: [] };
+        env.rental.bookings = env.rental.bookings || [];
+        let booking =
+          env.rental.bookings.find((b) => b.booking_ref === args.booking_ref) ||
+          env.rental.bookings.find((b) => b.offer_id === "offer_venturer_2b") ||
+          env.rental.bookings[0];
+        if (!booking) {
+          booking = {
+            booking_ref: args.booking_ref || "BK-VENTURER-001",
+            user_id: "wang_li",
+            offer_id: "offer_venturer_2b",
+            vehicle_name: "Britz Venturer 2-Berth",
+            insurance_plan_id: "ins_zero_excess",
+            status: "held",
+            bond_nzd: 1500,
+            daily_price: 165,
+          };
+          env.rental.bookings.push(booking);
+        }
+        booking.status = "active";
+        booking.pickup_condition = {
+          odometer_km: args.odometer_km ?? 12450,
+          fuel_level: args.fuel_level || "full",
+          existing_damage: args.existing_damage || "轻微旧划痕已拍照",
+          photo_count: args.photo_count ?? 4,
+          at: new Date().toISOString(),
+        };
+        booking.activated_at = booking.pickup_condition.at;
+        this.engine.refreshLedger?.();
+        return {
+          ok: true,
+          written: true,
+          summary: `取车完成 · ${booking.booking_ref} → active`,
+          booking,
+        };
+      }
+      case "report_scratch": {
+        env.rental = env.rental || { bookings: [], incidents: [] };
+        env.rental.incidents = env.rental.incidents || [];
+        const booking_ref =
+          args.booking_ref ||
+          env.rental.bookings?.[0]?.booking_ref ||
+          "BK-VENTURER-001";
+        const incident = {
+          incident_id: `inc_${Date.now().toString(36).slice(-6)}`,
+          booking_ref,
+          user_id: "wang_li",
+          at: new Date().toISOString(),
+          location: args.location || "停车场碎石路",
+          description: args.description || "车身侧面小划痕",
+          photo_count: args.photo_count ?? 2,
+          case_ref: `INC-SCRATCH-${String(env.rental.incidents.length + 1).padStart(3, "0")}`,
+          status: "reported",
+        };
+        env.rental.incidents.push(incident);
+        this.engine.refreshLedger?.();
+        return {
+          ok: true,
+          written: true,
+          summary: `划痕已上报 · ${incident.case_ref}`,
+          incident,
+        };
+      }
+      case "record_return": {
+        env.rental = env.rental || { bookings: [], incidents: [] };
+        env.rental.bookings = env.rental.bookings || [];
+        let booking =
+          env.rental.bookings.find((b) => b.booking_ref === args.booking_ref) ||
+          env.rental.bookings[0];
+        if (!booking) {
+          booking = {
+            booking_ref: args.booking_ref || "BK-VENTURER-001",
+            user_id: "wang_li",
+            offer_id: "offer_venturer_2b",
+            vehicle_name: "Britz Venturer 2-Berth",
+            status: "active",
+          };
+          env.rental.bookings.push(booking);
+        }
+        booking.status = "returned";
+        booking.return_condition = {
+          odometer_km: args.odometer_km ?? null,
+          fuel_level: args.fuel_level || "full",
+          notes: args.notes || "验车完成 · 押金待处理",
+          at: new Date().toISOString(),
+        };
+        booking.returned_at = booking.return_condition.at;
+        this.engine.refreshLedger?.();
+        return {
+          ok: true,
+          written: true,
+          summary: `还车完成 · ${booking.booking_ref} → returned`,
+          booking,
+        };
+      }
+      case "checkin_flight": {
+        const flight_no = String(args.flight_no || "").toUpperCase();
+        env.flights = env.flights || {};
+        env.flights[flight_no] = {
+          ...(env.flights[flight_no] || {}),
+          status: "checked_in",
+          seat: args.seat || env.flights[flight_no]?.seat || null,
+          note: `已值机${args.seat ? ` · 座位 ${args.seat}` : ""}`,
+        };
+        this.engine.refreshLedger?.();
+        return {
+          ok: true,
+          written: true,
+          summary: `${flight_no} 已值机`,
+          flight: env.flights[flight_no],
+        };
       }
       default:
         return { ok: false, error: `unknown tool ${name}` };

@@ -25,7 +25,9 @@
       "place": "蒂卡波",
       "weekday": "周日",
       "md": "10/11",
-      "stages": []
+      "stages": [
+        7
+      ]
     },
     {
       "day": 3,
@@ -316,13 +318,13 @@
     }
   },
   "kind_labels": {
-    "user_message": "用户消息",
-    "app_notification": "APP / 短信",
-    "world": "外部资讯",
-    "weather": "天气更新",
-    "mutation": "环境静默变更",
+    "user_message": "用户输入",
+    "app_notification": "APP/短信",
+    "world": "外部信息",
+    "weather": "日期天气",
+    "mutation": "静默变更",
     "notification": "系统心跳",
-    "routine": "行程节点",
+    "routine": "日常节点",
     "env_change": "环境变更"
   },
   "schema_version": 1
