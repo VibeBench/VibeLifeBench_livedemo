@@ -16,8 +16,8 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-109";
-import { playbackMs } from "./playback.js?v=20260723-109";
+} from "./routing.js?v=20260723-110";
+import { playbackMs } from "./playback.js?v=20260723-110";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -3645,11 +3645,11 @@ function paintPersistentFlightArcs(ctx) {
     if (!locked) continue;
     const arc = locked.arc;
     const label = `${f.flown ? "已飞" : "未飞"} · ${f.flight_no} · ${f.route}`;
-    // Stable muted style — never cycle into planning-blue (looks like road核查).
+    // Soft muted arcs — lighter so they don't dominate the map.
     const line = window.L.polyline(arc, {
-      color: f.flown ? "#64748b" : "#6366f1",
-      weight: f.flown ? 3 : 3.5,
-      opacity: f.flown ? 0.5 : 0.72,
+      color: f.flown ? "#94a3b8" : "#a5b4fc",
+      weight: f.flown ? 2.5 : 3,
+      opacity: f.flown ? 0.38 : 0.48,
       dashArray: f.flown ? null : "10 10",
       className: f.flown ? "flight-flown-line" : "flight-plan-line",
       interactive: true,
@@ -3942,7 +3942,7 @@ export function playFlightCrossing({
     const total = lengths.reduce((s, n) => s + n, 0) || 1;
 
     window.L.polyline(arc, {
-      color: "#cbd5e1",
+      color: "#e2e8f0",
       weight: 2,
       opacity: 0.55,
       dashArray: "4 8",
@@ -3950,9 +3950,9 @@ export function playFlightCrossing({
     }).addTo(flightLayer);
 
     const flown = window.L.polyline([arc[0]], {
-      color: "#64748b",
-      weight: 4,
-      opacity: 0.9,
+      color: "#94a3b8",
+      weight: 3.5,
+      opacity: 0.65,
       className: "flight-live-line",
     }).addTo(flightLayer);
 

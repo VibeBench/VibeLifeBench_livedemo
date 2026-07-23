@@ -1786,17 +1786,17 @@ select {
 .flight-plan-line {
   stroke-dasharray: 8 12;
   animation: route-dash 2.8s linear infinite;
-  filter: drop-shadow(0 0 2px rgba(148, 163, 184, 0.35));
+  filter: drop-shadow(0 0 1.5px rgba(165, 180, 252, 0.28));
 }
 
 .flight-flown-line {
   stroke-linecap: round;
-  filter: drop-shadow(0 0 2px rgba(51, 65, 85, 0.3));
+  filter: drop-shadow(0 0 1.5px rgba(148, 163, 184, 0.22));
 }
 
 .flight-live-line {
   stroke-linecap: round;
-  filter: drop-shadow(0 0 3px rgba(100, 116, 139, 0.45));
+  filter: drop-shadow(0 0 2px rgba(148, 163, 184, 0.3));
 }
 
 .map-flight-plane-wrap {
