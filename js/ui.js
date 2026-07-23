@@ -22,9 +22,9 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260723-205";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-205";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-205";
+} from "./map.js?v=20260723-206";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-206";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-206";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },

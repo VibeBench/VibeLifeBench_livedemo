@@ -16,8 +16,8 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-205";
-import { playbackMs } from "./playback.js?v=20260723-205";
+} from "./routing.js?v=20260723-206";
+import { playbackMs } from "./playback.js?v=20260723-206";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -56,6 +56,8 @@ let mapResizeTimer = null;
 let pulseTimers = [];
 /** Agent route-planning overlay (thinking / tools). */
 let planningToken = 0;
+/** Bumped whenever check pills are cleared/repainted — drops stale async paints. */
+let roadCheckToken = 0;
 let planningActive = false;
 let planningFocusLatLngs = null;
 let lastPlanningKey = "";
@@ -1209,10 +1211,14 @@ function prioritizeCheckMarks(marks = []) {
     else if (note && note !== "正在核对通行状态") s += 12;
     return s;
   };
-  return [...marks]
-    .filter((m) => m?.roadId && !looksLikeItineraryDump(m.note))
-    .sort((a, b) => score(b) - score(a))
-    .slice(0, 2);
+  // One pill per road — duplicates look like stacked ghosts.
+  const best = new Map();
+  for (const m of marks || []) {
+    if (!m?.roadId || looksLikeItineraryDump(m.note)) continue;
+    const prev = best.get(m.roadId);
+    if (!prev || score(m) > score(prev)) best.set(m.roadId, m);
+  }
+  return [...best.values()].sort((a, b) => score(b) - score(a)).slice(0, 2);
 }
 
 /**
@@ -1315,17 +1321,21 @@ function ensureRoadCheckLayer() {
 async function paintRoadCheckMarks(marks) {
   const layer = ensureRoadCheckLayer();
   if (!layer || !window.L || !lastCtx) return;
+  const token = ++roadCheckToken;
   layer.clearLayers();
-  if (!marks?.length) return;
+  const unique = prioritizeCheckMarks(marks);
+  if (!unique.length) return;
   const here = placeLatLng(lastCtx);
   let markIdx = 0;
-  for (const mark of marks) {
+  for (const mark of unique) {
+    if (token !== roadCheckToken) return;
     const rid = mark.roadId;
     if (!rid) continue;
     const road = lastCtx.roadById?.[rid];
     let geom = parseRoadGeom(road?.geom || road?.geom_json || mark.geom);
     if (geom.length < 4) {
       const richer = await resolveRoadDisplayGeom(rid);
+      if (token !== roadCheckToken) return;
       if (richer.length >= 2) geom = richer;
     }
     if (geom.length < 2) continue;
@@ -1364,6 +1374,7 @@ async function paintRoadCheckMarks(marks) {
       note ? escapeHtml(note) : "",
     ].filter(Boolean);
 
+    if (token !== roadCheckToken) return;
     window.L.marker(anchor, {
       pane: "roadCheckPane",
       icon: window.L.divIcon({
@@ -1379,6 +1390,7 @@ async function paintRoadCheckMarks(marks) {
       .addTo(layer)
       .bindPopup(popupBits.join("<br/>"));
   }
+  if (token !== roadCheckToken) return;
   try {
     layer.bringToFront?.();
     leafletMap.getPane("roadCheckPane")?.style &&

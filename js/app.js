@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-205";
-import { DemoEngine } from "./engine.js?v=20260723-205";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-206";
+import { DemoEngine } from "./engine.js?v=20260723-206";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260723-205";
-import { Trajectory } from "./trajectory.js?v=20260723-205";
-import { UI } from "./ui.js?v=20260723-205";
+} from "./agent.js?v=20260723-206";
+import { Trajectory } from "./trajectory.js?v=20260723-206";
+import { UI } from "./ui.js?v=20260723-206";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,14 +18,14 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260723-205";
+} from "./map.js?v=20260723-206";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
   playbackMs,
   sleepPlayback,
   playbackSpeedLabel,
-} from "./playback.js?v=20260723-205";
+} from "./playback.js?v=20260723-206";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
