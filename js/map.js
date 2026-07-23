@@ -1093,6 +1093,47 @@ function looksLikePlanCommit(text, toolCalls = []) {
   return false;
 }
 
+/** Airports / home are transit, not camper overnight hubs — unless explicitly overnight. */
+const TRANSIT_HUB_PLACES = new Set(["pl_chc_airport", "pl_akl_airport", "shanghai_home"]);
+const SOUTH_ISLAND_PLACES = new Set([
+  "pl_chc_airport",
+  "pl_tekapo",
+  "pl_mt_cook",
+  "pl_queenstown",
+  "pl_wanaka",
+  "pl_milford",
+  "pl_picton",
+]);
+const NORTH_ISLAND_PLACES = new Set([
+  "pl_wellington",
+  "pl_taupo",
+  "pl_rotorua",
+  "pl_akl_airport",
+]);
+
+function isTransitHubPlace(placeId) {
+  return TRANSIT_HUB_PLACES.has(placeId);
+}
+
+function placeIsland(placeId) {
+  if (SOUTH_ISLAND_PLACES.has(placeId)) return "south";
+  if (NORTH_ISLAND_PLACES.has(placeId)) return "north";
+  return null;
+}
+
+function looksLikeOvernightStayLabel(label = "") {
+  return /过夜|住宿|营地|入住|入住|Hotel|Motel|Lodge|Holiday\s*Park|Park|露营|住一晚|入住|check[\s-]?in/i.test(
+    String(label || "")
+  );
+}
+
+function allowTransitHubStay(row = {}) {
+  if (!isTransitHubPlace(row.placeId)) return true;
+  if (row.kind === "hotel") return true;
+  // Only keep airport pins when the copy clearly means an overnight, not a flight end.
+  return looksLikeOvernightStayLabel(row.label);
+}
+
 /**
  * Build a live itinerary plan from the agent's own outputs (calendar writes + reply text + hotels).
  * Day numbers are supervised against case trip_days / calendar dates — never raw list index
@@ -1111,9 +1152,11 @@ function buildPlanFromAgentOutputs({
   const blob = `${content || ""}\n${thinking || ""}`;
   const days = Array.isArray(tripDays) ? tripDays : [];
   const byPlace = new Map(); // placeId -> stay (later sources can refine)
+  const flightHeavy = /机票|航班|MU\d+|PVG\s*→|值机|舱位|去程|返程|出票|已确认.*票/i.test(blob);
 
   const upsert = (row, { prefer = false } = {}) => {
     if (!row?.placeId || row.placeId === "shanghai_home") return;
+    if (!allowTransitHubStay(row)) return;
     const prev = byPlace.get(row.placeId);
     if (!prev) {
       byPlace.set(row.placeId, { ...row });
@@ -1207,11 +1250,18 @@ function buildPlanFromAgentOutputs({
   }
 
   // 4) Day-structured lines in the reply (Day 4 库克山 / 第5天·皇后镇)
-  for (const row of parseDayPlaceStays(blob)) upsert(row, { prefer: true });
+  for (const row of parseDayPlaceStays(blob)) {
+    // Day-N at airport only counts when the line itself says overnight / 住宿.
+    if (isTransitHubPlace(row.placeId) && !looksLikeOvernightStayLabel(row.label)) continue;
+    upsert(row, { prefer: true });
+  }
 
-  // 5) Ordered place mentions when we still have too few stays
-  if (byPlace.size < 2) {
-    const ids = extractPlaceIdsFromText(blob).filter((id) => id !== "shanghai_home");
+  // 5) Ordered place mentions when we still have too few stays.
+  // Skip flight-ticket replies — they mention CHC/AKL as airports, not overnights.
+  if (byPlace.size < 2 && !flightHeavy) {
+    const ids = extractPlaceIdsFromText(blob).filter(
+      (id) => id !== "shanghai_home" && !isTransitHubPlace(id)
+    );
     const uniq = [];
     for (const id of ids) {
       if (uniq[uniq.length - 1] !== id) uniq.push(id);
@@ -1479,7 +1529,17 @@ export async function commitAgentItineraryPlan({
     hotels: hotelsForPlan,
   });
   // Show even a single overnight — edits often arrive one stay at a time.
-  if (!(plan?.stays || []).length) return false;
+  if (!(plan?.stays || []).length) {
+    // Flight / ticket replies used to invent CHC+AKL "stays" and a fake drive line —
+    // wipe that leftover corridor when this turn has nothing real to show.
+    if (
+      /机票|航班|MU\d+|值机|舱位|去程|返程/i.test(blob) ||
+      calTools.some((t) => /book_hotel|calendar/i.test(String(t?.name || "")))
+    ) {
+      clearAgentPlan();
+    }
+    return false;
+  }
   const doFit = fit === "auto" ? shouldFitAgentPlanCamera() : Boolean(fit);
   return showAgentPlan(plan, { fit: doFit });
 }
@@ -1509,6 +1569,57 @@ function fitAgentPlanBounds() {
   }
 }
 
+/**
+ * Plan overlay links: straight dashed hops between consecutive overnights.
+ * Avoid OSRM road snakes (e.g. AKL→CHC "driving" down the whole North Island)
+ * which misread airport mentions in flight tickets as camper stays.
+ */
+function buildAgentPlanLinkSegments(ctx, routeIds = []) {
+  const segments = [];
+  for (let i = 1; i < routeIds.length; i++) {
+    const a = routeIds[i - 1];
+    const b = routeIds[i];
+    const pa = ctx.placeById?.[a];
+    const pb = ctx.placeById?.[b];
+    if (!pa || !pb) continue;
+
+    const ia = placeIsland(a);
+    const ib = placeIsland(b);
+    const ferry =
+      (a === "pl_picton" && b === "pl_wellington") ||
+      (a === "pl_wellington" && b === "pl_picton");
+    // No cross-island mega drive (except short Picton↔Wellington ferry hop).
+    if (ia && ib && ia !== ib && !ferry) continue;
+    // Don't draw long "drive" from/to pure transit hubs across the country.
+    if (
+      (isTransitHubPlace(a) || isTransitHubPlace(b)) &&
+      !ferry &&
+      haversineKm(pa.lat, pa.lng, pb.lat, pb.lng) > 180
+    ) {
+      continue;
+    }
+    // Skip absurd legs (likely bad extraction).
+    if (haversineKm(pa.lat, pa.lng, pb.lat, pb.lng) > 650) continue;
+
+    segments.push([
+      [pa.lat, pa.lng],
+      [pb.lat, pb.lng],
+    ]);
+  }
+  return segments;
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const toR = (d) => (d * Math.PI) / 180;
+  const dLat = toR(lat2 - lat1);
+  const dLng = toR(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toR(lat1)) * Math.cos(toR(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
 async function repaintAgentPlan({ fit = false } = {}) {
   if (!leafletMap || !window.L || !lastAgentPlan || !lastCtx) return false;
   if (!agentPlanLayer) agentPlanLayer = window.L.layerGroup().addTo(leafletMap);
@@ -1522,47 +1633,33 @@ async function repaintAgentPlan({ fit = false } = {}) {
       ? lastAgentPlan.routePlaceIds.filter((id) => lastCtx.placeById?.[id])
       : [...new Set(stays.map((s) => s.placeId))];
 
-  let path = [];
-  if (routeIds.length >= 2) {
-    try {
-      path = await buildDrivingPath(lastCtx, routeIds);
-    } catch {
-      path = routeIds.map((id) => {
-        const p = lastCtx.placeById[id];
-        return p ? [p.lat, p.lng] : null;
-      }).filter(Boolean);
-    }
-  }
-
-  if (path.length >= 2) {
-    // Persistent plan corridor: soft violet (not live blue), but opaque enough to read on topo.
-    const under = window.L.polyline(path, {
+  const segments = buildAgentPlanLinkSegments(lastCtx, routeIds);
+  for (const path of segments) {
+    if (path.length < 2) continue;
+    // Persistent plan hops: soft violet dashed — sequence of stays, not a lived drive.
+    window.L.polyline(path, {
       color: "#ffffff",
-      weight: 7,
-      opacity: 0.65,
+      weight: 6,
+      opacity: 0.55,
       lineCap: "round",
-      lineJoin: "round",
       interactive: false,
       className: "map-agent-plan-route-under",
     }).addTo(agentPlanLayer);
-    const line = window.L.polyline(path, {
+    window.L.polyline(path, {
       color: "#7c3aed",
-      weight: 3.5,
-      opacity: 0.78,
-      dashArray: "7 9",
+      weight: 3,
+      opacity: 0.72,
+      dashArray: "6 10",
       lineCap: "round",
-      lineJoin: "round",
       className: "map-agent-plan-route",
     })
       .addTo(agentPlanLayer)
-      .bindTooltip(lastAgentPlan.label || "行程规划路线");
-    try {
-      under.bringToBack?.();
-      line.bringToBack?.();
-      agentPlanLayer.bringToBack?.();
-    } catch {
-      /* ignore */
-    }
+      .bindTooltip(lastAgentPlan.label || "行程规划");
+  }
+  try {
+    agentPlanLayer.bringToBack?.();
+  } catch {
+    /* ignore */
   }
 
   // Deduplicate markers by place; keep first day's label if multi-night.
