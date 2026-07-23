@@ -21,9 +21,9 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260723-108";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-108";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-108";
+} from "./map.js?v=20260723-109";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-109";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-109";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -228,7 +228,9 @@ export class UI {
         /* ignore */
       }
     }
-    for (const el of document.querySelectorAll(".status-fly, .status-sync, .status-budget-pop")) {
+    for (const el of document.querySelectorAll(
+      ".status-fly, .status-sync, .status-budget-pop, .status-visa-pop"
+    )) {
       try {
         el._budgetDismiss?.();
         el.remove();
@@ -920,6 +922,9 @@ export class UI {
     );
     const rentalValue = rentalChip.value;
     const rentalSub = rentalChip.sub;
+    const visaChip = describeVisaStatusChip(this._ledgerSnap?.visas || env?.ledger?.visas || []);
+    const visaValue = visaChip.value;
+    const visaSub = visaChip.sub;
 
     const cards = [
       { key: "location", icon: "📍", label: "当前位置", value: state?.location || "—", sub: state?.geo_key || "" },
@@ -945,6 +950,13 @@ export class UI {
         sub: budgetSub,
       },
       {
+        key: "visa",
+        icon: "🛂",
+        label: "签证",
+        value: visaValue,
+        sub: visaSub,
+      },
+      {
         key: "rental",
         icon: "🚐",
         label: "房车",
@@ -962,13 +974,22 @@ export class UI {
 
     const prev = this._statusSnap || {};
     const weatherValue = shortWeather(state?.weather);
-    const nextSnap = { budget: budgetValue, flight: flightStatus, weather: weatherValue };
+    const nextSnap = {
+      budget: budgetValue,
+      flight: flightStatus,
+      weather: weatherValue,
+      visa: visaValue,
+    };
     const flightChanged =
       prev.flight != null && prev.flight !== nextSnap.flight && nextSnap.flight !== "待预订";
     const weatherChanged =
       prev.weather != null &&
       prev.weather !== nextSnap.weather &&
       nextSnap.weather !== "—";
+    const visaChanged =
+      prev.visa != null &&
+      prev.visa !== nextSnap.visa &&
+      nextSnap.visa !== "—";
 
     this.els.statusGrid.innerHTML = cards
       .map(
@@ -1002,6 +1023,17 @@ export class UI {
         toText: nextSnap.weather,
         detail: weatherSub(state) || "状态栏已同步",
       });
+    }
+    if (visaChanged) {
+      this.enqueueCinematic(
+        () =>
+          this.playVisaChipUpdate({
+            toText: nextSnap.visa,
+            visas: this._ledgerSnap?.visas || [],
+            detail: visaSub,
+          }),
+        { fingerprint: `visa-chip:${nextSnap.visa}` }
+      ).catch(() => {});
     }
     this._statusSnap = nextSnap;
   }
@@ -1163,6 +1195,156 @@ export class UI {
   }
 
   /**
+   * Visa / NZeTA update: passport-style sheet under the visa status chip.
+   */
+  playVisaChipUpdate({
+    toText = "",
+    visas = [],
+    detail = "",
+    title = "签证状态更新",
+  } = {}) {
+    return new Promise((resolve) => {
+      const chip = this.els.statusGrid?.querySelector('[data-status="visa"]');
+      if (!chip) {
+        resolve(false);
+        return;
+      }
+
+      document.querySelectorAll(".status-visa-pop, .status-budget-pop").forEach((el) => {
+        try {
+          el._budgetDismiss?.();
+          el.remove();
+        } catch {
+          /* ignore */
+        }
+      });
+
+      const reduceMotion =
+        typeof matchMedia === "function" &&
+        matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      const rows = (visas || []).slice(0, 4);
+      const chipInfo = describeVisaStatusChip(rows);
+      const display = toText || chipInfo.value;
+      const pop = document.createElement("div");
+      pop.className = "status-visa-pop";
+      pop.setAttribute("role", "status");
+      const rowHtml = rows.length
+        ? rows
+            .map((v, i) => {
+              const st = String(v.status || "").toLowerCase();
+              const stLabel =
+                st === "approved" ? "已批准" : st === "rejected" ? "未通过" : "审批中";
+              const tone =
+                st === "approved" ? "is-ok" : st === "rejected" ? "is-bad" : "is-wait";
+              return `<div class="status-visa-pop-row ${tone}" style="animation-delay:${(i * 0.06).toFixed(2)}s">
+              <span class="status-visa-pop-who">${escapeHtml(v.traveler || v.traveler_name || "旅客")}</span>
+              <span class="status-visa-pop-st">${escapeHtml(stLabel)}</span>
+            </div>`;
+            })
+            .join("")
+        : `<div class="status-visa-pop-row is-wait">
+            <span class="status-visa-pop-who">NZeTA</span>
+            <span class="status-visa-pop-st">${escapeHtml(display)}</span>
+          </div>`;
+
+      pop.innerHTML = `
+        <div class="status-visa-pop-caret" aria-hidden="true"></div>
+        <div class="status-visa-pop-inner">
+          <div class="status-visa-pop-head">
+            <span class="status-visa-pop-ico" aria-hidden="true">🛂</span>
+            <div class="status-visa-pop-titles">
+              <span class="status-visa-pop-kicker">${escapeHtml(title)}</span>
+              <span class="status-visa-pop-product">NZeTA</span>
+            </div>
+          </div>
+          <div class="status-visa-pop-list">${rowHtml}</div>
+          ${
+            detail
+              ? `<div class="status-visa-pop-foot">${escapeHtml(detail)}</div>`
+              : ""
+          }
+        </div>`;
+      document.body.appendChild(pop);
+
+      const place = () => {
+        const box = chip.getBoundingClientRect();
+        if (!box.width) return;
+        const popW = pop.offsetWidth || 240;
+        const left = Math.min(
+          Math.max(10, box.left + box.width / 2 - popW / 2),
+          window.innerWidth - popW - 10
+        );
+        pop.style.left = `${left}px`;
+        pop.style.top = `${box.bottom + 8}px`;
+        const caret = pop.querySelector(".status-visa-pop-caret");
+        if (caret) {
+          const caretX = box.left + box.width / 2 - left;
+          caret.style.left = `${Math.max(16, Math.min(popW - 16, caretX))}px`;
+        }
+      };
+      place();
+
+      requestAnimationFrame(() => {
+        place();
+        pop.classList.add(reduceMotion ? "is-in-instant" : "is-in");
+      });
+
+      chip.classList.remove(
+        "status-chip-landed",
+        "status-chip-landed-budget",
+        "status-chip-landed-flight",
+        "status-chip-landed-weather",
+        "status-chip-landed-rental",
+        "status-chip-landed-activity",
+        "status-chip-landed-visa"
+      );
+      void chip.offsetWidth;
+      chip.classList.add("status-chip-landed", "status-chip-landed-visa");
+      const valEl = chip.querySelector(".status-chip-val");
+      if (valEl && display) {
+        valEl.textContent = String(display).slice(0, 42);
+        valEl.classList.remove("status-chip-val-flash");
+        void valEl.offsetWidth;
+        valEl.classList.add("status-chip-val-flash");
+        clearTimeout(valEl._flashTimer);
+        valEl._flashTimer = setTimeout(() => {
+          valEl.classList.remove("status-chip-val-flash");
+        }, playbackMs(1100, { min: 200 }));
+      }
+      if (detail) chip.title = `签证 · ${detail}`;
+
+      clearTimeout(chip._landTimer);
+      chip._landTimer = setTimeout(() => {
+        chip.classList.remove("status-chip-landed", "status-chip-landed-visa");
+      }, playbackMs(1200, { min: 220 }));
+
+      const onResize = () => place();
+      window.addEventListener("resize", onResize);
+
+      const hold = playbackMs(reduceMotion ? 1000 : 2600, { min: 480 });
+      const outMs = playbackMs(280, { min: 80 });
+      const done = () => {
+        window.removeEventListener("resize", onResize);
+        clearTimeout(hideTimer);
+        clearTimeout(removeTimer);
+        try {
+          pop.remove();
+        } catch {
+          /* ignore */
+        }
+        resolve(true);
+      };
+      const hideTimer = setTimeout(() => {
+        pop.classList.add("is-out");
+        pop.classList.remove("is-in", "is-in-instant");
+      }, hold);
+      const removeTimer = setTimeout(done, hold + outMs);
+      pop._budgetDismiss = done;
+    });
+  }
+
+  /**
    * Status sync: bottom map card (or soft rise) arcs into the matching chip.
    * Continuous FLIP-style flight — no hard cut between stage and status bar.
    */
@@ -1260,9 +1442,11 @@ export class UI {
             ? "status-chip-landed-weather"
             : kind === "rental"
               ? "status-chip-landed-rental"
-              : kind === "activity"
-                ? "status-chip-landed-activity"
-                : "status-chip-landed-budget";
+              : kind === "visa"
+                ? "status-chip-landed-visa"
+                : kind === "activity"
+                  ? "status-chip-landed-activity"
+                  : "status-chip-landed-budget";
 
       const pulseChip = () => {
         const chipNow =
@@ -1274,6 +1458,7 @@ export class UI {
           "status-chip-landed-budget",
           "status-chip-landed-weather",
           "status-chip-landed-rental",
+          "status-chip-landed-visa",
           "status-chip-landed-activity"
         );
         // Retrigger CSS animation.
@@ -1298,6 +1483,7 @@ export class UI {
             "status-chip-landed-budget",
             "status-chip-landed-weather",
             "status-chip-landed-rental",
+            "status-chip-landed-visa",
             "status-chip-landed-activity"
           );
         }, playbackMs(1200, { min: 220 }));
@@ -2190,6 +2376,19 @@ export class UI {
     } else if (isStateWriteToolName(name)) {
       const fb = describeStateWriteFeedback(name, args, result);
       clearPlanning({ immediate: true });
+      // NZeTA: dedicated sheet under the visa status chip (no generic write card).
+      if (fb.actionKind === "visa" || /submit_nzeta/i.test(name)) {
+        return this.enqueueCinematic(
+          () =>
+            this.playVisaChipUpdate({
+              toText: fb.toText,
+              visas: fb.visas || result?.applications || [],
+              detail: fb.detail,
+              title: fb.statusTitle || "签证状态已同步",
+            }),
+          { fingerprint: `visa-chip:${String(fb.toText || "").slice(0, 60)}` }
+        );
+      }
       const action =
         fb.actionKind === "flight"
           ? this.playQueuedMapAction({
@@ -2984,22 +3183,39 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
 
   if (/submit_nzeta/i.test(n)) {
     const apps = result?.applications || [];
+    const chip = describeVisaStatusChip(
+      apps.map((a) => ({
+        traveler: a.traveler_name || a.traveler || a.user_id,
+        status: a.status || "processing",
+      }))
+    );
     const st = apps.some((a) => a.status === "approved") ? "已批准" : "审批中";
+    const items = [
+      { label: "产品", value: "NZeTA" },
+      { label: "人数", value: String(apps.length || args.travelers?.length || 2) },
+      { label: "状态", value: st },
+    ];
+    for (const a of apps.slice(0, 3)) {
+      items.push({
+        label: a.traveler_name || a.traveler || "旅客",
+        value: a.status === "approved" ? "已批准" : "审批中",
+      });
+    }
     return {
-      actionKind: "write",
-      statusKind: "activity",
+      actionKind: "visa",
+      statusKind: "visa",
       icon,
       cardTitle: label,
       cardQuery: icon,
       statusTitle: "签证状态已同步",
-      toText: `NZeTA · ${st}`,
-      detail: summary || `${apps.length || 2} 份申请`,
-      items: [
-        { label: "产品", value: "NZeTA" },
-        { label: "人数", value: String(apps.length || args.travelers?.length || 2) },
-        { label: "状态", value: st },
-      ],
-      fingerprint: `write:nzeta:${st}`,
+      toText: chip.value,
+      detail: summary || chip.sub || `${apps.length || 2} 份申请`,
+      items,
+      visas: apps.map((a) => ({
+        traveler: a.traveler_name || a.traveler || a.user_id,
+        status: a.status || "processing",
+      })),
+      fingerprint: `write:nzeta:${st}:${apps.length}`,
     };
   }
   if (/book_campervan|record_pickup|record_return|report_scratch/i.test(n)) {
@@ -3250,6 +3466,38 @@ function chipDateMd(d) {
   const s = String(d || "").slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
   return `${s.slice(5, 7)}/${s.slice(8, 10)}`;
+}
+
+/**
+ * Top status-bar visa chip: NZeTA aggregate status.
+ */
+function describeVisaStatusChip(visas = []) {
+  const rows = Array.isArray(visas) ? visas.filter(Boolean) : [];
+  if (!rows.length) {
+    return { value: "—", sub: "提交 NZeTA 后更新" };
+  }
+  const approved = rows.filter((v) => String(v.status || "").toLowerCase() === "approved").length;
+  const total = rows.length;
+  const names = rows
+    .map((v) => v.traveler || v.traveler_name || "")
+    .filter(Boolean)
+    .join(" · ");
+  if (approved === total) {
+    return {
+      value: `NZeTA · 已批准 · ${total}人`,
+      sub: names || "全部已批准",
+    };
+  }
+  if (approved > 0) {
+    return {
+      value: `NZeTA · ${approved}/${total} 已批`,
+      sub: names || "部分批准",
+    };
+  }
+  return {
+    value: `NZeTA · 审批中 · ${total}人`,
+    sub: names || "最长 72h",
+  };
 }
 
 /**

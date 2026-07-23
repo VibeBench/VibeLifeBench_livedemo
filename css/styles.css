@@ -758,6 +758,180 @@ select {
   }
 }
 
+/* Visa / NZeTA sheet — under the visa status chip */
+.status-visa-pop {
+  position: fixed;
+  z-index: 85;
+  width: min(260px, calc(100vw - 20px));
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.97);
+  transform-origin: top center;
+  transition:
+    opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+
+.status-visa-pop.is-in,
+.status-visa-pop.is-in-instant {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.status-visa-pop.is-in-instant {
+  transition: none;
+}
+
+.status-visa-pop.is-out {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.status-visa-pop-caret {
+  position: absolute;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  background: rgba(239, 246, 255, 0.98);
+  border-left: 1px solid rgba(147, 197, 253, 0.95);
+  border-top: 1px solid rgba(147, 197, 253, 0.95);
+  transform: translateX(-50%) rotate(45deg);
+  box-shadow: -2px -2px 6px rgba(30, 64, 175, 0.05);
+}
+
+.status-visa-pop-inner {
+  position: relative;
+  padding: 11px 12px 12px;
+  border-radius: 14px;
+  background: linear-gradient(
+    165deg,
+    rgba(239, 246, 255, 0.98) 0%,
+    rgba(255, 255, 255, 0.97) 55%,
+    rgba(248, 250, 252, 0.96) 100%
+  );
+  border: 1px solid rgba(147, 197, 253, 0.9);
+  box-shadow:
+    0 16px 36px rgba(30, 64, 175, 0.1),
+    0 2px 0 rgba(255, 255, 255, 0.9) inset;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.status-visa-pop-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.status-visa-pop-ico {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #eff6ff;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.status-visa-pop-titles {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.status-visa-pop-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #3b82f6;
+}
+
+.status-visa-pop-product {
+  font-size: 14px;
+  font-weight: 750;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.status-visa-pop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-visa-pop-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  animation: map-action-row-in calc(0.32s / var(--demo-speed, 1)) ease both;
+}
+
+.status-visa-pop-row.is-ok {
+  background: rgba(240, 253, 244, 0.75);
+  border-color: rgba(187, 247, 208, 0.9);
+}
+
+.status-visa-pop-row.is-wait {
+  background: rgba(239, 246, 255, 0.7);
+  border-color: rgba(191, 219, 254, 0.9);
+}
+
+.status-visa-pop-row.is-bad {
+  background: rgba(255, 241, 242, 0.75);
+  border-color: rgba(254, 205, 211, 0.9);
+}
+
+.status-visa-pop-who {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: #0f172a;
+}
+
+.status-visa-pop-st {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-visa-pop-row.is-ok .status-visa-pop-st {
+  color: #15803d;
+}
+
+.status-visa-pop-row.is-wait .status-visa-pop-st {
+  color: #2563eb;
+}
+
+.status-visa-pop-foot {
+  margin-top: 8px;
+  font-size: 10.5px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-visa-pop,
+  .status-visa-pop-row {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 /* Soft status sync pill → arcs into status chip */
 .status-sync {
   position: fixed;
@@ -835,6 +1009,14 @@ select {
   background: #fffbeb;
 }
 
+.status-sync-visa .status-sync-pill {
+  border-color: rgba(191, 219, 254, 0.95);
+}
+
+.status-sync-visa .status-sync-ico {
+  background: #eff6ff;
+}
+
 .status-sync-activity .status-sync-ico {
   background: #f0fdf4;
 }
@@ -910,6 +1092,14 @@ select {
   box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.35);
 }
 
+.status-chip.status-chip-landed-visa {
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.98) 0%, rgba(255, 255, 255, 0.7) 100%);
+}
+
+.status-chip.status-chip-landed-visa::after {
+  box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.35);
+}
+
 .status-chip.status-chip-landed-activity {
   background: linear-gradient(180deg, rgba(240, 253, 244, 0.98) 0%, rgba(255, 255, 255, 0.7) 100%);
 }
@@ -972,6 +1162,10 @@ select {
 
 .status-chip.status-chip-landed-rental::after {
   color: rgba(245, 158, 11, 0.28);
+}
+
+.status-chip.status-chip-landed-visa::after {
+  color: rgba(59, 130, 246, 0.28);
 }
 
 .status-chip.status-chip-landed-activity::after {
