@@ -21,9 +21,9 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260723-110";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-110";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-110";
+} from "./map.js?v=20260723-113";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-113";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-113";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -1045,7 +1045,7 @@ export class UI {
   enqueueStatusLanding(item) {
     if (!item) return;
     const fp = `status:${item.kind}:${String(item.toText || "").slice(0, 60)}`;
-    this.enqueueCinematic(() => this.playStatusLandingAnim(item), { fingerprint: fp }).catch(
+    this.enqueueCinematic(() => this.playStatusChipUpdate(item), { fingerprint: fp }).catch(
       () => {}
     );
   }
@@ -1381,95 +1381,106 @@ export class UI {
   }
 
   /**
-   * Status sync: bottom map card (or soft rise) arcs into the matching chip.
-   * Continuous FLIP-style flight — no hard cut between stage and status bar.
+   * Status update sheet under the matching top chip (same pattern as budget).
+   * No fly-from-map-card animation.
    */
-  playStatusLandingAnim({
-    kind = "budget",
-    icon = "💰",
+  playStatusChipUpdate({
+    kind = "activity",
+    icon = "✨",
     title = "状态更新",
-    fromText = "",
     toText = "",
     detail = "",
-    fromStage = false,
+    items = [],
   } = {}) {
     return new Promise((resolve) => {
       const chip = this.els.statusGrid?.querySelector(`[data-status="${kind}"]`);
       if (!chip) {
-        if (fromStage) hideMapActionStage();
+        hideMapActionStage();
         resolve(false);
         return;
       }
 
-      const chipBox = chip.getBoundingClientRect();
-      if (!chipBox.width) {
-        if (fromStage) hideMapActionStage();
-        resolve(false);
-        return;
-      }
+      // Drop any leftover bottom map card / previous pops.
+      hideMapActionStage();
+      document
+        .querySelectorAll(".status-chip-pop, .status-budget-pop, .status-visa-pop, .status-sync")
+        .forEach((el) => {
+          try {
+            el._budgetDismiss?.();
+            el.remove();
+          } catch {
+            /* ignore */
+          }
+        });
 
       const reduceMotion =
         typeof matchMedia === "function" &&
         matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-      const stage = fromStage ? document.querySelector("#mapActionStage") : null;
-      const card =
-        stage && !stage.hidden ? stage.querySelector(".map-action-card") : null;
-      const cardBox = card?.getBoundingClientRect?.();
-      const hasStageFlight =
-        Boolean(cardBox?.width) && cardBox.height > 8 && !reduceMotion;
-
-      const fly = document.createElement("div");
-      fly.className = `status-sync status-sync-${kind}${
-        hasStageFlight ? " status-sync-from-stage" : ""
-      }`;
-      const short =
+      const display =
         String(toText || detail || title || "")
           .replace(/\s+/g, " ")
-          .trim()
-          .slice(0, 42) || title;
-      fly.innerHTML = `
-        <div class="status-sync-pill">
-          <span class="status-sync-ico" aria-hidden="true">${icon}</span>
-          <span class="status-sync-copy">
-            <span class="status-sync-kicker">${escapeHtml(title)}</span>
-            <span class="status-sync-val">${escapeHtml(short)}</span>
-          </span>
+          .trim() || title;
+      const rows = (items || []).filter(Boolean).slice(0, 4);
+      const rowHtml = rows.length
+        ? `<div class="status-chip-pop-rows">${rows
+            .map(
+              (it, i) => `<div class="status-chip-pop-row" style="animation-delay:${(
+                i * 0.05
+              ).toFixed(2)}s">
+              <span class="status-chip-pop-k">${escapeHtml(it.label || "")}</span>
+              <span class="status-chip-pop-v">${escapeHtml(
+                String(it.value ?? it.snippet ?? (typeof it === "string" ? it : ""))
+              )}</span>
+            </div>`
+            )
+            .join("")}</div>`
+        : "";
+
+      const pop = document.createElement("div");
+      pop.className = `status-chip-pop status-chip-pop-${kind}`;
+      pop.setAttribute("role", "status");
+      pop.innerHTML = `
+        <div class="status-chip-pop-caret" aria-hidden="true"></div>
+        <div class="status-chip-pop-inner">
+          <div class="status-chip-pop-head">
+            <span class="status-chip-pop-ico" aria-hidden="true">${icon}</span>
+            <div class="status-chip-pop-titles">
+              <span class="status-chip-pop-kicker">${escapeHtml(title)}</span>
+              <span class="status-chip-pop-hero">${escapeHtml(display)}</span>
+            </div>
+          </div>
+          ${rowHtml}
+          ${
+            detail && detail !== display
+              ? `<div class="status-chip-pop-foot">${escapeHtml(detail)}</div>`
+              : ""
+          }
         </div>`;
-      document.body.appendChild(fly);
+      document.body.appendChild(pop);
 
-      const pillW = fly.offsetWidth || 180;
-      const pillH = fly.offsetHeight || 48;
-      const endX = chipBox.left + chipBox.width / 2 - pillW / 2;
-      const endY = chipBox.top + chipBox.height / 2 - pillH / 2;
+      const place = () => {
+        const box = chip.getBoundingClientRect();
+        if (!box.width) return;
+        const popW = pop.offsetWidth || 240;
+        const left = Math.min(
+          Math.max(10, box.left + box.width / 2 - popW / 2),
+          window.innerWidth - popW - 10
+        );
+        pop.style.left = `${left}px`;
+        pop.style.top = `${box.bottom + 8}px`;
+        const caret = pop.querySelector(".status-chip-pop-caret");
+        if (caret) {
+          const caretX = box.left + box.width / 2 - left;
+          caret.style.left = `${Math.max(16, Math.min(popW - 16, caretX))}px`;
+        }
+      };
+      place();
 
-      let startX;
-      let startY;
-      let startScale;
-      if (hasStageFlight) {
-        // Match card center → pill center; start slightly larger so shrink feels continuous.
-        startX = cardBox.left + cardBox.width / 2 - pillW / 2;
-        startY = cardBox.top + cardBox.height / 2 - pillH / 2;
-        startScale = Math.min(1.35, Math.max(1.05, (cardBox.width * 0.72) / pillW));
-        stage.classList.add("is-handing-off");
-        stage.classList.remove("show");
-      } else {
-        startX = endX;
-        startY = endY + Math.min(52, chipBox.height + 28);
-        startScale = 0.9;
-      }
-
-      // Gentle arc toward the chip (not a straight lerp).
-      const dx = endX - startX;
-      const dy = endY - startY;
-      const midX = startX + dx * 0.42;
-      const midY = Math.min(startY, endY) - Math.min(96, Math.abs(dy) * 0.28 + 36);
-      const midScale = hasStageFlight
-        ? startScale * 0.62 + 0.38
-        : 1.04;
-
-      fly.style.transform = `translate3d(${startX}px, ${startY}px, 0) scale(${startScale})`;
-      fly.style.opacity = hasStageFlight ? "1" : "0";
+      requestAnimationFrame(() => {
+        place();
+        pop.classList.add(reduceMotion ? "is-in-instant" : "is-in");
+      });
 
       const landCls =
         kind === "flight"
@@ -1482,114 +1493,54 @@ export class UI {
                 ? "status-chip-landed-visa"
                 : kind === "activity"
                   ? "status-chip-landed-activity"
-                  : "status-chip-landed-budget";
+                  : kind === "budget"
+                    ? "status-chip-landed-budget"
+                    : "status-chip-landed-activity";
 
-      const pulseChip = () => {
-        const chipNow =
-          this.els.statusGrid?.querySelector(`[data-status="${kind}"]`) || chip;
-        if (!chipNow) return;
-        chipNow.classList.remove(
-          "status-chip-landed",
-          "status-chip-landed-flight",
-          "status-chip-landed-budget",
-          "status-chip-landed-weather",
-          "status-chip-landed-rental",
-          "status-chip-landed-visa",
-          "status-chip-landed-activity"
-        );
-        // Retrigger CSS animation.
-        void chipNow.offsetWidth;
-        chipNow.classList.add("status-chip-landed", landCls);
-        const valEl = chipNow.querySelector(".status-chip-val");
-        if (valEl && toText) {
-          this.setStatusChipValue(valEl, String(toText));
-        }
-        clearTimeout(chipNow._landTimer);
-        chipNow._landTimer = setTimeout(() => {
-          chipNow.classList.remove(
-            "status-chip-landed",
-            "status-chip-landed-flight",
-            "status-chip-landed-budget",
-            "status-chip-landed-weather",
-            "status-chip-landed-rental",
-            "status-chip-landed-visa",
-            "status-chip-landed-activity"
-          );
-        }, playbackMs(1200, { min: 220 }));
-      };
+      chip.classList.remove(
+        "status-chip-landed",
+        "status-chip-landed-flight",
+        "status-chip-landed-budget",
+        "status-chip-landed-weather",
+        "status-chip-landed-rental",
+        "status-chip-landed-visa",
+        "status-chip-landed-activity"
+      );
+      void chip.offsetWidth;
+      chip.classList.add("status-chip-landed", landCls);
+      this.setStatusChipValue(chip, display);
+      clearTimeout(chip._landTimer);
+      chip._landTimer = setTimeout(() => {
+        chip.classList.remove("status-chip-landed", landCls);
+      }, playbackMs(1200, { min: 220 }));
 
-      const run = async () => {
-        let landTimer = null;
+      const onResize = () => place();
+      window.addEventListener("resize", onResize);
+      const hold = playbackMs(reduceMotion ? 900 : 2400, { min: 420 });
+      const outMs = playbackMs(280, { min: 80 });
+      const done = () => {
+        window.removeEventListener("resize", onResize);
+        clearTimeout(hideTimer);
+        clearTimeout(removeTimer);
         try {
-          if (fromStage) {
-            // Stage already faded via is-handing-off; clear after handoff starts.
-            setTimeout(() => hideMapActionStage(), hasStageFlight ? playbackMs(180, { min: 40 }) : 0);
-          }
-
-          if (reduceMotion) {
-            fly.style.opacity = "1";
-            fly.style.transform = `translate3d(${endX}px, ${endY}px, 0) scale(1)`;
-            await sleepPlayback(220, { min: 40 });
-            pulseChip();
-            fly.style.opacity = "0";
-            await sleepPlayback(160, { min: 30 });
-            return;
-          }
-
-          const duration = playbackMs(hasStageFlight ? 1180 : 860, { min: 180 });
-          // Overlap chip pulse with the settle (before fly fades out).
-          landTimer = setTimeout(pulseChip, Math.round(duration * 0.62));
-
-          await fly.animate(
-            [
-              {
-                opacity: hasStageFlight ? 1 : 0,
-                transform: `translate3d(${startX}px, ${startY}px, 0) scale(${startScale})`,
-                filter: hasStageFlight ? "blur(0px)" : "blur(1px)",
-                offset: 0,
-              },
-              {
-                opacity: 1,
-                transform: `translate3d(${midX}px, ${midY}px, 0) scale(${midScale})`,
-                filter: "blur(0px)",
-                offset: 0.42,
-              },
-              {
-                opacity: 1,
-                transform: `translate3d(${endX}px, ${endY - 1}px, 0) scale(1.02)`,
-                filter: "blur(0px)",
-                offset: 0.7,
-              },
-              {
-                opacity: 0.92,
-                transform: `translate3d(${endX}px, ${endY}px, 0) scale(1)`,
-                filter: "blur(0px)",
-                offset: 0.82,
-              },
-              {
-                opacity: 0,
-                transform: `translate3d(${endX}px, ${endY}px, 0) scale(0.88)`,
-                filter: "blur(0.5px)",
-                offset: 1,
-              },
-            ],
-            {
-              duration,
-              easing: "cubic-bezier(0.16, 1, 0.3, 1)",
-              fill: "forwards",
-            }
-          ).finished;
+          pop.remove();
         } catch {
-          pulseChip();
-        } finally {
-          if (landTimer) clearTimeout(landTimer);
-          fly.remove();
-          if (fromStage) hideMapActionStage();
-          resolve(true);
+          /* ignore */
         }
+        resolve(true);
       };
-      requestAnimationFrame(() => requestAnimationFrame(run));
+      const hideTimer = setTimeout(() => {
+        pop.classList.add("is-out");
+        pop.classList.remove("is-in", "is-in-instant");
+      }, hold);
+      const removeTimer = setTimeout(done, hold + outMs);
+      pop._budgetDismiss = done;
     });
+  }
+
+  /** @deprecated alias — all status updates use under-chip sheets now. */
+  playStatusLandingAnim(opts = {}) {
+    return this.playStatusChipUpdate(opts);
   }
 
   renderTripLedger(ledger, { expandDate } = {}) {
@@ -2253,40 +2204,32 @@ export class UI {
       const gate = result?.gate ? `登机口 ${result.gate}` : "";
       const date = String(args.date || result?.date || "").slice(0, 10);
       const toText = no ? `${no} · ${st}${delay ? ` · ${delay}` : ""}` : st;
+      const flightItems = [
+        no ? { label: "航班", value: no } : null,
+        { label: "状态", value: st },
+        route ? { label: "航线", value: route } : null,
+        date ? { label: "日期", value: date } : null,
+        delay ? { label: "延误", value: delay } : null,
+        gate ? { label: "登机口", value: gate.replace(/^登机口\s*/, "") } : null,
+        result?.note ? { label: "备注", value: truncate(String(result.note), 40) } : null,
+      ].filter(Boolean);
       focusPlanning({
         placeIds: ["pl_chc_airport"],
         mode: "consider",
         label: no ? `工具：航班 ${no}` : "工具：航班动态",
         force: true,
       }).catch(() => {});
-      return this.playQueuedMapAction({
-        kind: "flight",
-        title: no || "航班动态",
-        query: st,
-        items: [
-          no ? { label: "航班", value: no } : null,
-          { label: "状态", value: st },
-          route ? { label: "航线", value: route } : null,
-          date ? { label: "日期", value: date } : null,
-          delay ? { label: "延误", value: delay } : null,
-          gate ? { label: "登机口", value: gate.replace(/^登机口\s*/, "") } : null,
-          result?.note ? { label: "备注", value: truncate(String(result.note), 40) } : null,
-        ].filter(Boolean),
-        fingerprint: `flight:${no}:${st}:${date}`,
-        leaveVisible: true,
-      }).then(() =>
-        this.enqueueCinematic(
-          () =>
-            this.playStatusLandingAnim({
-              kind: "flight",
-              icon: "✈️",
-              title: "航班已同步",
-              toText,
-              detail: route || meta.detail || "",
-              fromStage: true,
-            }),
-          { fingerprint: `status:flight:${String(toText).slice(0, 60)}` }
-        )
+      return this.enqueueCinematic(
+        () =>
+          this.playStatusChipUpdate({
+            kind: "flight",
+            icon: "✈️",
+            title: "航班已同步",
+            toText,
+            detail: route || meta.detail || "",
+            items: flightItems,
+          }),
+        { fingerprint: `status:flight:${String(toText).slice(0, 60)}` }
       );
     } else if (name === "search_web") {
       const items = result?.results || [];
@@ -2358,26 +2301,16 @@ export class UI {
       const notionTitle = args.title || result?.title || "游记";
       const notionBody =
         args.content || result?.content || result?.preview || meta.detail || "";
-      // 底部 Notion 动画 → 顶部「当前活动」状态 check
-      return this.playQueuedMapAction({
-        kind: "notion",
-        title: notionTitle,
-        body: notionBody,
-        fingerprint: `notion:${String(notionTitle).slice(0, 80)}`,
-        leaveVisible: true,
-      }).then(() =>
-        this.enqueueCinematic(
-          () =>
-            this.playStatusLandingAnim({
-              kind: "activity",
-              icon: "📝",
-              title: "游记已同步",
-              toText: truncate(notionTitle, 28),
-              detail: truncate(notionBody, 48),
-              fromStage: true,
-            }),
-          { fingerprint: `status:activity:notion:${String(notionTitle).slice(0, 40)}` }
-        )
+      return this.enqueueCinematic(
+        () =>
+          this.playStatusChipUpdate({
+            kind: "activity",
+            icon: "📝",
+            title: "游记已同步",
+            toText: truncate(notionTitle, 28),
+            detail: truncate(notionBody, 48),
+          }),
+        { fingerprint: `status:activity:notion:${String(notionTitle).slice(0, 40)}` }
       );
     } else if (name === "add_calendar_event" || /calendar|schedule/i.test(name)) {
       const ev = result?.event || {};
@@ -2389,32 +2322,22 @@ export class UI {
         { label: "标题", value: calTitle },
         calNote ? { label: "备注", value: truncate(calNote, 48) } : null,
       ].filter(Boolean);
-      // 底部日程动画 → 顶部「当前活动」状态 check
-      return this.playQueuedMapAction({
-        kind: "calendar",
-        title: calTitle,
-        body: [calDate, calNote, calTitle].filter(Boolean).join("\n"),
-        items,
-        fingerprint: `calendar:${calDate}:${calTitle}:${ev.id || Date.now()}`,
-        leaveVisible: true,
-      }).then(() =>
-        this.enqueueCinematic(
-          () =>
-            this.playStatusLandingAnim({
-              kind: "activity",
-              icon: "📅",
-              title: "日程已同步",
-              toText: truncate(calTitle, 28),
-              detail: calDate ? String(calDate).slice(0, 10) : "",
-              fromStage: true,
-            }),
-          { fingerprint: `status:activity:cal:${calDate}:${calTitle}` }
-        )
+      return this.enqueueCinematic(
+        () =>
+          this.playStatusChipUpdate({
+            kind: "activity",
+            icon: "📅",
+            title: "日程已同步",
+            toText: truncate(calTitle, 28),
+            detail: calDate ? String(calDate).slice(0, 10) : "",
+            items,
+          }),
+        { fingerprint: `status:activity:cal:${calDate}:${calTitle}` }
       );
     } else if (isStateWriteToolName(name)) {
       const fb = describeStateWriteFeedback(name, args, result);
       clearPlanning({ immediate: true });
-      // NZeTA: dedicated sheet under the visa status chip (no generic write card).
+      // NZeTA: dedicated sheet under the visa status chip.
       if (fb.actionKind === "visa" || /submit_nzeta/i.test(name)) {
         return this.enqueueCinematic(
           () =>
@@ -2427,38 +2350,17 @@ export class UI {
           { fingerprint: `visa-chip:${String(fb.toText || "").slice(0, 60)}` }
         );
       }
-      const action =
-        fb.actionKind === "flight"
-          ? this.playQueuedMapAction({
-              kind: "flight",
-              title: fb.cardTitle,
-              query: fb.cardQuery,
-              items: fb.items,
-              fingerprint: fb.fingerprint,
-              leaveVisible: true,
-            })
-          : this.playQueuedMapAction({
-              kind: "write",
-              title: fb.cardTitle,
-              query: fb.icon,
-              body: fb.detail,
-              items: fb.items,
-              fingerprint: fb.fingerprint,
-              leaveVisible: true,
-            });
-      return action.then(() =>
-        this.enqueueCinematic(
-          () =>
-            this.playStatusLandingAnim({
-              kind: fb.statusKind,
-              icon: fb.icon,
-              title: fb.statusTitle,
-              toText: fb.toText,
-              detail: fb.detail,
-              fromStage: true,
-            }),
-          { fingerprint: `status:${fb.statusKind}:${String(fb.toText).slice(0, 60)}` }
-        )
+      return this.enqueueCinematic(
+        () =>
+          this.playStatusChipUpdate({
+            kind: fb.statusKind,
+            icon: fb.icon,
+            title: fb.statusTitle,
+            toText: fb.toText,
+            detail: fb.detail,
+            items: fb.items || [],
+          }),
+        { fingerprint: `status:${fb.statusKind}:${String(fb.toText).slice(0, 60)}` }
       );
     }
 
