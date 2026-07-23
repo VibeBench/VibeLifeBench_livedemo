@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-204";
-import { DemoEngine } from "./engine.js?v=20260723-204";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-205";
+import { DemoEngine } from "./engine.js?v=20260723-205";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,22 +7,25 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260723-204";
-import { Trajectory } from "./trajectory.js?v=20260723-204";
-import { UI } from "./ui.js?v=20260723-204";
+} from "./agent.js?v=20260723-205";
+import { Trajectory } from "./trajectory.js?v=20260723-205";
+import { UI } from "./ui.js?v=20260723-205";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
   hasLiveItineraryTraveler,
   playDriveHop,
-} from "./map.js?v=20260723-204";
+  mapZoomIn,
+  mapZoomOut,
+  clearMapOverlays,
+} from "./map.js?v=20260723-205";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
   playbackMs,
   sleepPlayback,
   playbackSpeedLabel,
-} from "./playback.js?v=20260723-204";
+} from "./playback.js?v=20260723-205";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -1026,6 +1029,20 @@ function bindChrome() {
 
   document.querySelector("#btnHelp")?.addEventListener("click", () => {
     sendUserChat("我们需要帮助，请根据当前行程状态主动检查有没有风险。");
+  });
+
+  document.querySelector("#btnMapZoomIn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    mapZoomIn();
+  });
+  document.querySelector("#btnMapZoomOut")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    mapZoomOut();
+  });
+  document.querySelector("#btnMapClearOverlays")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    clearMapOverlays();
+    ui.toast("已清除地图标注");
   });
 
   const legendBtn = document.querySelector("#btnMapLegend");

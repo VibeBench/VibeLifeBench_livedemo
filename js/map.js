@@ -16,8 +16,8 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-204";
-import { playbackMs } from "./playback.js?v=20260723-204";
+} from "./routing.js?v=20260723-205";
+import { playbackMs } from "./playback.js?v=20260723-205";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -1515,6 +1515,35 @@ export function clearAgentPlan() {
     /* ignore */
   }
   setAgentPlanBadge("");
+}
+
+/** Zoom helpers for the chrome controls next to the day ribbon. */
+export function mapZoomIn() {
+  if (!leafletMap) return false;
+  leafletMap.zoomIn();
+  return true;
+}
+
+export function mapZoomOut() {
+  if (!leafletMap) return false;
+  leafletMap.zoomOut();
+  return true;
+}
+
+/** Clear ephemeral + committed map annotations (not the base itinerary roads). */
+export function clearMapOverlays() {
+  clearPlanning({ immediate: true });
+  clearAgentPlan();
+  clearHotelFx();
+  stopDriveHop();
+  try {
+    pulseLayer?.clearLayers();
+  } catch {
+    /* ignore */
+  }
+  setPlanningBadge("");
+  hideMapActionStage();
+  return true;
 }
 
 function setAgentPlanBadge(text) {
@@ -3348,7 +3377,7 @@ function ensureLeaflet(host) {
   }
   host.innerHTML = "";
   leafletMap = window.L.map(host, {
-    zoomControl: true,
+    zoomControl: false,
     attributionControl: true,
     scrollWheelZoom: true,
   });

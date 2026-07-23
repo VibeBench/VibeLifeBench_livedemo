@@ -287,6 +287,77 @@ select {
   flex: 0 0 auto;
 }
 
+.map-chrome-top-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
+.map-chrome-top-row .float-ribbon {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.map-view-controls {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.map-view-btn {
+  width: 34px;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+  background: transparent;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.map-view-btn:last-child {
+  border-bottom: none;
+}
+
+.map-view-btn:hover {
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+}
+
+.map-view-btn:active {
+  background: rgba(37, 99, 235, 0.14);
+}
+
+.map-view-btn-clear {
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.map-view-btn-clear:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+/* Hide Leaflet's default zoom — we use map-view-controls next to the day ribbon. */
+.map-stage-canvas .leaflet-control-zoom {
+  display: none !important;
+}
+
 .map-chrome-mid {
   position: relative;
   flex: 1 1 auto;
