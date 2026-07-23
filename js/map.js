@@ -1849,6 +1849,15 @@ async function repaintAgentPlan({ fit = false } = {}) {
         : s.date
           ? String(s.date).slice(5).replace("-", "/")
           : "Stay";
+    // Prefer calendar date under the day pill — never prefix with "|" / "｜".
+    const dateMd = s.date
+      ? String(s.date)
+          .slice(0, 10)
+          .slice(5)
+          .replace(/-/g, "/")
+      : "";
+    const rawCaption = dateMd || String(s.label || placeLabel(s.placeId) || "");
+    const caption = rawCaption.replace(/^\s*[|｜/·•\-\u2013\u2014]+\s*/u, "").slice(0, 8);
     const tip = [
       s.label,
       s.day != null ? `行程第${s.day}天` : null,
@@ -1861,7 +1870,11 @@ async function repaintAgentPlan({ fit = false } = {}) {
         className: "map-stay-wrap",
         html: `<div class="map-stay-marker" title="${escapeHtml(tip)}">
           <span class="map-stay-day">${escapeHtml(dayNum)}</span>
-          <span class="map-stay-name">${escapeHtml(String(s.label || placeLabel(s.placeId)).slice(0, 8))}</span>
+          ${
+            caption
+              ? `<span class="map-stay-name">${escapeHtml(caption)}</span>`
+              : ""
+          }
         </div>`,
         iconSize: [72, 44],
         iconAnchor: [36, 44],
