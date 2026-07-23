@@ -3815,6 +3815,265 @@ select {
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
 }
 
+/* Hotel book / cancel cinematic pin + info card */
+.map-hotel-fx-wrap {
+  background: transparent !important;
+  border: none !important;
+}
+
+.map-hotel-fx {
+  position: relative;
+  width: 220px;
+  height: 110px;
+  pointer-events: none;
+}
+
+.map-hotel-fx-pin {
+  position: absolute;
+  left: 8px;
+  bottom: 18px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(165deg, #fff 0%, #fff7ed 100%);
+  border: 2.5px solid #f97316;
+  box-shadow:
+    0 10px 24px rgba(194, 65, 12, 0.28),
+    0 0 0 4px rgba(251, 146, 60, 0.22);
+  transform-origin: center bottom;
+}
+
+.map-hotel-fx-h {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ea580c;
+  line-height: 1;
+  font-family: "DM Sans", "Noto Sans SC", system-ui, sans-serif;
+}
+
+.map-hotel-fx-ring,
+.map-hotel-fx-burst {
+  position: absolute;
+  left: 8px;
+  bottom: 18px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.map-hotel-fx-ring {
+  border: 2px solid rgba(249, 115, 22, 0.55);
+  animation: hotelFxRing 1.1s ease-out infinite;
+}
+
+.map-hotel-fx-burst {
+  background: rgba(251, 146, 60, 0.28);
+  animation: hotelFxBurst 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.map-hotel-fx-card {
+  position: absolute;
+  left: 58px;
+  top: 12px;
+  z-index: 3;
+  min-width: 140px;
+  max-width: 160px;
+  padding: 8px 10px 9px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(253, 186, 116, 0.95);
+  box-shadow: 0 12px 28px rgba(154, 52, 18, 0.16);
+  transform-origin: left center;
+}
+
+.map-hotel-fx-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ea580c;
+  margin-bottom: 2px;
+}
+
+.map-hotel-fx.is-cancel .map-hotel-fx-kicker {
+  color: #dc2626;
+}
+
+.map-hotel-fx.is-cancel .map-hotel-fx-pin {
+  border-color: #ef4444;
+  box-shadow:
+    0 10px 24px rgba(185, 28, 28, 0.25),
+    0 0 0 4px rgba(248, 113, 113, 0.2);
+}
+
+.map-hotel-fx.is-cancel .map-hotel-fx-h {
+  color: #dc2626;
+}
+
+.map-hotel-fx.is-cancel .map-hotel-fx-ring {
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
+.map-hotel-fx.is-cancel .map-hotel-fx-card {
+  border-color: rgba(252, 165, 165, 0.95);
+}
+
+.map-hotel-fx-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-hotel-fx-meta {
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-hotel-fx.is-book .map-hotel-fx-pin {
+  animation: hotelFxPopIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.map-hotel-fx.is-book .map-hotel-fx-card {
+  animation: hotelFxCardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.map-hotel-fx.is-cancel .map-hotel-fx-pin {
+  animation: hotelFxShakeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.map-hotel-fx.is-cancel .map-hotel-fx-card {
+  animation: hotelFxCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.map-hotel-fx.is-card-out .map-hotel-fx-card {
+  animation: hotelFxCardOut 0.35s ease forwards;
+}
+
+.map-hotel-fx.is-settle .map-hotel-fx-pin {
+  animation: hotelFxSettle 0.45s ease forwards;
+}
+
+.map-hotel-fx.is-settle .map-hotel-fx-ring,
+.map-hotel-fx.is-settle .map-hotel-fx-burst {
+  opacity: 0;
+}
+
+.map-hotel-fx.is-remove .map-hotel-fx-pin {
+  animation: hotelFxRemove 0.4s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.map-hotel-fx.is-remove .map-hotel-fx-ring,
+.map-hotel-fx.is-remove .map-hotel-fx-burst {
+  opacity: 0;
+}
+
+@keyframes hotelFxPopIn {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.35);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes hotelFxShakeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.08) rotate(-6deg);
+  }
+  70% {
+    transform: scale(1.02) rotate(5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes hotelFxCardIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes hotelFxCardOut {
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+}
+
+@keyframes hotelFxSettle {
+  to {
+    transform: scale(0.72);
+    opacity: 0.85;
+  }
+}
+
+@keyframes hotelFxRemove {
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.2);
+  }
+}
+
+@keyframes hotelFxRing {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
+@keyframes hotelFxBurst {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-hotel-fx-pin,
+  .map-hotel-fx-card,
+  .map-hotel-fx-ring,
+  .map-hotel-fx-burst {
+    animation: none !important;
+  }
+}
+
 @keyframes emoji-pulse {
   0%,
   100% {

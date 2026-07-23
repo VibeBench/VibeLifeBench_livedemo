@@ -252,8 +252,27 @@ export function buildTools() {
             check_out: { type: "string" },
             price_nzd: { type: "number" },
             refundable: { type: "boolean" },
+            place_id: { type: "string" },
+            location: { type: "string" },
+            geo_key: { type: "string" },
           },
           required: ["hotel_name"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "cancel_hotel",
+        description: "取消酒店/营地预订（演示写入）",
+        parameters: {
+          type: "object",
+          properties: {
+            hotel_id: { type: "string" },
+            hotel_name: { type: "string" },
+            check_in: { type: "string" },
+            place_id: { type: "string" },
+          },
         },
       },
     },
@@ -915,6 +934,48 @@ export class TravelAgent {
           ok: true,
           written: true,
           summary: `住宿已订 · ${args.hotel_name}`,
+          hotel: env.hotels[key],
+        };
+      }
+      case "cancel_hotel": {
+        env.hotels = env.hotels || {};
+        const hotel_id = args.hotel_id || null;
+        const check_in = args.check_in ? String(args.check_in).slice(0, 10) : null;
+        const nameHint = String(args.hotel_name || args.name || "").toLowerCase();
+        let key =
+          hotel_id && check_in
+            ? `${hotel_id}_${check_in}`
+            : hotel_id
+              ? Object.keys(env.hotels).find((k) => k.startsWith(`${hotel_id}_`))
+              : null;
+        if (!key && nameHint) {
+          key = Object.keys(env.hotels).find((k) => {
+            const h = env.hotels[k];
+            return String(h?.name || h?.hotel_name || "")
+              .toLowerCase()
+              .includes(nameHint.slice(0, 12));
+          });
+        }
+        if (!key) {
+          key = Object.keys(env.hotels)
+            .filter((k) => env.hotels[k]?.status !== "cancelled")
+            .pop();
+        }
+        if (!key || !env.hotels[key]) {
+          return { ok: false, error: "未找到可取消的酒店预订" };
+        }
+        const prev = env.hotels[key];
+        env.hotels[key] = {
+          ...prev,
+          status: "cancelled",
+          cancelled_at: new Date().toISOString(),
+          note: args.note || "Agent 取消",
+        };
+        this.engine.refreshLedger?.();
+        return {
+          ok: true,
+          written: true,
+          summary: `住宿已取消 · ${prev.name || prev.hotel_name || hotel_id || "酒店"}`,
           hotel: env.hotels[key],
         };
       }

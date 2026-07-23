@@ -16,8 +16,8 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-201";
-import { playbackMs } from "./playback.js?v=20260723-201";
+} from "./routing.js?v=20260723-202";
+import { playbackMs } from "./playback.js?v=20260723-202";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -90,6 +90,9 @@ const FLIGHT_HUBS = {
 let driveHopLayer = null;
 let driveHopAnim = null;
 let driveHopActive = false;
+/** Transient hotel book/cancel pin + info card. */
+let hotelFxLayer = null;
+let hotelFxTimers = [];
 /** Bumped on rewind/reset — async overlays must check before painting. */
 let mapSession = 1;
 let mapActionToken = 0;
@@ -159,6 +162,7 @@ export function abortMapPlayback() {
   } catch {
     /* ignore */
   }
+  clearHotelFx();
   // Keep lastAgentPlan so a map rebuild can repaint; explicit clearAgentPlan on rewind.
   try {
     agentPlanLayer?.clearLayers();
@@ -270,6 +274,157 @@ export function pulseMapEvent({
   if (rail !== false) pushToastRail({ icon, head, sub, kindCls, durationMs: totalMs });
   pulseTinyPin({ icon, durationMs: Math.min(2800, totalMs) });
   return new Promise((r) => setTimeout(() => r(true), Math.min(2800, totalMs)));
+}
+
+function clearHotelFx() {
+  for (const t of hotelFxTimers) clearTimeout(t);
+  hotelFxTimers = [];
+  try {
+    hotelFxLayer?.clearLayers();
+  } catch {
+    /* ignore */
+  }
+}
+
+function resolveHotelPlaceId({
+  placeId = null,
+  hotelName = "",
+  hotelId = "",
+  location = "",
+  geoKey = null,
+} = {}) {
+  if (placeId && lastCtx?.placeById?.[placeId]) return placeId;
+  const blob = `${hotelName} ${hotelId} ${location} ${geoKey || ""}`;
+  const fromText = extractPlaceIdsFromText(blob)[0];
+  if (fromText) return fromText;
+  const s = blob;
+  const rules = [
+    [/库克山|Mt\.?\s*Cook|Aoraki/i, "pl_mt_cook"],
+    [/蒂卡波|Tekapo/i, "pl_tekapo"],
+    [/皇后镇|Queenstown/i, "pl_queenstown"],
+    [/瓦纳卡|Wanaka/i, "pl_wanaka"],
+    [/米尔福德|马纳普里|蒂阿瑙|Milford|Manapouri|Te\s*Anau/i, "pl_milford"],
+    [/皮克顿|Picton/i, "pl_picton"],
+    [/惠灵顿|Wellington/i, "pl_wellington"],
+    [/陶波|Taup[oō]/i, "pl_taupo"],
+    [/罗托鲁阿|Rotorua/i, "pl_rotorua"],
+    [/奥克兰|Auckland/i, "pl_akl_airport"],
+    [/基督城|Christchurch|\bCHC\b|TOP\s*10/i, "pl_chc_airport"],
+  ];
+  for (const [re, id] of rules) {
+    if (re.test(s)) return id;
+  }
+  const geo = String(geoKey || "").toLowerCase();
+  if (geo && GEO_TO_PLACE[geo]) return GEO_TO_PLACE[geo];
+  return placeId || null;
+}
+
+/**
+ * Book / cancel hotel: big pin pop (or remove) + short info card (~1s).
+ */
+export function playHotelPinCinematic({
+  mode = "book",
+  placeId = null,
+  geoKey = null,
+  hotelName = "",
+  checkIn = "",
+  priceNzd = null,
+  detail = "",
+} = {}) {
+  return new Promise((resolve) => {
+    const session = mapSession;
+    if (!leafletMap || !window.L) {
+      resolve(false);
+      return;
+    }
+    const resolvedId = resolveHotelPlaceId({
+      placeId,
+      hotelName,
+      location: detail,
+      geoKey,
+    });
+    const at = resolvePulseLatLng({ placeId: resolvedId, geoKey });
+    if (!at) {
+      resolve(false);
+      return;
+    }
+
+    clearHotelFx();
+    if (!hotelFxLayer) hotelFxLayer = window.L.layerGroup().addTo(leafletMap);
+
+    const isCancel = mode === "cancel";
+    const name = String(hotelName || "住宿")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 36);
+    const date = String(checkIn || "").slice(0, 10);
+    const price =
+      priceNzd != null && Number.isFinite(Number(priceNzd))
+        ? `NZ$${Number(priceNzd)}`
+        : "";
+    const metaBits = [date, price, detail].filter(Boolean);
+    const meta = metaBits.join(" · ").slice(0, 48);
+
+    try {
+      setViewInSafeArea(at, Math.max(leafletMap.getZoom() || 7, 8));
+    } catch {
+      /* ignore */
+    }
+
+    const marker = window.L.marker(at, {
+      icon: window.L.divIcon({
+        className: "map-hotel-fx-wrap",
+        html: `<div class="map-hotel-fx ${isCancel ? "is-cancel" : "is-book"}" role="status">
+          <span class="map-hotel-fx-burst" aria-hidden="true"></span>
+          <span class="map-hotel-fx-ring" aria-hidden="true"></span>
+          <span class="map-hotel-fx-pin" aria-hidden="true">
+            <span class="map-hotel-fx-h">H</span>
+          </span>
+          <div class="map-hotel-fx-card">
+            <div class="map-hotel-fx-kicker">${isCancel ? "取消住宿" : "预订住宿"}</div>
+            <div class="map-hotel-fx-name">${escapeHtml(name)}</div>
+            ${meta ? `<div class="map-hotel-fx-meta">${escapeHtml(meta)}</div>` : ""}
+          </div>
+        </div>`,
+        iconSize: [220, 110],
+        iconAnchor: [30, 52],
+      }),
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: 1800,
+    }).addTo(hotelFxLayer);
+
+    // Card hold ~1s, then fade card; pin settles / removes.
+    const cardHold = playbackMs(1000, { min: 420 });
+    const fadeOut = playbackMs(420, { min: 120 });
+    const pinTail = playbackMs(isCancel ? 380 : 520, { min: 100 });
+
+    const tCard = setTimeout(() => {
+      if (!isMapSession(session)) return;
+      const root = marker.getElement()?.querySelector?.(".map-hotel-fx");
+      root?.classList.add("is-card-out");
+    }, cardHold);
+
+    const tDone = setTimeout(() => {
+      if (!isMapSession(session)) {
+        resolve(false);
+        return;
+      }
+      const root = marker.getElement()?.querySelector?.(".map-hotel-fx");
+      root?.classList.add(isCancel ? "is-remove" : "is-settle");
+      const tClear = setTimeout(() => {
+        try {
+          hotelFxLayer?.removeLayer(marker);
+        } catch {
+          /* ignore */
+        }
+        resolve(true);
+      }, pinTail);
+      hotelFxTimers.push(tClear);
+    }, cardHold + fadeOut);
+
+    hotelFxTimers.push(tCard, tDone);
+  });
 }
 
 function resolvePulseLatLng({ placeId = null, geoKey = null, roadId = null, latlng = null } = {}) {
@@ -2981,6 +3136,7 @@ export function destroyMap() {
   flightLayer = null;
   flightPlanLayer = null;
   driveHopLayer = null;
+  hotelFxLayer = null;
   agentPlanLayer = null;
   lockedFlightArcs = new Map();
   lastFlightCatalogSig = "";

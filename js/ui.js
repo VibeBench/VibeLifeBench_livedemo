@@ -21,9 +21,10 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260723-201";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-201";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-201";
+  playHotelPinCinematic,
+} from "./map.js?v=20260723-202";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-202";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-202";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -2367,6 +2368,48 @@ export class UI {
               title: fb.statusTitle || "签证状态已同步",
             }),
           { fingerprint: `visa-chip:${String(fb.toText || "").slice(0, 60)}` }
+        );
+      }
+      // Hotel book / cancel: big map pin + 1s info card, then status chip.
+      if (/book_hotel|cancel_hotel/i.test(name)) {
+        const hotel = result?.hotel || {};
+        const hotelName =
+          args.hotel_name ||
+          args.name ||
+          hotel.name ||
+          hotel.hotel_name ||
+          args.hotel_id ||
+          "住宿";
+        const checkIn = String(args.check_in || hotel.check_in || "").slice(0, 10);
+        const placeId =
+          hotel.place_id ||
+          args.place_id ||
+          extractPlaceIdsFromText(
+            `${hotelName} ${args.hotel_id || ""} ${args.location || ""} ${hotel.hotel_id || ""}`
+          )[0] ||
+          null;
+        const mode = /cancel/i.test(name) ? "cancel" : "book";
+        return this.enqueueCinematic(
+          async () => {
+            await playHotelPinCinematic({
+              mode,
+              placeId,
+              geoKey: args.geo_key || hotel.geo_key || null,
+              hotelName: String(hotelName),
+              checkIn,
+              priceNzd: args.price_nzd ?? hotel.price_nzd ?? hotel.nightly_price ?? null,
+              detail: result?.summary || fb.detail || "",
+            });
+            return this.playStatusChipUpdate({
+              kind: fb.statusKind,
+              icon: fb.icon,
+              title: fb.statusTitle,
+              toText: fb.toText,
+              detail: fb.detail,
+              items: fb.items || [],
+            });
+          },
+          { fingerprint: `hotel-pin:${mode}:${placeId || hotelName}:${checkIn}` }
         );
       }
       return this.enqueueCinematic(
