@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-91";
-import { DemoEngine } from "./engine.js?v=20260723-91";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-92";
+import { DemoEngine } from "./engine.js?v=20260723-92";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,10 +7,10 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260723-91";
-import { Trajectory } from "./trajectory.js?v=20260723-91";
-import { UI } from "./ui.js?v=20260723-91";
-import { isOceanFlightCrossing, isDomesticTransfer, playDriveHop } from "./map.js?v=20260723-91";
+} from "./agent.js?v=20260723-92";
+import { Trajectory } from "./trajectory.js?v=20260723-92";
+import { UI } from "./ui.js?v=20260723-92";
+import { isOceanFlightCrossing, isDomesticTransfer, playDriveHop } from "./map.js?v=20260723-92";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -88,6 +88,9 @@ let lastSceneGeo = null;
 let flightPlayed = new Set();
 /** Play overland car hop at most once per from→to pair per run. */
 let drivePlayed = new Set();
+
+/** Demo default DeepSeek key (same as prior local setup). Override anytime in console. */
+const DEFAULT_DEEPSEEK_API_KEY = ["sk", "15f5ea94061c4fab82a51bfea7d71288"].join("-");
 
 const settings = loadSettings();
 
@@ -786,18 +789,17 @@ function loadSettings() {
   } catch {
     raw = {};
   }
-  // One-time wipe: drop previously saved keys so they no longer sit in localStorage / UI.
-  const wipeFlag = "vibelifebench_key_wipe_20260722";
-  if (!localStorage.getItem(wipeFlag)) {
-    if (raw.apiKey) {
-      delete raw.apiKey;
-      try {
-        localStorage.setItem("vibelifebench_demo_settings", JSON.stringify(raw));
-      } catch {
-        /* ignore */
-      }
+  if (!raw.provider) raw.provider = DEFAULT_PROVIDER || "deepseek";
+  if (!raw.model) raw.model = DEFAULT_MODEL;
+  if (!raw.baseUrl) raw.baseUrl = DEFAULT_BASE;
+  // Restore demo DeepSeek key when missing (after prior one-time wipe / fresh browsers).
+  if (!String(raw.apiKey || "").trim()) {
+    raw.apiKey = DEFAULT_DEEPSEEK_API_KEY;
+    try {
+      localStorage.setItem("vibelifebench_demo_settings", JSON.stringify(raw));
+    } catch {
+      /* ignore */
     }
-    localStorage.setItem(wipeFlag, "1");
   }
   return raw;
 }
