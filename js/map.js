@@ -16,8 +16,8 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-206";
-import { playbackMs } from "./playback.js?v=20260723-206";
+} from "./routing.js?v=20260723-207";
+import { playbackMs } from "./playback.js?v=20260723-207";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -1060,7 +1060,9 @@ export async function focusPlanning(opts = {}) {
   }
 
   // Persistent check-result pills — only in traffic modes (cleared otherwise).
+  if (token !== planningToken) return false;
   await paintRoadCheckMarks(trafficMode ? prioritizeCheckMarks(roadMarks) : []);
+  if (token !== planningToken) return false;
 
   planningActive = true;
   planningFocusLatLngs = focus.length ? focus : null;
@@ -1488,6 +1490,7 @@ export async function syncPlanningFromText(text, { label, force = false } = {}) 
 export function clearPlanning({ immediate = false } = {}) {
   const run = () => {
     planningToken += 1;
+    roadCheckToken += 1;
     planningActive = false;
     planningFocusLatLngs = null;
     lastPlanningKey = "";

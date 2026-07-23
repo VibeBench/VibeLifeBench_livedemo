@@ -22,9 +22,9 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260723-206";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-206";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-206";
+} from "./map.js?v=20260723-207";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-207";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-207";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -3450,14 +3450,17 @@ function hotelLabel(idOrName) {
   return shortHotel(s) || "酒店";
 }
 
-/** Compact campervan name for the top status chip. */
+/** Compact campervan name for the top status chip (no hard ellipsis — chip marquee scrolls). */
 function shortVehicleChipName(name) {
-  const t = String(name || "")
+  let t = String(name || "")
+    .replace(/\bBritz\b/gi, "")
     .replace(/\s*2-Berth\s*/i, " 2B")
+    .replace(/\s*4-Berth\s*/i, " 4B")
+    .replace(/\s*6-Berth\s*/i, " 6B")
     .replace(/\s+/g, " ")
     .trim();
   if (!t) return "房车";
-  return t.length > 28 ? `${t.slice(0, 27)}…` : t;
+  return t;
 }
 
 function chipDateMd(d) {
@@ -3500,6 +3503,7 @@ function describeVisaStatusChip(visas = []) {
 
 /**
  * Top status-bar rental chip: show concrete booking (vehicle · status · pickup).
+ * Keep full readable text — overflow uses the shared status-chip marquee.
  */
 function describeRentalStatusChip(rentalRow) {
   if (!rentalRow) {
@@ -3515,14 +3519,13 @@ function describeRentalStatusChip(rentalRow) {
           ? "已订"
           : status || "—";
   const vehicle = shortVehicleChipName(rentalRow.vehicle_name);
-  const shortVehicle = vehicle.length > 10 ? `${vehicle.slice(0, 9)}…` : vehicle;
   const pickup = chipDateMd(rentalRow.pickup_date);
   const ret = chipDateMd(rentalRow.return_date);
   let value;
-  if (status === "held" && pickup) value = `${shortVehicle}·${pickup}`;
-  else if (status === "active" && ret) value = `${shortVehicle}·${ret}还`;
-  else if (status === "returned") value = `${shortVehicle}·已还`;
-  else value = `${shortVehicle}·${statusLabel}`;
+  if (status === "held" && pickup) value = `${vehicle} · ${pickup}`;
+  else if (status === "active" && ret) value = `${vehicle} · ${ret}还`;
+  else if (status === "returned") value = `${vehicle} · 已还`;
+  else value = `${vehicle} · ${statusLabel}`;
 
   const sub = [
     statusLabel,

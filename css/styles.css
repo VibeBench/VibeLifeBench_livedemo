@@ -637,6 +637,11 @@ select {
   flex: 0.95 1 0;
 }
 
+.float-status .status-chip[data-status="rental"] {
+  flex: 1.05 1 0;
+  min-width: 0;
+}
+
 .float-status .status-chip-ico {
   flex-shrink: 0;
   font-size: 14px;
