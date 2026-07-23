@@ -21,9 +21,9 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260723-113";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-113";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-113";
+} from "./map.js?v=20260723-114";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-114";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-114";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -901,19 +901,19 @@ export class UI {
     });
     const flightStatus = flightChip.value;
     const flightSub = flightChip.sub;
-    // Kickoff「预算 5 万」即可展示目标；有支出后再切换为已用/总额
+    // Kickoff「预算 5 万」即可展示目标；有支出后再切换为已用/总额（状态栏用短写法）
     const budgetValue =
       budgetDisclosed && budget.total_cny != null
         ? settled
-          ? `已用 ¥${fmt(budget.spent_cny)} / ¥${fmt(budget.total_cny)}`
-          : `预算 ¥${fmt(budget.total_cny)}`
-        : "待确定";
+          ? `¥${fmtCompactCny(budget.spent_cny)}/${fmtCompactCny(budget.total_cny)}`
+          : `¥${fmtCompactCny(budget.total_cny)}`
+        : "—";
     const budgetSub =
       budgetDisclosed && budget.total_cny != null
         ? settled
           ? budget.remaining_cny != null
-            ? `剩余 ¥${fmt(budget.remaining_cny)}`
-            : ""
+            ? `已用 ¥${fmt(budget.spent_cny)} / ¥${fmt(budget.total_cny)} · 剩余 ¥${fmt(budget.remaining_cny)}`
+            : `已用 ¥${fmt(budget.spent_cny)} / ¥${fmt(budget.total_cny)}`
           : "用户已确认 · 预订产生后更新明细"
         : "用户说明预算后更新";
 
@@ -998,9 +998,9 @@ export class UI {
           c.sub ? " · " + escapeHtml(c.sub) : ""
         }">
         <span class="status-chip-ico">${c.icon}</span>
-        <span class="status-chip-val"><span class="status-chip-val-text">${escapeHtml(
+        <span class="status-chip-val"><span class="status-chip-val-text" data-full="${escapeHtml(
           c.value
-        )}</span></span>
+        )}">${escapeHtml(c.value)}</span></span>
       </div>`
       )
       .join("");
@@ -1064,8 +1064,9 @@ export class UI {
       wrap.textContent = "";
       wrap.appendChild(textEl);
     }
+    textEl.dataset.full = String(text || "");
     textEl.textContent = String(text || "");
-    wrap.classList.remove("status-chip-val-flash");
+    wrap.classList.remove("status-chip-val-flash", "is-marquee");
     void wrap.offsetWidth;
     wrap.classList.add("status-chip-val-flash");
     clearTimeout(wrap._flashTimer);
@@ -1075,25 +1076,43 @@ export class UI {
     requestAnimationFrame(() => this.armStatusChipMarquees());
   }
 
-  /** Scroll overflowing status-chip labels left↔right instead of ellipsis. */
+  /** Loop-scroll overflowing status labels (one direction, not ping-pong). */
   armStatusChipMarquees() {
     const grid = this.els.statusGrid;
     if (!grid) return;
     for (const wrap of grid.querySelectorAll(".status-chip-val")) {
       const text = wrap.querySelector(".status-chip-val-text");
       if (!text) continue;
+      const raw = String(text.dataset.full ?? text.textContent ?? "").trim();
       wrap.classList.remove("is-marquee");
       text.style.removeProperty("--marquee-distance");
       text.style.removeProperty("animation-duration");
-      // Force layout with animation off so scrollWidth is accurate.
+      text.replaceChildren();
+      text.textContent = raw;
+      text.dataset.full = raw;
       void text.offsetWidth;
       const overflow = text.scrollWidth - wrap.clientWidth;
-      if (overflow > 4) {
-        wrap.classList.add("is-marquee");
-        text.style.setProperty("--marquee-distance", `${overflow + 12}px`);
-        const dur = Math.max(5, Math.min(16, (overflow + 12) / 16));
-        text.style.animationDuration = `${dur}s`;
-      }
+      if (overflow <= 4) continue;
+
+      text.replaceChildren();
+      const seg1 = document.createElement("span");
+      seg1.className = "status-chip-val-seg";
+      seg1.textContent = raw;
+      const gap = document.createElement("span");
+      gap.className = "status-chip-val-gap";
+      gap.setAttribute("aria-hidden", "true");
+      const seg2 = document.createElement("span");
+      seg2.className = "status-chip-val-seg";
+      seg2.textContent = raw;
+      seg2.setAttribute("aria-hidden", "true");
+      text.append(seg1, gap, seg2);
+
+      const dist = seg1.offsetWidth + gap.offsetWidth;
+      if (dist <= 0) continue;
+      wrap.classList.add("is-marquee");
+      text.style.setProperty("--marquee-distance", `${dist}px`);
+      const dur = Math.max(4, Math.min(14, dist / 28));
+      text.style.animationDuration = `${dur}s`;
     }
   }
 
@@ -2087,9 +2106,9 @@ export class UI {
       const toText =
         totalN != null
           ? spentN > 0
-            ? `已用 ${spent} / ${total}`
-            : `预算 ${total}`
-          : "待确定";
+            ? `¥${fmtCompactCny(spentN)}/${fmtCompactCny(totalN)}`
+            : `¥${fmtCompactCny(totalN)}`
+          : "—";
       const pct =
         totalN != null && totalN > 0 && spentN != null
           ? Math.max(0, Math.min(100, Math.round((spentN / totalN) * 100)))
@@ -3424,19 +3443,19 @@ function describeVisaStatusChip(visas = []) {
     .join(" · ");
   if (approved === total) {
     return {
-      value: `NZeTA · 已批准 · ${total}人`,
-      sub: names || "全部已批准",
+      value: `已批·${total}`,
+      sub: names ? `NZeTA · ${names}` : `NZeTA · ${total}人已批准`,
     };
   }
   if (approved > 0) {
     return {
-      value: `NZeTA · ${approved}/${total} 已批`,
-      sub: names || "部分批准",
+      value: `${approved}/${total}批`,
+      sub: names ? `NZeTA · ${names}` : "NZeTA · 部分批准",
     };
   }
   return {
-    value: `NZeTA · 审批中 · ${total}人`,
-    sub: names || "最长 72h",
+    value: `审批·${total}`,
+    sub: names ? `NZeTA 审批中 · ${names}` : "NZeTA 审批中 · 最长 72h",
   };
 }
 
@@ -3450,22 +3469,24 @@ function describeRentalStatusChip(rentalRow) {
   const status = String(rentalRow.status || "").toLowerCase();
   const statusLabel =
     status === "returned"
-      ? "已还车"
+      ? "已还"
       : status === "active"
-        ? "使用中"
+        ? "在用"
         : status === "held"
-          ? "已预订"
+          ? "已订"
           : status || "—";
   const vehicle = shortVehicleChipName(rentalRow.vehicle_name);
+  const shortVehicle = vehicle.length > 10 ? `${vehicle.slice(0, 9)}…` : vehicle;
   const pickup = chipDateMd(rentalRow.pickup_date);
   const ret = chipDateMd(rentalRow.return_date);
-  const bits = [vehicle, statusLabel];
-  if (status === "held" && pickup) bits.push(`${pickup}取`);
-  else if (status === "active" && ret) bits.push(`${ret}还`);
-  else if (status === "returned" && rentalRow.booking_ref) bits.push(rentalRow.booking_ref);
-  else if (rentalRow.daily_price != null) bits.push(`NZ$${rentalRow.daily_price}/天`);
+  let value;
+  if (status === "held" && pickup) value = `${shortVehicle}·${pickup}`;
+  else if (status === "active" && ret) value = `${shortVehicle}·${ret}还`;
+  else if (status === "returned") value = `${shortVehicle}·已还`;
+  else value = `${shortVehicle}·${statusLabel}`;
 
   const sub = [
+    statusLabel,
     rentalRow.booking_ref,
     rentalRow.insurance,
     rentalRow.bond_nzd != null ? `押金 NZ$${rentalRow.bond_nzd}` : null,
@@ -3476,7 +3497,7 @@ function describeRentalStatusChip(rentalRow) {
     .filter(Boolean)
     .join(" · ");
 
-  return { value: bits.join(" · "), sub: sub || "房车预订" };
+  return { value, sub: sub || "房车预订" };
 }
 
 /**
@@ -3528,32 +3549,31 @@ function describeFlightStatusChip({
           : 0;
     const stLabel =
       st && st !== "confirmed" && st !== "on_time" ? flightStatusLabel(st) : null;
-    const value = [
-      "未飞",
-      nextUnflown.flight_no,
-      stLabel,
-      delay > 0 ? `延误${Math.round(delay / 60)}h` : null,
-    ]
+    const value = [nextUnflown.flight_no, stLabel, delay > 0 ? `+${Math.round(delay / 60)}h` : null]
       .filter(Boolean)
-      .join(" · ");
+      .join("·");
     return {
-      value,
-      sub: nextUnflown.route || live?.note || nextUnflown.note || "待起飞",
+      value: value || "未飞",
+      sub: ["未飞", nextUnflown.route || live?.note || nextUnflown.note || "待起飞"]
+        .filter(Boolean)
+        .join(" · "),
     };
   }
 
   if (liveFlight) {
     return {
-      value: `${liveFlight.flight_no || flight.flight_no} · ${flightStatusLabel(
-        liveFlight.status || flight.status
-      )}${liveFlight.delay_min ? ` 延误${Math.round(liveFlight.delay_min / 60)}h` : ""}`,
-      sub: liveFlight.note || flight.note || (flags.atDepartureAirport ? "已确认到机场" : "已出票"),
+      value: `${liveFlight.flight_no || flight.flight_no}${
+        liveFlight.delay_min ? `·+${Math.round(liveFlight.delay_min / 60)}h` : ""
+      }`,
+      sub: `${flightStatusLabel(liveFlight.status || flight.status)} · ${
+        liveFlight.note || flight.note || (flags.atDepartureAirport ? "已确认到机场" : "已出票")
+      }`,
     };
   }
 
   return {
-    value: `${flight.flight_no} · ${flight.status || flight.note || "已预订"}`,
-    sub: flight.note || (flags.atDepartureAirport ? "已确认到机场" : "已出票"),
+    value: flight.flight_no || "已订",
+    sub: flight.status || flight.note || (flags.atDepartureAirport ? "已确认到机场" : "已出票"),
   };
 }
 
@@ -4505,6 +4525,23 @@ function fmt(n) {
   return Number(n || 0).toLocaleString("zh-CN");
 }
 
+/** Compact CNY for status chips, e.g. 13900 → 1.4万 */
+function fmtCompactCny(n) {
+  const v = Number(n || 0);
+  if (!Number.isFinite(v)) return "—";
+  if (Math.abs(v) >= 10000) {
+    const w = v / 10000;
+    const rounded = Math.round(w * 10) / 10;
+    const s =
+      Math.abs(rounded) >= 10 || Number.isInteger(rounded)
+        ? String(Math.round(rounded))
+        : String(rounded);
+    return `${s}万`;
+  }
+  if (Math.abs(v) >= 1000) return String(Math.round(v));
+  return String(Math.round(v));
+}
+
 /** Simulated clock stamp for chat / stream, e.g. "9/25 09:00". */
 function formatSimStamp(iso) {
   if (!iso) return "";
@@ -4525,7 +4562,11 @@ function truncate(s, n) {
 function shortWeather(w) {
   if (!w) return "—";
   const m = String(w).match(/^([^,，]+)/);
-  return m ? m[1].trim() : String(w).slice(0, 24);
+  const head = (m ? m[1] : String(w)).trim();
+  // Prefer just the condition word for the chip (temps stay in tooltip).
+  const cond = head.replace(/\s*\d+\s*°?[CcFf]?\s*$/, "").trim();
+  const short = cond || head;
+  return short.length > 6 ? `${short.slice(0, 5)}…` : short;
 }
 
 function weatherSub(state) {
