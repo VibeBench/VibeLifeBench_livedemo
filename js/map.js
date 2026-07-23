@@ -16,7 +16,7 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-92";
+} from "./routing.js?v=20260723-93";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -69,6 +69,20 @@ let flightRotateTimer = null;
 let flightRotateIdx = 0;
 /** @type {Array<{ polyline: object, flown: boolean, label: string, flightNo: string }> } */
 let flightPlanEntries = [];
+/**
+ * Locked great-circle geometry once a flight is booked.
+ * Prevents endpoint drift when map focus / lastCtx.home changes.
+ * @type {Map<string, { from: number[], to: number[], arc: number[][] }>}
+ */
+let lockedFlightArcs = new Map();
+
+/** Fixed airport hubs for air corridors (never depend on map focus). */
+const FLIGHT_HUBS = {
+  shanghai_home: [31.1443, 121.8083], // PVG
+  pvg: [31.1443, 121.8083],
+  christchurch: [-43.4894, 172.532], // CHC
+  auckland: [-37.0082, 174.785], // AKL
+};
 /** Quick overland car hop between NZ places. */
 let driveHopLayer = null;
 let driveHopAnim = null;
@@ -113,6 +127,7 @@ export function abortMapPlayback() {
   stopTravelerAnim();
   stopFlightCrossing();
   stopFlightPlanRotate();
+  lockedFlightArcs = new Map();
   stopDriveHop();
   try {
     pulseLayer?.clearLayers();
@@ -845,14 +860,25 @@ export async function focusPlanning(opts = {}) {
               : "地图聚焦中");
   setPlanningBadge(badge, mode === "clear" ? "consider" : mode);
 
-  if (planningFocusLatLngs?.length === 1) {
-    setViewInSafeArea(planningFocusLatLngs[0], 8);
-  } else if (planningFocusLatLngs?.length > 1) {
-    try {
-      leafletMap.fitBounds(window.L.latLngBounds(planningFocusLatLngs), fitOptions({ maxZoom: 9, animate: true }));
-    } catch {
-      /* ignore */
+  // Prep stage with a booked air corridor: keep PVG→CHC framing; don't chase NZ focus.
+  const holdFlightFrame =
+    lastCtx?.isHome &&
+    (lockedFlightArcs.has("flt_outbound") ||
+      lastCtx?.flags?.flightBooked ||
+      lastCtx?.flags?.showPlannedArrival ||
+      lastCtx?.flags?.showOutboundFlightArc);
+  if (!holdFlightFrame) {
+    if (planningFocusLatLngs?.length === 1) {
+      setViewInSafeArea(planningFocusLatLngs[0], 8);
+    } else if (planningFocusLatLngs?.length > 1) {
+      try {
+        leafletMap.fitBounds(window.L.latLngBounds(planningFocusLatLngs), fitOptions({ maxZoom: 9, animate: true }));
+      } catch {
+        /* ignore */
+      }
     }
+  } else if (lastCtx) {
+    applyFitForCtx(lastCtx);
   }
   return true;
 }
@@ -2289,8 +2315,11 @@ export function renderLeafletMap(engine) {
       requestAnimationFrame(() => {
         if (!leafletMap) return;
         leafletMap.invalidateSize(true);
-        if (lastAgentPlan?.stays?.length) fitAgentPlanBounds();
-        else fitLeaflet(lastCtx || ctx);
+        const view = lastCtx || ctx;
+        // Prep / home: keep Shanghai→CHC flight framed; don't let NZ plan-fit steal the camera.
+        if (view?.isHome) fitLeaflet(view);
+        else if (lastAgentPlan?.stays?.length) fitAgentPlanBounds();
+        else fitLeaflet(view);
       });
     });
   } catch (err) {
@@ -2352,6 +2381,7 @@ export function destroyMap() {
   flightPlanLayer = null;
   driveHopLayer = null;
   agentPlanLayer = null;
+  lockedFlightArcs = new Map();
   lastCtx = null;
 }
 
@@ -3006,6 +3036,29 @@ function stopFlightPlanRotate() {
   flightRotateIdx = 0;
 }
 
+function flightHubLatLng(geoKey) {
+  const g = String(geoKey || "").toLowerCase();
+  if (FLIGHT_HUBS[g]) return [...FLIGHT_HUBS[g]];
+  // Stable fallbacks — never use focus-dependent lastCtx.home
+  const live = latLngForGeoKey(g);
+  return live ? [...live] : null;
+}
+
+/** Resolve (and lock) great-circle geometry for a booked flight id. */
+function lockedArcForFlight(f) {
+  const id = f.id || `${f.flight_no}:${f.route}`;
+  const hit = lockedFlightArcs.get(id);
+  if (hit?.arc?.length >= 2) return hit;
+  const a = flightHubLatLng(f.fromGeo);
+  const b = flightHubLatLng(f.toGeo);
+  if (!a || !b) return null;
+  const arc = greatCircle(a, b, 48);
+  if (arc.length < 2) return null;
+  const locked = { from: a, to: b, arc };
+  lockedFlightArcs.set(id, locked);
+  return locked;
+}
+
 /** Draw all booked air corridors; cycle highlight (flown vs not-yet) like ferry done/planned. */
 function paintPersistentFlightArcs(ctx) {
   if (!leafletMap || !window.L) return;
@@ -3019,13 +3072,17 @@ function paintPersistentFlightArcs(ctx) {
     return;
   }
 
+  // Drop locks for flights that are no longer in the catalog (e.g. rewind).
+  const liveIds = new Set(flights.map((f) => f.id || `${f.flight_no}:${f.route}`));
+  for (const id of [...lockedFlightArcs.keys()]) {
+    if (!liveIds.has(id)) lockedFlightArcs.delete(id);
+  }
+
   flightPlanEntries = [];
   for (const f of flights) {
-    const a = latLngForGeoKey(f.fromGeo);
-    const b = latLngForGeoKey(f.toGeo);
-    if (!a || !b) continue;
-    const arc = greatCircle(a, b, 48);
-    if (arc.length < 2) continue;
+    const locked = lockedArcForFlight(f);
+    if (!locked) continue;
+    const arc = locked.arc;
     const label = `${f.flown ? "已飞" : "未飞"} · ${f.flight_no} · ${f.route}`;
     const line = window.L.polyline(arc, {
       color: f.flown ? "#64748b" : "#94a3b8",
@@ -3033,6 +3090,7 @@ function paintPersistentFlightArcs(ctx) {
       opacity: f.flown ? 0.55 : 0.4,
       dashArray: f.flown ? null : "6 10",
       className: f.flown ? "flight-flown-line" : "flight-plan-line",
+      interactive: true,
     })
       .addTo(flightPlanLayer)
       .bindTooltip(label);
@@ -3042,6 +3100,8 @@ function paintPersistentFlightArcs(ctx) {
       label,
       flightNo: f.flight_no,
       route: f.route,
+      from: locked.from,
+      to: locked.to,
     });
   }
 
@@ -3311,8 +3371,8 @@ export function playFlightCrossing({
       resolve(false);
       return;
     }
-    const a = latLngForGeoKey(fromGeo);
-    const b = latLngForGeoKey(toGeo);
+    const a = flightHubLatLng(fromGeo) || latLngForGeoKey(fromGeo);
+    const b = flightHubLatLng(toGeo) || latLngForGeoKey(toGeo);
     if (!a || !b) {
       resolve(false);
       return;
@@ -3664,8 +3724,15 @@ function applyFitForCtx(ctx) {
   // Ocean-crossing flight owns the viewport until it finishes.
   if (flightCrossingActive) return;
 
-  // While agent is planning, keep the map on the thinking corridor.
-  if (planningActive && planningFocusLatLngs?.length) {
+  // While agent is planning, keep the map on the thinking corridor —
+  // except during prep when a booked flight arc must stay framed PVG→CHC.
+  const holdFlightFrame =
+    ctx.isHome &&
+    (lockedFlightArcs.has("flt_outbound") ||
+      ctx.flags?.flightBooked ||
+      ctx.flags?.showPlannedArrival ||
+      ctx.flags?.showOutboundFlightArc);
+  if (planningActive && planningFocusLatLngs?.length && !holdFlightFrame) {
     if (planningFocusLatLngs.length === 1) {
       setViewInSafeArea(planningFocusLatLngs[0], 8);
     } else {
@@ -3680,15 +3747,17 @@ function applyFitForCtx(ctx) {
 
   if (ctx.isHome) {
     const home = ctx.home;
-    const chc = ctx.placeById?.pl_chc_airport || { lat: -43.4894, lng: 172.532 };
-    if (ctx.flags?.showOutboundFlightArc || ctx.flags?.showPlannedArrival) {
-      leafletMap.fitBounds(
-        [
-          [home.lat, home.lng],
-          [chc.lat, chc.lng],
-        ],
-        fitOptions({ maxZoom: ctx.flags?.showOutboundFlightArc ? 4 : 3.5 })
-      );
+    // Prefer locked flight hubs so framing stays PVG→CHC once booked.
+    const outbound = lockedFlightArcs.get("flt_outbound");
+    const a = outbound?.from || FLIGHT_HUBS.shanghai_home;
+    const b = outbound?.to || FLIGHT_HUBS.christchurch;
+    if (
+      ctx.flags?.showOutboundFlightArc ||
+      ctx.flags?.showPlannedArrival ||
+      ctx.flags?.flightBooked ||
+      outbound
+    ) {
+      leafletMap.fitBounds([a, b], fitOptions({ maxZoom: ctx.flags?.showOutboundFlightArc ? 4 : 3.5 }));
     } else {
       setViewInSafeArea([home.lat, home.lng], 10);
     }
