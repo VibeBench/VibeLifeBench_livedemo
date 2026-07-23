@@ -21,8 +21,8 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260723-102";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-102";
+} from "./map.js?v=20260723-103";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-103";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -906,19 +906,11 @@ export class UI {
           : "用户已确认 · 预订产生后更新明细"
         : "用户说明预算后更新";
 
-    const rentalRow = (this._ledgerSnap?.rentals || [])[0] || null;
-    const rentalStatus = rentalRow?.status || "";
-    const rentalValue =
-      rentalStatus === "returned"
-        ? "已还车"
-        : rentalStatus === "active"
-          ? "使用中"
-          : rentalStatus === "held"
-            ? "已预订"
-            : "—";
-    const rentalSub =
-      rentalRow?.vehicle_name ||
-      (rentalStatus ? `房车 · ${rentalStatus}` : "授权预订后更新");
+    const rentalChip = describeRentalStatusChip(
+      (this._ledgerSnap?.rentals || [])[0] || null
+    );
+    const rentalValue = rentalChip.value;
+    const rentalSub = rentalChip.sub;
 
     const cards = [
       { key: "location", icon: "📍", label: "当前位置", value: state?.location || "—", sub: state?.geo_key || "" },
@@ -2843,6 +2835,20 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
       (/return/i.test(n) ? "returned" : /pickup/i.test(n) ? "active" : /scratch/i.test(n) ? "active" : "held");
     const statusLabel =
       status === "returned" ? "已还车" : status === "active" ? "使用中" : status === "held" ? "已预订" : status;
+    const chip = describeRentalStatusChip({
+      vehicle_name: booking.vehicle_name || args.vehicle_name || "Britz Venturer 2-Berth",
+      status,
+      booking_ref: booking.booking_ref || args.booking_ref,
+      insurance:
+        booking.insurance_plan_id === "ins_zero_excess" || !booking.insurance_plan_id
+          ? "零自付额"
+          : "基础险",
+      bond_nzd: booking.bond_nzd,
+      daily_price: booking.daily_price,
+      pickup_date: booking.pickup_date || "2026-10-11",
+      return_date: booking.return_date || "2026-10-24",
+      note: booking.note,
+    });
     const items = [
       { label: "车型", value: booking.vehicle_name || args.vehicle_name || "Britz Venturer" },
       { label: "状态", value: statusLabel },
@@ -2854,6 +2860,8 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
       items.push({ label: "案件", value: result.incident.case_ref });
     }
     if (booking.bond_nzd != null) items.push({ label: "押金", value: `NZ$${booking.bond_nzd}` });
+    if (booking.daily_price != null) items.push({ label: "日租", value: `NZ$${booking.daily_price}` });
+    if (chip.sub) items.push({ label: "行程", value: chip.sub });
     return {
       actionKind: "write",
       statusKind: "rental",
@@ -2861,8 +2869,8 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
       cardTitle: label,
       cardQuery: /scratch/i.test(n) ? "🩹" : "🚐",
       statusTitle: "房车状态已同步",
-      toText: statusLabel,
-      detail: summary || booking.vehicle_name || "",
+      toText: chip.value,
+      detail: summary || chip.sub || booking.vehicle_name || "",
       items,
       fingerprint: `write:rental:${n}:${status}`,
     };
@@ -3052,6 +3060,61 @@ function hotelLabel(idOrName) {
   if (/alpine/i.test(s)) return "Alpine 酒店";
   if (/rotorua/i.test(s)) return "罗托鲁阿住宿";
   return shortHotel(s) || "酒店";
+}
+
+/** Compact campervan name for the top status chip. */
+function shortVehicleChipName(name) {
+  const t = String(name || "")
+    .replace(/\s*2-Berth\s*/i, " 2B")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!t) return "房车";
+  return t.length > 20 ? `${t.slice(0, 19)}…` : t;
+}
+
+function chipDateMd(d) {
+  const s = String(d || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
+  return `${s.slice(5, 7)}/${s.slice(8, 10)}`;
+}
+
+/**
+ * Top status-bar rental chip: show concrete booking (vehicle · status · pickup).
+ */
+function describeRentalStatusChip(rentalRow) {
+  if (!rentalRow) {
+    return { value: "—", sub: "授权预订后更新" };
+  }
+  const status = String(rentalRow.status || "").toLowerCase();
+  const statusLabel =
+    status === "returned"
+      ? "已还车"
+      : status === "active"
+        ? "使用中"
+        : status === "held"
+          ? "已预订"
+          : status || "—";
+  const vehicle = shortVehicleChipName(rentalRow.vehicle_name);
+  const pickup = chipDateMd(rentalRow.pickup_date);
+  const ret = chipDateMd(rentalRow.return_date);
+  const bits = [vehicle, statusLabel];
+  if (status === "held" && pickup) bits.push(`${pickup}取`);
+  else if (status === "active" && ret) bits.push(`${ret}还`);
+  else if (status === "returned" && rentalRow.booking_ref) bits.push(rentalRow.booking_ref);
+  else if (rentalRow.daily_price != null) bits.push(`NZ$${rentalRow.daily_price}/天`);
+
+  const sub = [
+    rentalRow.booking_ref,
+    rentalRow.insurance,
+    rentalRow.bond_nzd != null ? `押金 NZ$${rentalRow.bond_nzd}` : null,
+    rentalRow.daily_price != null ? `NZ$${rentalRow.daily_price}/天` : null,
+    pickup && ret ? `${pickup}–${ret}` : pickup || ret || null,
+    rentalRow.note,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return { value: bits.join(" · "), sub: sub || "房车预订" };
 }
 
 /**
