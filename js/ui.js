@@ -998,10 +998,13 @@ export class UI {
           c.sub ? " · " + escapeHtml(c.sub) : ""
         }">
         <span class="status-chip-ico">${c.icon}</span>
-        <span class="status-chip-val">${escapeHtml(c.value)}</span>
+        <span class="status-chip-val"><span class="status-chip-val-text">${escapeHtml(
+          c.value
+        )}</span></span>
       </div>`
       )
       .join("");
+    this.armStatusChipMarquees();
 
     // Budget sync animation only from tool call — not every status-bar paint.
     if (flightChanged) {
@@ -1045,6 +1048,53 @@ export class UI {
     this.enqueueCinematic(() => this.playStatusLandingAnim(item), { fingerprint: fp }).catch(
       () => {}
     );
+  }
+
+  /** Write chip text and enable marquee when the label overflows. */
+  setStatusChipValue(chipOrVal, text) {
+    const wrap =
+      chipOrVal?.classList?.contains("status-chip-val")
+        ? chipOrVal
+        : chipOrVal?.querySelector?.(".status-chip-val");
+    if (!wrap) return;
+    let textEl = wrap.querySelector(".status-chip-val-text");
+    if (!textEl) {
+      textEl = document.createElement("span");
+      textEl.className = "status-chip-val-text";
+      wrap.textContent = "";
+      wrap.appendChild(textEl);
+    }
+    textEl.textContent = String(text || "");
+    wrap.classList.remove("status-chip-val-flash");
+    void wrap.offsetWidth;
+    wrap.classList.add("status-chip-val-flash");
+    clearTimeout(wrap._flashTimer);
+    wrap._flashTimer = setTimeout(() => {
+      wrap.classList.remove("status-chip-val-flash");
+    }, playbackMs(1100, { min: 200 }));
+    requestAnimationFrame(() => this.armStatusChipMarquees());
+  }
+
+  /** Scroll overflowing status-chip labels left↔right instead of ellipsis. */
+  armStatusChipMarquees() {
+    const grid = this.els.statusGrid;
+    if (!grid) return;
+    for (const wrap of grid.querySelectorAll(".status-chip-val")) {
+      const text = wrap.querySelector(".status-chip-val-text");
+      if (!text) continue;
+      wrap.classList.remove("is-marquee");
+      text.style.removeProperty("--marquee-distance");
+      text.style.removeProperty("animation-duration");
+      // Force layout with animation off so scrollWidth is accurate.
+      void text.offsetWidth;
+      const overflow = text.scrollWidth - wrap.clientWidth;
+      if (overflow > 4) {
+        wrap.classList.add("is-marquee");
+        text.style.setProperty("--marquee-distance", `${overflow + 12}px`);
+        const dur = Math.max(5, Math.min(16, (overflow + 12) / 16));
+        text.style.animationDuration = `${dur}s`;
+      }
+    }
   }
 
   /**
@@ -1153,14 +1203,7 @@ export class UI {
       chip.classList.add("status-chip-landed", "status-chip-landed-budget");
       const valEl = chip.querySelector(".status-chip-val");
       if (valEl && toText) {
-        valEl.textContent = String(toText).slice(0, 42);
-        valEl.classList.remove("status-chip-val-flash");
-        void valEl.offsetWidth;
-        valEl.classList.add("status-chip-val-flash");
-        clearTimeout(valEl._flashTimer);
-        valEl._flashTimer = setTimeout(() => {
-          valEl.classList.remove("status-chip-val-flash");
-        }, playbackMs(1100, { min: 200 }));
+        this.setStatusChipValue(valEl, String(toText));
       }
       if (detail) chip.title = `预算状态 · ${detail}`;
 
@@ -1303,14 +1346,7 @@ export class UI {
       chip.classList.add("status-chip-landed", "status-chip-landed-visa");
       const valEl = chip.querySelector(".status-chip-val");
       if (valEl && display) {
-        valEl.textContent = String(display).slice(0, 42);
-        valEl.classList.remove("status-chip-val-flash");
-        void valEl.offsetWidth;
-        valEl.classList.add("status-chip-val-flash");
-        clearTimeout(valEl._flashTimer);
-        valEl._flashTimer = setTimeout(() => {
-          valEl.classList.remove("status-chip-val-flash");
-        }, playbackMs(1100, { min: 200 }));
+        this.setStatusChipValue(valEl, String(display));
       }
       if (detail) chip.title = `签证 · ${detail}`;
 
@@ -1466,14 +1502,7 @@ export class UI {
         chipNow.classList.add("status-chip-landed", landCls);
         const valEl = chipNow.querySelector(".status-chip-val");
         if (valEl && toText) {
-          valEl.textContent = String(toText).slice(0, 42);
-          valEl.classList.remove("status-chip-val-flash");
-          void valEl.offsetWidth;
-          valEl.classList.add("status-chip-val-flash");
-          clearTimeout(valEl._flashTimer);
-          valEl._flashTimer = setTimeout(() => {
-            valEl.classList.remove("status-chip-val-flash");
-          }, playbackMs(1100, { min: 200 }));
+          this.setStatusChipValue(valEl, String(toText));
         }
         clearTimeout(chipNow._landTimer);
         chipNow._landTimer = setTimeout(() => {

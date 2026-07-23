@@ -556,14 +556,62 @@ select {
 }
 
 .float-status .status-chip-val {
+  position: relative;
+  display: block;
+  flex: 1 1 auto;
   min-width: 0;
   font-size: 12px;
   font-weight: 600;
   line-height: 1.25;
   color: #0f172a;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 10px), transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 10px), transparent 100%);
+}
+
+.float-status .status-chip-val-text {
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.float-status .status-chip-val.is-marquee .status-chip-val-text {
+  padding-right: 18px;
+  animation-name: status-chip-marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-delay: 1.1s;
+}
+
+@keyframes status-chip-marquee {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+  55%,
+  70% {
+    transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
+  }
+  88%,
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .float-status .status-chip-val.is-marquee .status-chip-val-text {
+    animation: none !important;
+  }
+  .float-status .status-chip-val {
+    mask-image: none;
+    -webkit-mask-image: none;
+    text-overflow: ellipsis;
+  }
+  .float-status .status-chip-val-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 /* Budget update sheet — anchored under the budget status chip */
@@ -1191,7 +1239,7 @@ select {
 }
 
 .float-status .status-chip-val {
-  display: inline-block;
+  /* overflow host — text lives in .status-chip-val-text */
 }
 
 @media (prefers-reduced-motion: reduce) {
