@@ -1441,8 +1441,15 @@ function truncateMapNote(s, n = 28) {
 /**
  * Parse thinking / answer text and update planning overlay (throttled by caller).
  * Only draws routes when the text is clearly about routing — not budget / generic place name-drops.
+ *
+ * Traffic modes (核查路况 / 受阻 / 正常) require a real tool (`list_active_alerts`,
+ * `get_traffic_estimate`, or `search_web` that extracted road ids). Thinking alone
+ * may only show an ephemeral corridor as "思考：推演路线".
  */
-export async function syncPlanningFromText(text, { label, force = false } = {}) {
+export async function syncPlanningFromText(
+  text,
+  { label, force = false, fromThinking = false } = {}
+) {
   const session = mapSession;
   const raw = String(text || "");
   if (!force && isNonRouteIntent(raw)) return false;
@@ -1450,40 +1457,50 @@ export async function syncPlanningFromText(text, { label, force = false } = {}) 
 
   const placeIds = extractPlaceIdsFromText(raw);
   let roadIds = extractRoadIdsFromText(raw);
-  for (const id of inferRoadIdsFromPlaces(placeIds)) {
-    if (!roadIds.includes(id)) roadIds.push(id);
+  // Thinking must not invent SH corridors from place pairs — that looks like a
+  // road-check tool ran when the agent only mentioned "瓦纳卡→皮克顿".
+  if (!fromThinking) {
+    for (const id of inferRoadIdsFromPlaces(placeIds)) {
+      if (!roadIds.includes(id)) roadIds.push(id);
+    }
   }
   // Need a real corridor or road — a single place name is not a route plan.
   if (roadIds.length < 1 && placeIds.length < 2) return false;
 
   const routeIds =
     placeIds.length >= 2 ? placeIds.slice(Math.max(0, placeIds.length - 4)) : placeIds;
-  const mode = inferPlanningMode(raw);
-  const roadMarks = buildRouteAnalysisMarks({
-    roadIds,
-    mode,
-    text: raw,
-    activeRoads: lastCtx?.activeRoads || [],
-  });
+  // Thinking → corridor only; never "核查路况中" without a traffic/search tool.
+  const mode = fromThinking ? "consider" : inferPlanningMode(raw);
+  const roadMarks =
+    fromThinking || !roadIds.length
+      ? []
+      : buildRouteAnalysisMarks({
+          roadIds,
+          mode,
+          text: raw,
+          activeRoads: lastCtx?.activeRoads || [],
+        });
   if (!isMapSession(session)) return false;
   return focusPlanning({
     placeIds: routeIds,
-    roadIds,
+    roadIds: fromThinking ? [] : roadIds,
     mode,
     analysisText: raw,
     roadMarks,
     force,
     label:
       label ||
-      (mode === "blocked"
-        ? "思考：路段受阻"
-        : mode === "checking"
-          ? "思考：核查路况"
-          : mode === "clear"
-            ? "思考：路况正常"
-            : mode === "adjust"
-              ? "思考：调整路线"
-              : "思考：推演路线"),
+      (fromThinking
+        ? "思考：推演路线"
+        : mode === "blocked"
+          ? "思考：路段受阻"
+          : mode === "checking"
+            ? "思考：核查路况"
+            : mode === "clear"
+              ? "思考：路况正常"
+              : mode === "adjust"
+                ? "思考：调整路线"
+                : "思考：推演路线"),
   });
 }
 

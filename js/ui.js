@@ -2021,14 +2021,14 @@ export class UI {
       clearTimeout(this._planThinkTimer);
       this._planThinkTimer = setTimeout(() => {
         this._lastPlanThinkLen = text.length;
-        syncPlanningFromText(text).catch(() => {});
+        syncPlanningFromText(text, { fromThinking: true }).catch(() => {});
       }, 520);
       return;
     }
     clearTimeout(this._planThinkTimer);
     this._planThinkTimer = setTimeout(() => {
       this._lastPlanThinkLen = text.length;
-      syncPlanningFromText(text).catch(() => {});
+      syncPlanningFromText(text, { fromThinking: true }).catch(() => {});
     }, 380);
   }
 
@@ -2226,9 +2226,10 @@ export class UI {
       const blob = [q, ...items.map((r) => `${r.title || ""} ${r.snippet || ""}`)].join("\n");
       const roadIds = extractRoadIdsFromText(blob);
       const placeIds = extractPlaceIdsFromText(blob);
-      const routeRelated =
-        roadIds.length > 0 ||
-        /路况|封路|公路|国道|SH\s*\d+|路线|绕行|通行|封闭|avalanche|rockfall/i.test(blob);
+      // Only paint road-check chrome when search actually hit named SH / road ids.
+      // Broad "路线|通行" matches (e.g. motorhome specs + 当地指南) must not look like a
+      // dedicated route tool — VibeSearch alone is enough for generic web queries.
+      const routeRelated = roadIds.length > 0;
       // Return promise so agent can await one tool cinematic before the next.
       const searchPlay = this.playQueuedMapAction({
         kind: "search",
@@ -2278,12 +2279,10 @@ export class UI {
               roadMarks: roadMarks.length ? roadMarks : undefined,
               force: true,
               forceFit: true,
-              label: focusRoads.length
-                ? `检索：核查 ${focusRoads.length} 条路段`
-                : "检索：路线相关",
+              label: `检索：核查 ${focusRoads.length} 条路段`,
             });
           },
-          { fingerprint: `search-roads:${roadIds.slice(0, 2).join(",") || "route"}:${q.slice(0, 40)}` }
+          { fingerprint: `search-roads:${roadIds.slice(0, 2).join(",")}:${q.slice(0, 40)}` }
         )
       );
     } else if (name === "write_journal" || /notion|journal|write_page/i.test(name)) {
@@ -2891,8 +2890,8 @@ export class UI {
       });
     };
     if (thinking) {
-      // Ephemeral thinking corridor only — cleared by endMapPlanning inside afterPlan.
-      syncPlanningFromText(thinking)
+      // Ephemeral corridor only — never "核查路况" without a traffic/search-road tool.
+      syncPlanningFromText(thinking, { fromThinking: true })
         .catch(() => {})
         .finally(afterPlan);
     } else {
