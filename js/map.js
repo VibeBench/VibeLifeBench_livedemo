@@ -16,8 +16,8 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-208";
-import { playbackMs } from "./playback.js?v=20260723-208";
+} from "./routing.js?v=20260723-211";
+import { playbackMs } from "./playback.js?v=20260723-211";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -1686,9 +1686,118 @@ function looksLikeOvernightStayLabel(label = "") {
 
 function allowTransitHubStay(row = {}) {
   if (!isTransitHubPlace(row.placeId)) return true;
-  if (row.kind === "hotel") return true;
+  if (row.kind === "hotel" || row.kind === "overnight") return true;
+  // Arrival night in Christchurch is a real overnight hub for this case.
+  if (row.placeId === "pl_chc_airport") {
+    const days = collectStayDays(row);
+    if (days.includes(1)) return true;
+    if (/落地|抵达|过夜|住宿|入住|第一晚|Day\s*1|第\s*1\s*天/i.test(String(row.label || ""))) {
+      return true;
+    }
+  }
   // Only keep airport pins when the copy clearly means an overnight, not a flight end.
   return looksLikeOvernightStayLabel(row.label);
+}
+
+/** Collect unique positive day numbers from a stay row. */
+function collectStayDays(row = {}) {
+  const out = new Set();
+  if (Array.isArray(row.days)) {
+    for (const d of row.days) {
+      const n = Number(d);
+      if (Number.isFinite(n) && n > 0) out.add(n);
+    }
+  }
+  for (const key of ["day", "dayEnd"]) {
+    const n = Number(row[key]);
+    if (Number.isFinite(n) && n > 0) out.add(n);
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+function applyStayDayRange(row, dayList = []) {
+  const days = [...new Set((dayList || []).map(Number).filter((n) => Number.isFinite(n) && n > 0))].sort(
+    (a, b) => a - b
+  );
+  return {
+    ...row,
+    days,
+    day: days.length ? days[0] : row.day ?? null,
+    dayEnd: days.length > 1 ? days[days.length - 1] : null,
+  };
+}
+
+/** Contiguous overnight block for a place from case trip_days (e.g. Tekapo D2–D3). */
+function tripDayNightsForPlace(placeId, tripDays = []) {
+  if (!placeId || !tripDays?.length) return [];
+  return tripDays
+    .filter((d) => primaryStayPlaceId(d) === placeId)
+    .map((d) => Number(d.day))
+    .filter((n) => Number.isFinite(n) && n > 0)
+    .sort((a, b) => a - b);
+}
+
+/**
+ * Expand a stay's nights to the contiguous trip_days block at that place
+ * that intersects the stay's known day(s).
+ */
+function expandNightsFromTripDays(row, tripDays = []) {
+  const block = tripDayNightsForPlace(row.placeId, tripDays);
+  if (block.length < 2) return row;
+  const known = collectStayDays(row);
+  const seed = known[0] ?? null;
+  if (seed == null) {
+    // No day yet — take the full contiguous overnight block at this hub.
+    return applyStayDayRange(row, block);
+  }
+  if (!block.includes(seed) && !known.some((d) => block.includes(d))) return row;
+  // Grow to the full contiguous run that contains any known day.
+  let lo = Math.min(...known.filter((d) => block.includes(d)));
+  let hi = Math.max(...known.filter((d) => block.includes(d)));
+  const set = new Set(block);
+  while (set.has(lo - 1)) lo -= 1;
+  while (set.has(hi + 1)) hi += 1;
+  const expanded = block.filter((d) => d >= lo && d <= hi);
+  return applyStayDayRange(row, expanded.length ? expanded : known);
+}
+
+function formatStayDayPill(s) {
+  const days = collectStayDays(s);
+  if (days.length >= 2) {
+    const a = days[0];
+    const b = days[days.length - 1];
+    return a === b ? `D${a}` : `D${a}–${b}`;
+  }
+  if (days.length === 1) return `D${days[0]}`;
+  if (s.date) {
+    return String(s.date).slice(5).replace("-", "/");
+  }
+  return "Stay";
+}
+
+function formatStayDateCaption(s, tripDays = []) {
+  const md = (iso) => {
+    if (!iso) return "";
+    return String(iso).slice(0, 10).slice(5).replace(/-/g, "/");
+  };
+  const days = collectStayDays(s);
+  const startIso = s.date || tripDateForDay(days[0], tripDays);
+  let endIso = s.dateEnd || null;
+  if (!endIso && days.length > 1) {
+    endIso = tripDateForDay(days[days.length - 1], tripDays);
+  }
+  const start = md(startIso);
+  const end = md(endIso);
+  if (start && end && start !== end) {
+    const [sm, sd] = start.split("/");
+    const [em, ed] = end.split("/");
+    if (sm === em) return `${sm}/${sd}–${ed}`;
+    return `${start}–${end}`;
+  }
+  if (start) return start;
+  return String(s.label || placeLabel(s.placeId) || "")
+    .replace(/^\s*[|｜/·•\-\u2013\u2014]+\s*/u, "")
+    .slice(0, 10);
 }
 
 /**
@@ -1716,22 +1825,31 @@ function buildPlanFromAgentOutputs({
   const upsert = (row, { prefer = false } = {}) => {
     if (!row?.placeId || row.placeId === "shanghai_home") return;
     if (!allowTransitHubStay(row)) return;
-    const prev = byPlace.get(row.placeId);
+    const incoming = applyStayDayRange(row, collectStayDays(row));
+    const prev = byPlace.get(incoming.placeId);
     if (!prev) {
-      byPlace.set(row.placeId, { ...row });
+      byPlace.set(incoming.placeId, { ...incoming });
       return;
     }
     // Prefer dated / day-labeled rows; allow prefer flag for this-turn tool writes.
-    const score = (s) => (s.date ? 4 : 0) + (s.day != null ? 2 : 0) + (s.label ? 1 : 0);
-    if (prefer || score(row) >= score(prev)) {
-      byPlace.set(row.placeId, {
-        ...prev,
-        ...row,
-        day: row.day != null ? row.day : prev.day,
-        date: row.date || prev.date,
-        label: row.label || prev.label,
-      });
-    }
+    const score = (s) =>
+      (s.date ? 4 : 0) + (s.day != null ? 2 : 0) + (s.label ? 1 : 0) + (s.kind === "overnight" ? 1 : 0);
+    const mergedDays = [...new Set([...collectStayDays(prev), ...collectStayDays(incoming)])].sort(
+      (a, b) => a - b
+    );
+    const base = prefer || score(incoming) >= score(prev) ? { ...prev, ...incoming } : { ...incoming, ...prev };
+    byPlace.set(
+      incoming.placeId,
+      applyStayDayRange(
+        {
+          ...base,
+          label: incoming.label || prev.label,
+          date: incoming.date || prev.date,
+          kind: incoming.kind || prev.kind,
+        },
+        mergedDays
+      )
+    );
   };
 
   // 1) Calendar events written this turn (tool args) — strongest for live edits
@@ -1810,8 +1928,8 @@ function buildPlanFromAgentOutputs({
 
   // 4) Day-structured lines in the reply (Day 4 库克山 / 第5天·皇后镇)
   for (const row of parseDayPlaceStays(blob)) {
-    // Day-N at airport only counts when the line itself says overnight / 住宿.
-    if (isTransitHubPlace(row.placeId) && !looksLikeOvernightStayLabel(row.label)) continue;
+    // Day-N at airport only counts when overnight / arrival night — not bare flight mentions.
+    if (!allowTransitHubStay(row)) continue;
     upsert(row, { prefer: true });
   }
 
@@ -1827,6 +1945,24 @@ function buildPlanFromAgentOutputs({
     }
     for (const id of uniq) {
       upsert({ day: null, placeId: id, label: placeLabel(id), date: null });
+    }
+  }
+
+  // 5b) Case Day 1 overnight in Christchurch — pin arrival night when itinerary is on the map.
+  if (byPlace.size >= 2 && days.length) {
+    const d1 = days.find((d) => Number(d.day) === 1);
+    if (d1 && primaryStayPlaceId(d1) === "pl_chc_airport") {
+      upsert(
+        {
+          day: 1,
+          days: [1],
+          date: d1.date ? String(d1.date).slice(0, 10) : null,
+          placeId: "pl_chc_airport",
+          label: "基督城 · 落地过夜",
+          kind: "overnight",
+        },
+        { prefer: true }
+      );
     }
   }
 
@@ -1855,48 +1991,80 @@ function buildPlanFromAgentOutputs({
 /**
  * Supervise stay day labels + order using case trip_days and any Day-N hints in text.
  * Fixes "first overnight in plan list ⇒ D1" which mislabeled 库克山 as Day 1.
+ * Multi-night hubs (Tekapo D2–D3) keep one pin with a day range.
  */
 function superviseStays(stays, tripDays = [], blob = "") {
   if (!stays?.length) return [];
   const days = Array.isArray(tripDays) ? tripDays : [];
   const hinted = parseDayPlaceStays(blob);
-  const hintByPlace = new Map();
+  const hintDaysByPlace = new Map();
   for (const h of hinted) {
-    if (h.placeId && h.day != null) hintByPlace.set(h.placeId, Number(h.day));
+    if (!h.placeId || h.day == null) continue;
+    const list = hintDaysByPlace.get(h.placeId) || [];
+    list.push(Number(h.day));
+    hintDaysByPlace.set(h.placeId, list);
   }
 
   let out = stays.map((s) => {
     const date = s.date ? String(s.date).slice(0, 10) : null;
-    let day = null;
+    let dayList = collectStayDays(s);
+
+    // Merge model Day-N hints for this place (D2 + D3 Tekapo → both nights).
+    if (hintDaysByPlace.has(s.placeId)) {
+      dayList = [...new Set([...dayList, ...hintDaysByPlace.get(s.placeId)])].sort((a, b) => a - b);
+    }
 
     // 1) Calendar date → official trip day
     if (date && days.length) {
       const byDate = days.find((d) => String(d.date || "").slice(0, 10) === date);
-      if (byDate?.day != null) day = Number(byDate.day);
+      if (byDate?.day != null && !dayList.includes(Number(byDate.day))) {
+        dayList = [...dayList, Number(byDate.day)].sort((a, b) => a - b);
+      }
     }
 
-    // 2) Known case place → official trip day (beats raw "Day 1" list index / mis-parsed 第1天)
+    // 2) Known case place → official trip day (seed if still empty)
     const placeDay = days.length
       ? resolveTripDayForPlace(s.placeId, days, { date, label: s.label })
       : null;
-    if (day == null && placeDay != null) day = placeDay;
+    if (!dayList.length && placeDay != null) dayList = [placeDay];
 
-    // 3) If model Day-N conflicts with case place day, trust case for known hubs
+    // 3) Model day on the row itself
     const modelDay =
       s.day != null && Number(s.day) > 0
         ? Number(s.day)
-        : hintByPlace.has(s.placeId)
-          ? hintByPlace.get(s.placeId)
+        : hintDaysByPlace.has(s.placeId)
+          ? hintDaysByPlace.get(s.placeId)[0]
           : null;
-    if (day == null && modelDay != null) day = modelDay;
-    if (day != null && placeDay != null && modelDay != null && placeDay !== modelDay && !date) {
-      day = placeDay;
+    if (!dayList.length && modelDay != null) dayList = [modelDay];
+
+    // Prefer case place-day when single-night and model conflicts without a calendar date
+    if (
+      dayList.length === 1 &&
+      placeDay != null &&
+      modelDay != null &&
+      placeDay !== modelDay &&
+      !date
+    ) {
+      dayList = [placeDay];
     }
 
+    let row = applyStayDayRange(
+      {
+        ...s,
+        date: date || tripDateForDay(dayList[0], days) || s.date || null,
+      },
+      dayList
+    );
+    // Expand to contiguous multi-night block from case trip_days (蒂卡波 D2–D3).
+    row = expandNightsFromTripDays(row, days);
+    const finalDays = collectStayDays(row);
     return {
-      ...s,
-      date: date || tripDateForDay(day, days) || s.date || null,
-      day: day != null ? day : null,
+      ...row,
+      date: tripDateForDay(finalDays[0], days) || row.date || null,
+      dateEnd:
+        finalDays.length > 1
+          ? tripDateForDay(finalDays[finalDays.length - 1], days)
+          : null,
     };
   });
 
@@ -1908,10 +2076,21 @@ function superviseStays(stays, tripDays = [], blob = "") {
     return String(a.date || "").localeCompare(String(b.date || ""));
   });
 
-  // Dedupe same place keeping earliest day
+  // Merge consecutive same-place rows into one multi-night pin
   const dedup = [];
   for (const row of out) {
-    if (dedup.length && dedup[dedup.length - 1].placeId === row.placeId) continue;
+    if (dedup.length && dedup[dedup.length - 1].placeId === row.placeId) {
+      const prev = dedup[dedup.length - 1];
+      const merged = applyStayDayRange(prev, [...collectStayDays(prev), ...collectStayDays(row)]);
+      const fd = collectStayDays(merged);
+      dedup[dedup.length - 1] = {
+        ...merged,
+        label: prev.label || row.label,
+        date: tripDateForDay(fd[0], days) || merged.date || prev.date,
+        dateEnd: fd.length > 1 ? tripDateForDay(fd[fd.length - 1], days) : null,
+      };
+      continue;
+    }
     dedup.push(row);
   }
 
@@ -1930,8 +2109,19 @@ function superviseStays(stays, tripDays = [], blob = "") {
       const ib = orderedPlaces.indexOf(b.placeId);
       return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
     });
-    for (const s of dedup) {
-      s.day = resolveTripDayForPlace(s.placeId, days, { label: s.label });
+    for (let i = 0; i < dedup.length; i++) {
+      let row = expandNightsFromTripDays(
+        applyStayDayRange(dedup[i], [
+          resolveTripDayForPlace(dedup[i].placeId, days, { label: dedup[i].label }),
+        ].filter(Boolean)),
+        days
+      );
+      const fd = collectStayDays(row);
+      dedup[i] = {
+        ...row,
+        date: tripDateForDay(fd[0], days) || row.date,
+        dateEnd: fd.length > 1 ? tripDateForDay(fd[fd.length - 1], days) : null,
+      };
     }
   }
 
@@ -1996,7 +2186,9 @@ function placeLabel(placeId) {
   return map[placeId] || String(placeId || "").replace(/^pl_/, "");
 }
 
-/** Parse 「Day 3 皇后镇」「第4天：瓦纳卡」 style lines into ordered stays. */
+/** Parse 「Day 3 皇后镇」「第4天：瓦纳卡」 style lines into ordered stays.
+ *  Same place on consecutive days (蒂卡波 D2 + D3) is kept as separate rows
+ *  so later merge can build a multi-night range. */
 function parseDayPlaceStays(text) {
   const s = String(text || "");
   if (!s.trim()) return [];
@@ -2014,18 +2206,13 @@ function parseDayPlaceStays(text) {
     seenDay.add(day);
     out.push({
       day,
+      days: [day],
       placeId: ids[0],
       label: chunk.replace(/[（(].*$/, "").trim().slice(0, 16) || placeLabel(ids[0]),
     });
   }
   out.sort((a, b) => a.day - b.day);
-  // Dedupe consecutive same place
-  const dedup = [];
-  for (const row of out) {
-    if (dedup.length && dedup[dedup.length - 1].placeId === row.placeId) continue;
-    dedup.push(row);
-  }
-  return dedup;
+  return out;
 }
 
 function shouldFitAgentPlanCamera() {
@@ -2152,10 +2339,14 @@ async function buildAgentPlanLinkSegments(ctx, routeIds = []) {
       (a === "pl_wellington" && b === "pl_picton");
     // No cross-island mega drive (except short Picton↔Wellington ferry hop).
     if (ia && ib && ia !== ib && !ferry) continue;
-    // Don't draw long "drive" from/to pure transit hubs across the country.
+    // Don't invent long airport mega-drives — but keep real overnight hops
+    // (e.g. 基督城落地过夜 → 蒂卡波) when both ends are planned stays.
+    const planPlaces = new Set((lastAgentPlan?.stays || []).map((s) => s.placeId));
+    const bothPlanned = planPlaces.has(a) && planPlaces.has(b);
     if (
       (isTransitHubPlace(a) || isTransitHubPlace(b)) &&
       !ferry &&
+      !bothPlanned &&
       haversineKm4(pa.lat, pa.lng, pb.lat, pb.lng) > 180
     ) {
       continue;
@@ -2243,39 +2434,36 @@ async function repaintAgentPlan({ fit = false, announce = false } = {}) {
     /* ignore */
   }
 
-  // Deduplicate markers by place; keep first day's label if multi-night.
+  // One marker per place; multi-night hubs show D2–3 + date range on a single pin.
   const seen = new Set();
   for (const s of stays) {
     if (seen.has(s.placeId)) continue;
     seen.add(s.placeId);
     const p = lastCtx.placeById[s.placeId];
     if (!p) continue;
-    const dayNum =
-      s.day != null
-        ? `D${s.day}`
-        : s.date
-          ? String(s.date).slice(5).replace("-", "/")
-          : "Stay";
-    // Prefer calendar date under the day pill — never prefix with "|" / "｜".
-    const dateMd = s.date
-      ? String(s.date)
-          .slice(0, 10)
-          .slice(5)
-          .replace(/-/g, "/")
-      : "";
-    const rawCaption = dateMd || String(s.label || placeLabel(s.placeId) || "");
-    const caption = rawCaption.replace(/^\s*[|｜/·•\-\u2013\u2014]+\s*/u, "").slice(0, 8);
+    const dayNum = formatStayDayPill(s);
+    const caption = formatStayDateCaption(s, lastCtx?.tripDays || []).replace(
+      /^\s*[|｜/·•\-\u2013\u2014]+\s*/u,
+      ""
+    );
+    const nightDays = collectStayDays(s);
     const tip = [
       s.label,
-      s.day != null ? `行程第${s.day}天` : null,
+      nightDays.length >= 2
+        ? `行程第${nightDays[0]}–${nightDays[nightDays.length - 1]}天 · ${nightDays.length}晚`
+        : s.day != null
+          ? `行程第${s.day}天`
+          : null,
       s.date ? String(s.date).slice(0, 10) : null,
+      s.dateEnd && s.dateEnd !== s.date ? `至 ${String(s.dateEnd).slice(0, 10)}` : null,
     ]
       .filter(Boolean)
       .join(" · ");
+    const multi = nightDays.length >= 2;
     window.L.marker([p.lat, p.lng], {
       icon: window.L.divIcon({
         className: "map-stay-wrap",
-        html: `<div class="map-stay-marker" title="${escapeHtml(tip)}">
+        html: `<div class="map-stay-marker${multi ? " is-multi" : ""}" title="${escapeHtml(tip)}">
           <span class="map-stay-day">${escapeHtml(dayNum)}</span>
           ${
             caption
@@ -2283,8 +2471,8 @@ async function repaintAgentPlan({ fit = false, announce = false } = {}) {
               : ""
           }
         </div>`,
-        iconSize: [72, 44],
-        iconAnchor: [36, 44],
+        iconSize: multi ? [84, 46] : [72, 44],
+        iconAnchor: multi ? [42, 46] : [36, 44],
       }),
       interactive: false,
       keyboard: false,

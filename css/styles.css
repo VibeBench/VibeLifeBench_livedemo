@@ -2372,6 +2372,17 @@ select {
   border: 2px solid #fff;
 }
 
+.map-stay-marker.is-multi .map-stay-day {
+  min-width: 40px;
+  padding: 0 8px;
+  background: linear-gradient(160deg, #a78bfa, #7c3aed);
+  letter-spacing: 0;
+}
+
+.map-stay-marker.is-multi .map-stay-name {
+  max-width: 88px;
+}
+
 .map-stay-name {
   max-width: 72px;
   padding: 1px 6px;
