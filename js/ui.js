@@ -21,9 +21,9 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260723-106";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-106";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-106";
+} from "./map.js?v=20260723-107";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-107";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-107";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
