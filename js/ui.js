@@ -21,9 +21,9 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260723-107";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-107";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-107";
+} from "./map.js?v=20260723-108";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-108";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-108";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -2121,6 +2121,7 @@ export class UI {
               analysisText: blob,
               roadMarks: roadMarks.length ? roadMarks : undefined,
               force: true,
+              forceFit: true,
               label: roadIds.length
                 ? `检索：核查 ${roadIds.length} 条路段`
                 : "检索：路线相关",

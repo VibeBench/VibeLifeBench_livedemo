@@ -16,8 +16,8 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-107";
-import { playbackMs } from "./playback.js?v=20260723-107";
+} from "./routing.js?v=20260723-108";
+import { playbackMs } from "./playback.js?v=20260723-108";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -902,8 +902,14 @@ export async function focusPlanning(opts = {}) {
               : "地图聚焦中");
   setPlanningBadge(badge, mode === "clear" ? "consider" : mode);
 
-  // Prep stage with a booked air corridor: keep PVG→CHC framing; don't chase NZ focus.
+  // Prep flight framing keeps PVG→CHC — but never when verifying NZ roads/places.
+  const trafficLike =
+    Boolean(opts.forceFit) ||
+    drawRoadIds.length > 0 ||
+    roadMarks.length > 0 ||
+    /^(checking|blocked|clear|warn)$/i.test(mode);
   const holdFlightFrame =
+    !trafficLike &&
     lastCtx?.isHome &&
     (lockedFlightArcs.size > 0 ||
       lastCtx?.flags?.flightBooked ||
@@ -911,10 +917,13 @@ export async function focusPlanning(opts = {}) {
       lastCtx?.flags?.showOutboundFlightArc);
   if (!holdFlightFrame) {
     if (planningFocusLatLngs?.length === 1) {
-      setViewInSafeArea(planningFocusLatLngs[0], 8);
+      setViewInSafeArea(planningFocusLatLngs[0], 9);
     } else if (planningFocusLatLngs?.length > 1) {
       try {
-        leafletMap.fitBounds(window.L.latLngBounds(planningFocusLatLngs), fitOptions({ maxZoom: 9, animate: true }));
+        leafletMap.fitBounds(
+          window.L.latLngBounds(planningFocusLatLngs),
+          fitOptions({ maxZoom: 10, padding: [48, 48], animate: true })
+        );
       } catch {
         /* ignore */
       }
@@ -2074,11 +2083,12 @@ export async function focusTrafficResult(result, args = {}) {
       ? `工具：核查 ${uniqRoads.length} 条路段…`
       : "工具：核查路况…",
     force: true,
+    forceFit: true,
     roadMarks: checkingMarks,
   });
   if (!isMapSession(session)) return false;
 
-  await new Promise((r) => setTimeout(r, 1300));
+  await new Promise((r) => setTimeout(r, playbackMs(1300, { min: 280 })));
   if (!isMapSession(session)) return false;
 
   if (verifiedBlocked) {
@@ -2099,6 +2109,7 @@ export async function focusTrafficResult(result, args = {}) {
         ? `确认受阻 · ${truncateMapNote(topNote, 36)}`
         : "确认：路段受阻",
       force: true,
+      forceFit: true,
       roadMarks: blockedMarks,
     });
   }
@@ -2119,6 +2130,7 @@ export async function focusTrafficResult(result, args = {}) {
       ? `路况正常 · 已核查 ${uniqRoads.length} 条`
       : "工具：路况正常",
     force: true,
+    forceFit: true,
     roadMarks: clearMarks,
   });
 }
@@ -4254,21 +4266,31 @@ function applyFitForCtx(ctx) {
   // Ocean-crossing flight owns the viewport until it finishes.
   if (flightCrossingActive) return;
 
-  // While agent is planning, keep the map on the thinking corridor —
-  // except during prep when a booked flight arc must stay framed (PVG↔CHC / AKL↔PVG).
-  // Agent stay edits must NOT steal the camera or rebuild flight geometry.
+  // While agent is planning, keep the map on the thinking corridor.
+  // Prep flight framing only when the planning focus is NOT a NZ road check.
   const holdFlightFrame =
     ctx.isHome &&
     (lockedFlightArcs.size > 0 ||
       ctx.flags?.flightBooked ||
       ctx.flags?.showPlannedArrival ||
       ctx.flags?.showOutboundFlightArc);
-  if (planningActive && planningFocusLatLngs?.length && !holdFlightFrame) {
+  const planningIsNzFocus =
+    planningActive &&
+    planningFocusLatLngs?.length &&
+    planningFocusLatLngs.some((ll) => {
+      const lat = ll?.lat ?? ll?.[0];
+      const lng = ll?.lng ?? ll?.[1];
+      return Number(lat) < -20 && Number(lng) > 140;
+    });
+  if (planningActive && planningFocusLatLngs?.length && (!holdFlightFrame || planningIsNzFocus)) {
     if (planningFocusLatLngs.length === 1) {
-      setViewInSafeArea(planningFocusLatLngs[0], 8);
+      setViewInSafeArea(planningFocusLatLngs[0], 9);
     } else {
       try {
-        leafletMap.fitBounds(window.L.latLngBounds(planningFocusLatLngs), fitOptions({ maxZoom: 9 }));
+        leafletMap.fitBounds(
+          window.L.latLngBounds(planningFocusLatLngs),
+          fitOptions({ maxZoom: 10, padding: [48, 48] })
+        );
       } catch {
         /* ignore */
       }
