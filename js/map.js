@@ -16,8 +16,8 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-203";
-import { playbackMs } from "./playback.js?v=20260723-203";
+} from "./routing.js?v=20260723-204";
+import { playbackMs } from "./playback.js?v=20260723-204";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -1573,12 +1573,13 @@ function looksLikePlanCommit(text, toolCalls = []) {
   const blob = String(text || "");
   const places = extractPlaceIdsFromText(blob);
   const calWrites = (toolCalls || []).filter((t) =>
-    /calendar|add_calendar|schedule/i.test(String(t?.name || ""))
+    /calendar|add_calendar|schedule|book_hotel/i.test(String(t?.name || ""))
   );
   if (calWrites.length >= 1) return true;
-  if (places.length >= 4) return true;
+  // Need a real itinerary-shaped answer — not a few place name-drops in prose.
+  if (parseDayPlaceStays(blob).length >= 2) return true;
   if (
-    places.length >= 2 &&
+    places.length >= 3 &&
     /规划|行程安排|整体行程|调整行程|改路线|自驾环线|过夜|住宿|营地|Day\s*\d+|第\s*\d+\s*天|路线如下|行程如下|更新后的行程/i.test(
       blob
     )
@@ -1644,7 +1645,9 @@ function buildPlanFromAgentOutputs({
   tripDays = [],
   hotels = [],
 } = {}) {
-  const blob = `${content || ""}\n${thinking || ""}`;
+  // Stays come from the finished answer + tools — never from thinking drafts.
+  const blob = String(content || "");
+  void thinking;
   const days = Array.isArray(tripDays) ? tripDays : [];
   const byPlace = new Map(); // placeId -> stay (later sources can refine)
   const flightHeavy = /机票|航班|MU\d+|PVG\s*→|值机|舱位|去程|返程|出票|已确认.*票/i.test(blob);
@@ -1989,10 +1992,12 @@ export async function commitAgentItineraryPlan({
   hotels = [],
   fit = "auto",
 } = {}) {
-  const blob = `${content || ""}\n${thinking || ""}`;
+  // Ignore thinking here — that only feeds the ephemeral "思考：推演" overlay.
+  const blob = String(content || "");
+  void thinking;
   const calAgent = (calendar || []).filter((c) => c?.source === "agent" || c?.kind === "plan");
   const calTools = (toolCalls || []).filter((t) =>
-    /calendar|schedule|book_hotel/i.test(String(t?.name || ""))
+    /calendar|schedule|book_hotel|cancel_hotel/i.test(String(t?.name || ""))
   );
   const hotelRows = (hotels || []).filter((h) => h && h.status !== "cancelled");
   // Prefer agent-booked stays so case itinerary hotels don't force an overlay on unrelated turns.
@@ -2009,15 +2014,12 @@ export async function commitAgentItineraryPlan({
     looksLikePlanCommit(blob, toolCalls) ||
     calAgent.length >= 1 ||
     calTools.length >= 1 ||
-    agentHotels.length >= 1 ||
-    Boolean(lastAgentPlan?.stays?.length) ||
-    extractPlaceIdsFromText(blob).length >= 2 ||
-    parseDayPlaceStays(blob).length >= 1;
+    agentHotels.length >= 1;
   if (!force) return false;
 
   const plan = buildPlanFromAgentOutputs({
-    content,
-    thinking,
+    content: blob,
+    thinking: "",
     toolCalls,
     calendar,
     tripDays,

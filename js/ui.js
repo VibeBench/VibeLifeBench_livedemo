@@ -22,9 +22,9 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260723-203";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-203";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-203";
+} from "./map.js?v=20260723-204";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-204";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-204";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -2050,8 +2050,8 @@ export class UI {
   }
 
   /**
-   * While the model is answering / after tools, refresh stay markers whenever
-   * the itinerary text or hotel/calendar state changes.
+   * Commit stay markers from a finished agent answer (or forced hotel/calendar edit).
+   * Do not call with partial streaming text — that paints itinerary before the model finishes.
    */
   syncMapStaysFromAgent({
     content = "",
@@ -2063,24 +2063,25 @@ export class UI {
     const text = String(content || "");
     const hasStaySignal =
       force ||
-      /Day\s*\d+|第\s*\d+\s*天|过夜|住宿|营地|Hotel|Motel|Holiday\s*Park|改订|换住|行程安排|调整行程/i.test(
+      /Day\s*\d+|第\s*\d+\s*天|过夜|住宿|营地|Hotel|Motel|Holiday\s*Park|改订|换住|行程安排|调整行程|路线如下|行程如下/i.test(
         text
       ) ||
-      (toolCalls || []).some((t) => /calendar|schedule|book_hotel/i.test(String(t?.name || "")));
-    if (!hasStaySignal && text.length < 40) return;
+      (toolCalls || []).some((t) => /calendar|schedule|book_hotel|cancel_hotel/i.test(String(t?.name || "")));
+    if (!hasStaySignal && text.length < 80) return;
     clearTimeout(this._stayPlanTimer);
     this._stayPlanTimer = setTimeout(() => {
       const ctx = planContext || {};
       commitAgentItineraryPlan({
+        // Final answer only — thinking drives the ephemeral "思考：推演" overlay, not stays.
         content: text,
-        thinking: thinking || "",
+        thinking: "",
         toolCalls: toolCalls || [],
         tripDays: ctx.tripDays || [],
         calendar: ctx.calendar || [],
         hotels: ctx.hotels || [],
         fit: "auto",
       }).catch(() => {});
-    }, force ? 80 : 480);
+    }, force ? 80 : 200);
   }
 
   focusMapFromTool(name, args = {}, result = null) {
@@ -2826,14 +2827,7 @@ export class UI {
 
     if (content != null && answer) {
       setMarkdown(answer, content);
-      if (phase === "answering" || phase === "done") {
-        this.syncMapStaysFromAgent({
-          content,
-          thinking: thinking || wrap.querySelector("[data-think-full]")?.textContent || "",
-          toolCalls: wrap._planToolCalls || [],
-          planContext: wrap._planContext || null,
-        });
-      }
+      // Stay markers wait for finishAgentTurn — never paint from a partial stream.
     }
     if (!thinking && thinkBlock && phase !== "thinking") {
       const hasText = Boolean(fullEl?.textContent || summaryEl?.textContent);
@@ -2915,19 +2909,21 @@ export class UI {
     if (planContext) wrap._planContext = planContext;
     const afterPlan = () => {
       this.endMapPlanning();
-      if (planContext) {
-        commitAgentItineraryPlan({
-          content: content || "",
-          thinking: thinking || "",
-          toolCalls: toolCalls || [],
-          tripDays: planContext.tripDays || [],
-          calendar: planContext.calendar || [],
-          hotels: planContext.hotels || [],
-          fit: "auto",
-        }).catch(() => {});
-      }
+      // Parse the finished reply (+ this-turn hotel/calendar tools) into stay markers.
+      this.syncMapStaysFromAgent({
+        content: content || "",
+        thinking: "",
+        toolCalls: toolCalls?.length ? toolCalls : wrap._planToolCalls || [],
+        planContext: planContext || wrap._planContext || null,
+        force: Boolean(
+          (toolCalls || wrap._planToolCalls || []).some((t) =>
+            /calendar|schedule|book_hotel|cancel_hotel/i.test(String(t?.name || ""))
+          )
+        ),
+      });
     };
     if (thinking) {
+      // Ephemeral thinking corridor only — cleared by endMapPlanning inside afterPlan.
       syncPlanningFromText(thinking)
         .catch(() => {})
         .finally(afterPlan);

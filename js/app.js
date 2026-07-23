@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-203";
-import { DemoEngine } from "./engine.js?v=20260723-203";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-204";
+import { DemoEngine } from "./engine.js?v=20260723-204";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,23 +7,22 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260723-203";
-import { Trajectory } from "./trajectory.js?v=20260723-203";
-import { UI } from "./ui.js?v=20260723-203";
+} from "./agent.js?v=20260723-204";
+import { Trajectory } from "./trajectory.js?v=20260723-204";
+import { UI } from "./ui.js?v=20260723-204";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
   hasLiveItineraryTraveler,
   playDriveHop,
-  commitAgentItineraryPlan,
-} from "./map.js?v=20260723-203";
+} from "./map.js?v=20260723-204";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
   playbackMs,
   sleepPlayback,
   playbackSpeedLabel,
-} from "./playback.js?v=20260723-203";
+} from "./playback.js?v=20260723-204";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -421,7 +420,8 @@ function ensureAgent({ allowOfflineTools = false } = {}) {
       }
       // Wait for this tool's map cinematic (+ status check) before the next tool runs.
       await Promise.resolve(ui.focusMapFromTool(name, args || {}, result));
-      // Calendar / hotel writes: refresh stay markers immediately so edits show live.
+      // Calendar / hotel writes: remember tools for the end-of-turn stay commit.
+      // Do NOT paint the full itinerary here — answer may still be incomplete.
       if (/calendar|schedule|book_hotel|cancel_hotel/i.test(name || "")) {
         const ctx = agentPlanContext();
         if (ui._streamBubble) {
@@ -429,13 +429,6 @@ function ensureAgent({ allowOfflineTools = false } = {}) {
           ui._streamBubble._planToolCalls = ui._streamBubble._planToolCalls || [];
           ui._streamBubble._planToolCalls.push({ name, args: args || {}, result });
         }
-        commitAgentItineraryPlan({
-          ...ctx,
-          toolCalls: ui._streamBubble?._planToolCalls || [{ name, args: args || {}, result }],
-          content: ui._streamBubble?.querySelector?.(".answer-text")?.innerText || "",
-          thinking: "",
-          fit: "auto",
-        }).catch(() => {});
       }
       // write_journal / calendar：工具调用卡已展示，不再重复刷聊天状态卡
       // Booking tools leave a durable state card in chat history
@@ -707,13 +700,6 @@ async function replayCachedAgentTurn(turn, time) {
           ui._streamBubble._planToolCalls = ui._streamBubble._planToolCalls || [];
           ui._streamBubble._planToolCalls.push({ name, args, result });
         }
-        commitAgentItineraryPlan({
-          ...agentPlanContext(),
-          toolCalls: ui._streamBubble?._planToolCalls || [{ name, args, result }],
-          content: turn.output || "",
-          thinking: turn.thinking || "",
-          fit: "auto",
-        }).catch(() => {});
       }
     }
 
