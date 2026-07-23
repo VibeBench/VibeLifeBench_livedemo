@@ -5,8 +5,8 @@
  * uiFocus holds a read-only snapshot when the user clicks a past/current day
  * on the ribbon (map + status follow the snapshot; agent tools still use live env).
  */
-import { renderEventForAgent } from "./loader.js?v=20260723-111";
-import { buildLedger, emptyLedger } from "./ledger.js?v=20260723-111";
+import { renderEventForAgent } from "./loader.js?v=20260723-112";
+import { buildLedger, emptyLedger } from "./ledger.js?v=20260723-112";
 
 export class DemoEngine {
   constructor(caseData) {

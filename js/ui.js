@@ -2317,32 +2317,41 @@ export class UI {
               : /正常|通行|开放|clear|reopen/i.test(blob)
                 ? "clear"
                 : "checking";
-            const roadMarks = roadIds.map((roadId) => {
+            const focusRoads = roadIds.slice(0, 2);
+            const roadMarks = focusRoads.map((roadId) => {
               const hit =
                 items.find((r) =>
                   extractRoadIdsFromText(`${r.title || ""} ${r.snippet || ""}`).includes(roadId)
                 ) ||
-                items.find((r) => /路况|封|SH\s*\d+|公路/i.test(`${r.title || ""} ${r.snippet || ""}`));
+                items.find((r) => /路况|封|SH\s*\d+|公路|落石|雪崩|通行/i.test(`${r.title || ""} ${r.snippet || ""}`));
+              const snip = String(hit?.snippet || hit?.title || "正在核对通行状态")
+                .replace(/\s+/g, " ")
+                .trim();
+              const note =
+                (snip.match(/→|->/g) || []).length >= 2
+                  ? "正在核对通行状态"
+                  : truncate(snip, 28);
               return {
                 roadId,
                 status: mode === "blocked" ? "blocked" : mode === "clear" ? "clear" : "checking",
-                note: truncate(String(hit?.snippet || hit?.title || "检索路况摘要"), 28),
+                note,
               };
             });
             return focusPlanning({
-              placeIds,
-              roadIds,
+              // Don't feed the full itinerary place set — it invents leftover SH tags.
+              placeIds: focusRoads.length ? [] : placeIds.slice(0, 2),
+              roadIds: focusRoads,
               mode,
-              analysisText: blob,
+              analysisText: q,
               roadMarks: roadMarks.length ? roadMarks : undefined,
               force: true,
               forceFit: true,
-              label: roadIds.length
-                ? `检索：核查 ${roadIds.length} 条路段`
+              label: focusRoads.length
+                ? `检索：核查 ${focusRoads.length} 条路段`
                 : "检索：路线相关",
             });
           },
-          { fingerprint: `search-roads:${roadIds.join(",") || "route"}:${q.slice(0, 40)}` }
+          { fingerprint: `search-roads:${roadIds.slice(0, 2).join(",") || "route"}:${q.slice(0, 40)}` }
         )
       );
     } else if (name === "write_journal" || /notion|journal|write_page/i.test(name)) {
@@ -3488,7 +3497,7 @@ function shortVehicleChipName(name) {
     .replace(/\s+/g, " ")
     .trim();
   if (!t) return "房车";
-  return t.length > 20 ? `${t.slice(0, 19)}…` : t;
+  return t.length > 28 ? `${t.slice(0, 27)}…` : t;
 }
 
 function chipDateMd(d) {
