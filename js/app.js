@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-200";
-import { DemoEngine } from "./engine.js?v=20260723-200";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-201";
+import { DemoEngine } from "./engine.js?v=20260723-201";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,22 +7,23 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260723-200";
-import { Trajectory } from "./trajectory.js?v=20260723-200";
-import { UI } from "./ui.js?v=20260723-200";
+} from "./agent.js?v=20260723-201";
+import { Trajectory } from "./trajectory.js?v=20260723-201";
+import { UI } from "./ui.js?v=20260723-201";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
+  hasLiveItineraryTraveler,
   playDriveHop,
   commitAgentItineraryPlan,
-} from "./map.js?v=20260723-200";
+} from "./map.js?v=20260723-201";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
   playbackMs,
   sleepPlayback,
   playbackSpeedLabel,
-} from "./playback.js?v=20260723-200";
+} from "./playback.js?v=20260723-201";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -227,6 +228,8 @@ async function maybePlayDriveHop(fromGeo, toGeo, { time = null } = {}) {
   const from = fromGeo;
   const to = toGeo;
   if (!isDomesticTransfer(from, to)) return false;
+  // Gap-fill only — skip when today's itinerary already animates a traveler car.
+  if (hasLiveItineraryTraveler()) return false;
   const key = `${from}>${to}`;
   if (drivePlayed.has(key)) return false;
   drivePlayed.add(key);

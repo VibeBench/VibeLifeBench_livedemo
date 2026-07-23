@@ -16,8 +16,8 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-200";
-import { playbackMs } from "./playback.js?v=20260723-200";
+} from "./routing.js?v=20260723-201";
+import { playbackMs } from "./playback.js?v=20260723-201";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -3831,6 +3831,29 @@ export function isDomesticTransfer(fromGeo, toGeo) {
   return a === b && a !== "other";
 }
 
+/**
+ * True when the map already paints today's live road traveler (slow car / ferry).
+ * Drive-hop is only for geo jumps with no in-progress itinerary movement.
+ */
+export function hasLiveItineraryTraveler(ctx = lastCtx) {
+  if (!ctx) return false;
+  const kind = ctx.activity?.kind;
+  if (kind === "ferry" || kind === "cruise") return true;
+  if (kind !== "driving") return false;
+  const dayIds = resolveTodayDriveIds({
+    location: String(ctx.state?.location || ""),
+    planDate: ctx.planDate,
+    herePlaceId: ctx.herePlaceId,
+  });
+  if (dayIds?.length >= 2) return true;
+  // Fallback spines also animate a traveler — treat as live itinerary.
+  const id = ctx.herePlaceId;
+  if (!id) return false;
+  if (id === "pl_mt_cook" || id === "pl_wanaka") return true;
+  if (SOUTH_SPINE.includes(id) || NORTH_SPINE.includes(id)) return true;
+  return Boolean(DATE_DRIVE_LEGS[String(ctx.planDate || "").slice(0, 10)]?.length >= 2);
+}
+
 function stopDriveHop() {
   if (driveHopAnim) {
     cancelAnimationFrame(driveHopAnim);
@@ -3859,7 +3882,19 @@ export function playDriveHop({
       resolve(false);
       return;
     }
+    // Don't stack a second car on top of today's itinerary traveler.
+    if (hasLiveItineraryTraveler()) {
+      resolve(false);
+      return;
+    }
     stopDriveHop();
+    // Hide the stationary "现在" pin while the hop car is moving.
+    stopTravelerAnim();
+    try {
+      activityLayer?.clearLayers();
+    } catch {
+      /* ignore */
+    }
     if (!isMapSession(session)) {
       resolve(false);
       return;
@@ -3946,7 +3981,11 @@ export function playDriveHop({
           } catch {
             /* ignore */
           }
-          if (isMapSession(session)) setPlanningBadge("");
+          if (isMapSession(session)) {
+            setPlanningBadge("");
+            // Restore here-marker after the gap hop.
+            if (lastCtx) paintLiveActivity(lastCtx, drawToken).catch(() => {});
+          }
           resolve(true);
         }, playbackMs(220, { min: 40 }));
       }
