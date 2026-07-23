@@ -16,8 +16,8 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-114";
-import { playbackMs } from "./playback.js?v=20260723-114";
+} from "./routing.js?v=20260723-200";
+import { playbackMs } from "./playback.js?v=20260723-200";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -99,6 +99,7 @@ let agentPlanLayer = null;
 let roadCheckLayer = null;
 /** @type {null | { stays: object[], routePlaceIds: string[], label?: string }} */
 let lastAgentPlan = null;
+let agentPlanBadgeTimer = null;
 
 export function currentMapSession() {
   return mapSession;
@@ -130,6 +131,7 @@ export function abortMapPlayback() {
     /* ignore */
   }
   setPlanningBadge("");
+  setAgentPlanBadge("");
   stopTravelerAnim();
   stopFlightCrossing();
   stopFlightPlanRotate();
@@ -722,6 +724,8 @@ function setPlanningBadge(label, mode) {
     el.dataset.mode = "";
     return;
   }
+  // New planning pass — drop the leftover "行程规划 · N 个住宿点" toast.
+  setAgentPlanBadge("");
   el.hidden = false;
   el.removeAttribute("hidden");
   el.dataset.mode = mode || "consider";
@@ -1361,15 +1365,34 @@ export function clearAgentPlan() {
 function setAgentPlanBadge(text) {
   const el = document.querySelector("#mapAgentPlanBadge");
   if (!el) return;
+  clearTimeout(agentPlanBadgeTimer);
+  agentPlanBadgeTimer = null;
   if (!text) {
     el.hidden = true;
     el.setAttribute("hidden", "");
     el.textContent = "";
+    el.classList.remove("is-fading");
     return;
   }
   el.hidden = false;
   el.removeAttribute("hidden");
+  el.classList.remove("is-fading");
   el.textContent = text;
+  // Toast only — stay markers remain; don't leave this pill stuck after planning.
+  const hold = playbackMs(2600, { min: 800 });
+  const fade = playbackMs(320, { min: 100 });
+  agentPlanBadgeTimer = setTimeout(() => {
+    el.classList.add("is-fading");
+    agentPlanBadgeTimer = setTimeout(() => {
+      agentPlanBadgeTimer = null;
+      if (el.textContent === text) {
+        el.hidden = true;
+        el.setAttribute("hidden", "");
+        el.textContent = "";
+        el.classList.remove("is-fading");
+      }
+    }, fade);
+  }, hold);
 }
 
 function primaryStayPlaceId(day) {
@@ -1865,7 +1888,7 @@ export async function commitAgentItineraryPlan({
 export async function showAgentPlan(plan, { fit = true } = {}) {
   if (!plan?.stays?.length) return false;
   lastAgentPlan = plan;
-  return repaintAgentPlan({ fit });
+  return repaintAgentPlan({ fit, announce: true });
 }
 
 function fitAgentPlanBounds() {
@@ -1960,7 +1983,7 @@ function haversineKm4(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
-async function repaintAgentPlan({ fit = false } = {}) {
+async function repaintAgentPlan({ fit = false, announce = false } = {}) {
   if (!leafletMap || !window.L || !lastAgentPlan || !lastCtx) return false;
   if (!agentPlanLayer) agentPlanLayer = window.L.layerGroup().addTo(leafletMap);
   agentPlanLayer.clearLayers();
@@ -2052,7 +2075,7 @@ async function repaintAgentPlan({ fit = false } = {}) {
   }
 
   const n = seen.size;
-  setAgentPlanBadge(`行程规划 · ${n} 个住宿点`);
+  if (announce) setAgentPlanBadge(`行程规划 · ${n} 个住宿点`);
   if (fit && shouldFitAgentPlanCamera()) fitAgentPlanBounds();
   return true;
 }
@@ -2498,6 +2521,10 @@ export function playMapAction({
     });
 
     let finished = false;
+    // Search overlays: wall-clock ≈1s then unblock the next demo step.
+    const SEARCH_TOTAL_MS = 1000;
+    const searchStartedAt =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
     const finish = (ok = true) => {
       if (finished) return;
       finished = true;
@@ -2525,10 +2552,15 @@ export function playMapAction({
         foot.removeAttribute("hidden");
         foot.classList.add("show");
       }
-      // Search: 1s. Calendar/notion: ~2s. Budget/weather/flight handoff shorter when leaveVisible.
+      // Search: whole cinematic ≈1s then advance. Others keep longer holds.
       const holdMs =
         kind === "search"
-          ? 1000
+          ? Math.max(
+              80,
+              SEARCH_TOTAL_MS -
+                ((typeof performance !== "undefined" ? performance.now() : Date.now()) -
+                  searchStartedAt)
+            )
           : kind === "calendar"
             ? leaveVisible
               ? 520
@@ -2553,17 +2585,18 @@ export function playMapAction({
       const resEl = stage.querySelector("#mapActionResults");
       const meta = stage.querySelector(".map-action-search-meta");
       let i = 0;
-      // Faster typing + staggered results; hold 1s after the last row.
-      const typeMs = pace(11);
-      const rowGapMs = 200;
-      const firstRowDelayMs = 120;
+      // Fit typing + rows into ~1s total budget (then finish uses remaining hold).
+      const typeMs = pace(8);
+      const typeStep = Math.max(2, Math.ceil(q.length / 18) || 2);
+      const rowGapMs = 55;
+      const firstRowDelayMs = 40;
       const typeTimer = setInterval(() => {
         if (!alive()) {
           clearInterval(typeTimer);
           finish(false);
           return;
         }
-        i += 1;
+        i = Math.min(q.length, i + typeStep);
         if (qEl) qEl.textContent = q.slice(0, i);
         if (i >= q.length) {
           clearInterval(typeTimer);
@@ -2591,13 +2624,13 @@ export function playMapAction({
             resEl.appendChild(row);
             r += 1;
             if (r < rows.length) wait(addRow, rowGapMs);
-            else finish(); // all rows in → hold 1s then hide
+            else finish(); // rows done → hold remaining budget (~1s total) then advance
           };
           wait(addRow, firstRowDelayMs);
         }
       }, typeMs);
-      // Fallback only if typing/results somehow stall.
-      mapActionTimer = wait(() => finish(), 20000);
+      // Hard cap: never block the next step past the 1s search budget (+tiny slack).
+      mapActionTimer = wait(() => finish(), SEARCH_TOTAL_MS + 80);
       return;
     }
 
