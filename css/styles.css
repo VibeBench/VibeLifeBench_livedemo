@@ -491,6 +491,7 @@ select {
 }
 
 .float-status .status-chip {
+  position: relative;
   flex: 1 1 0;
   min-width: 0;
   display: flex;
@@ -498,6 +499,7 @@ select {
   gap: 6px;
   padding: 8px 10px;
   border-right: 1px solid rgba(148, 163, 184, 0.28);
+  transition: background 0.35s ease;
 }
 
 .float-status .status-chip:last-child {
@@ -521,14 +523,15 @@ select {
   text-overflow: ellipsis;
 }
 
-/* Soft status sync pill → lands on status chip */
+/* Soft status sync pill → arcs into status chip */
 .status-sync {
   position: fixed;
   left: 0;
   top: 0;
   z-index: 80;
   pointer-events: none;
-  will-change: transform, opacity;
+  will-change: transform, opacity, filter;
+  transform-origin: center center;
 }
 
 .status-sync-pill {
@@ -539,13 +542,19 @@ select {
   max-width: min(320px, 70vw);
   padding: 8px 12px 8px 10px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.96);
   border: 1px solid rgba(226, 232, 240, 0.95);
   box-shadow:
-    0 10px 28px rgba(15, 23, 42, 0.12),
-    0 1px 0 rgba(255, 255, 255, 0.8) inset;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+    0 14px 36px rgba(15, 23, 42, 0.14),
+    0 2px 0 rgba(255, 255, 255, 0.85) inset;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.status-sync-from-stage .status-sync-pill {
+  box-shadow:
+    0 18px 44px rgba(15, 23, 42, 0.18),
+    0 2px 0 rgba(255, 255, 255, 0.9) inset;
 }
 
 .status-sync-budget .status-sync-pill {
@@ -621,63 +630,147 @@ select {
 }
 
 .status-chip.status-chip-landed {
-  animation: status-chip-land 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: status-chip-land 1s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 2;
 }
 
+.status-chip.status-chip-landed::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 10px;
+  pointer-events: none;
+  animation: status-chip-ring 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .status-chip.status-chip-landed-budget {
-  background: linear-gradient(180deg, rgba(255, 251, 235, 0.95) 0%, rgba(255, 255, 255, 0.55) 100%);
+  background: linear-gradient(180deg, rgba(255, 251, 235, 0.98) 0%, rgba(255, 255, 255, 0.7) 100%);
+}
+
+.status-chip.status-chip-landed-budget::after {
+  box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.35);
 }
 
 .status-chip.status-chip-landed-flight {
-  background: linear-gradient(180deg, rgba(239, 246, 255, 0.95) 0%, rgba(255, 255, 255, 0.55) 100%);
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.98) 0%, rgba(255, 255, 255, 0.7) 100%);
+}
+
+.status-chip.status-chip-landed-flight::after {
+  box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.35);
 }
 
 .status-chip.status-chip-landed-weather {
-  background: linear-gradient(180deg, rgba(224, 242, 254, 0.95) 0%, rgba(255, 255, 255, 0.55) 100%);
+  background: linear-gradient(180deg, rgba(224, 242, 254, 0.98) 0%, rgba(255, 255, 255, 0.7) 100%);
+}
+
+.status-chip.status-chip-landed-weather::after {
+  box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.35);
 }
 
 .status-chip.status-chip-landed-rental {
-  background: linear-gradient(180deg, rgba(255, 251, 235, 0.95) 0%, rgba(255, 255, 255, 0.55) 100%);
+  background: linear-gradient(180deg, rgba(255, 251, 235, 0.98) 0%, rgba(255, 255, 255, 0.7) 100%);
+}
+
+.status-chip.status-chip-landed-rental::after {
+  box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.35);
 }
 
 .status-chip.status-chip-landed-activity {
-  background: linear-gradient(180deg, rgba(240, 253, 244, 0.95) 0%, rgba(255, 255, 255, 0.55) 100%);
+  background: linear-gradient(180deg, rgba(240, 253, 244, 0.98) 0%, rgba(255, 255, 255, 0.7) 100%);
+}
+
+.status-chip.status-chip-landed-activity::after {
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.35);
 }
 
 .status-chip-val-flash {
-  animation: status-val-flash 0.85s ease;
+  animation: status-val-flash 0.95s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes status-chip-land {
   0% {
-    box-shadow: none;
+    transform: scale(1);
+    filter: brightness(1);
   }
   35% {
-    box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.28);
+    transform: scale(1.045);
+    filter: brightness(1.04);
+  }
+  70% {
+    transform: scale(0.99);
   }
   100% {
-    box-shadow: none;
+    transform: scale(1);
+    filter: brightness(1);
   }
+}
+
+@keyframes status-chip-ring {
+  0% {
+    opacity: 0.85;
+    box-shadow: 0 0 0 0 currentColor;
+    transform: scale(0.96);
+  }
+  45% {
+    opacity: 0.55;
+    box-shadow: 0 0 0 6px currentColor;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    box-shadow: 0 0 0 10px transparent;
+    transform: scale(1.02);
+  }
+}
+
+.status-chip.status-chip-landed-budget::after {
+  color: rgba(245, 158, 11, 0.28);
+}
+
+.status-chip.status-chip-landed-flight::after {
+  color: rgba(59, 130, 246, 0.28);
+}
+
+.status-chip.status-chip-landed-weather::after {
+  color: rgba(14, 165, 233, 0.28);
+}
+
+.status-chip.status-chip-landed-rental::after {
+  color: rgba(245, 158, 11, 0.28);
+}
+
+.status-chip.status-chip-landed-activity::after {
+  color: rgba(34, 197, 94, 0.28);
 }
 
 @keyframes status-val-flash {
   0% {
-    opacity: 0.35;
-    transform: translateY(3px);
+    opacity: 0;
+    transform: translateY(7px);
+    filter: blur(2px);
   }
-  40% {
+  55% {
     opacity: 1;
     transform: translateY(0);
+    filter: blur(0);
   }
   100% {
     opacity: 1;
     transform: translateY(0);
+    filter: none;
   }
 }
 
 .float-status .status-chip-val {
   display: inline-block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-chip.status-chip-landed,
+  .status-chip.status-chip-landed::after,
+  .status-chip-val-flash {
+    animation-duration: 0.01ms !important;
+  }
 }
 
 /* Fixed toast rail — tool call feedback only (messages / mutations stay off-map) */
@@ -1487,13 +1580,24 @@ select {
   pointer-events: none;
   opacity: 0;
   transform: translateY(8px) scale(0.98);
-  transition: opacity 0.28s ease, transform 0.28s ease;
+  transition:
+    opacity 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 5;
 }
 
 .map-action-stage.show {
   opacity: 1;
   transform: translateY(0) scale(1);
+}
+
+/* Hand off to status-sync fly: fade up slightly instead of hard cut. */
+.map-action-stage.is-handing-off {
+  opacity: 0;
+  transform: translateY(-14px) scale(0.96);
+  transition:
+    opacity 0.2s ease,
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .map-action-stage[hidden] {

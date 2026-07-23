@@ -21,8 +21,8 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260723-94";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-94";
+} from "./map.js?v=20260723-95";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-95";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -1014,8 +1014,8 @@ export class UI {
   }
 
   /**
-   * Soft sync cue into the matching status chip.
-   * Compact pill (no bulky flying card / stage clone shrink).
+   * Status sync: bottom map card (or soft rise) arcs into the matching chip.
+   * Continuous FLIP-style flight — no hard cut between stage and status bar.
    */
   playStatusLandingAnim({
     kind = "budget",
@@ -1034,16 +1034,28 @@ export class UI {
         return;
       }
 
-      if (fromStage) hideMapActionStage();
-
       const chipBox = chip.getBoundingClientRect();
       if (!chipBox.width) {
+        if (fromStage) hideMapActionStage();
         resolve(false);
         return;
       }
 
+      const reduceMotion =
+        typeof matchMedia === "function" &&
+        matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      const stage = fromStage ? document.querySelector("#mapActionStage") : null;
+      const card =
+        stage && !stage.hidden ? stage.querySelector(".map-action-card") : null;
+      const cardBox = card?.getBoundingClientRect?.();
+      const hasStageFlight =
+        Boolean(cardBox?.width) && cardBox.height > 8 && !reduceMotion;
+
       const fly = document.createElement("div");
-      fly.className = `status-sync status-sync-${kind}`;
+      fly.className = `status-sync status-sync-${kind}${
+        hasStageFlight ? " status-sync-from-stage" : ""
+      }`;
       const short =
         String(toText || detail || title || "")
           .replace(/\s+/g, " ")
@@ -1059,82 +1071,156 @@ export class UI {
         </div>`;
       document.body.appendChild(fly);
 
-      const pillBox = fly.getBoundingClientRect();
-      // Rise from just under the chip, settle onto it.
-      const endX = chipBox.left + chipBox.width / 2 - pillBox.width / 2;
-      const endY = chipBox.top + chipBox.height / 2 - pillBox.height / 2;
-      const startX = endX;
-      const startY = endY + Math.min(36, chipBox.height * 0.9 + 18);
+      const pillW = fly.offsetWidth || 180;
+      const pillH = fly.offsetHeight || 48;
+      const endX = chipBox.left + chipBox.width / 2 - pillW / 2;
+      const endY = chipBox.top + chipBox.height / 2 - pillH / 2;
 
-      fly.style.transform = `translate(${startX}px, ${startY}px) scale(0.92)`;
-      fly.style.opacity = "0";
+      let startX;
+      let startY;
+      let startScale;
+      if (hasStageFlight) {
+        // Match card center → pill center; start slightly larger so shrink feels continuous.
+        startX = cardBox.left + cardBox.width / 2 - pillW / 2;
+        startY = cardBox.top + cardBox.height / 2 - pillH / 2;
+        startScale = Math.min(1.35, Math.max(1.05, (cardBox.width * 0.72) / pillW));
+        stage.classList.add("is-handing-off");
+        stage.classList.remove("show");
+      } else {
+        startX = endX;
+        startY = endY + Math.min(52, chipBox.height + 28);
+        startScale = 0.9;
+      }
+
+      // Gentle arc toward the chip (not a straight lerp).
+      const dx = endX - startX;
+      const dy = endY - startY;
+      const midX = startX + dx * 0.42;
+      const midY = Math.min(startY, endY) - Math.min(96, Math.abs(dy) * 0.28 + 36);
+      const midScale = hasStageFlight
+        ? startScale * 0.62 + 0.38
+        : 1.04;
+
+      fly.style.transform = `translate3d(${startX}px, ${startY}px, 0) scale(${startScale})`;
+      fly.style.opacity = hasStageFlight ? "1" : "0";
+
+      const landCls =
+        kind === "flight"
+          ? "status-chip-landed-flight"
+          : kind === "weather"
+            ? "status-chip-landed-weather"
+            : kind === "rental"
+              ? "status-chip-landed-rental"
+              : kind === "activity"
+                ? "status-chip-landed-activity"
+                : "status-chip-landed-budget";
+
+      const pulseChip = () => {
+        const chipNow =
+          this.els.statusGrid?.querySelector(`[data-status="${kind}"]`) || chip;
+        if (!chipNow) return;
+        chipNow.classList.remove(
+          "status-chip-landed",
+          "status-chip-landed-flight",
+          "status-chip-landed-budget",
+          "status-chip-landed-weather",
+          "status-chip-landed-rental",
+          "status-chip-landed-activity"
+        );
+        // Retrigger CSS animation.
+        void chipNow.offsetWidth;
+        chipNow.classList.add("status-chip-landed", landCls);
+        const valEl = chipNow.querySelector(".status-chip-val");
+        if (valEl && toText) {
+          valEl.textContent = String(toText).slice(0, 42);
+          valEl.classList.remove("status-chip-val-flash");
+          void valEl.offsetWidth;
+          valEl.classList.add("status-chip-val-flash");
+          clearTimeout(valEl._flashTimer);
+          valEl._flashTimer = setTimeout(() => {
+            valEl.classList.remove("status-chip-val-flash");
+          }, 1100);
+        }
+        clearTimeout(chipNow._landTimer);
+        chipNow._landTimer = setTimeout(() => {
+          chipNow.classList.remove(
+            "status-chip-landed",
+            "status-chip-landed-flight",
+            "status-chip-landed-budget",
+            "status-chip-landed-weather",
+            "status-chip-landed-rental",
+            "status-chip-landed-activity"
+          );
+        }, 1200);
+      };
 
       const run = async () => {
+        let landTimer = null;
         try {
+          if (fromStage) {
+            // Stage already faded via is-handing-off; clear after handoff starts.
+            setTimeout(() => hideMapActionStage(), hasStageFlight ? 180 : 0);
+          }
+
+          if (reduceMotion) {
+            fly.style.opacity = "1";
+            fly.style.transform = `translate3d(${endX}px, ${endY}px, 0) scale(1)`;
+            await new Promise((r) => setTimeout(r, 220));
+            pulseChip();
+            fly.style.opacity = "0";
+            await new Promise((r) => setTimeout(r, 160));
+            return;
+          }
+
+          const duration = hasStageFlight ? 1180 : 860;
+          // Overlap chip pulse with the settle (before fly fades out).
+          landTimer = setTimeout(pulseChip, Math.round(duration * 0.62));
+
           await fly.animate(
             [
               {
-                opacity: 0,
-                transform: `translate(${startX}px, ${startY}px) scale(0.92)`,
+                opacity: hasStageFlight ? 1 : 0,
+                transform: `translate3d(${startX}px, ${startY}px, 0) scale(${startScale})`,
+                filter: hasStageFlight ? "blur(0px)" : "blur(1px)",
                 offset: 0,
               },
               {
                 opacity: 1,
-                transform: `translate(${endX}px, ${endY - 2}px) scale(1)`,
-                offset: 0.55,
+                transform: `translate3d(${midX}px, ${midY}px, 0) scale(${midScale})`,
+                filter: "blur(0px)",
+                offset: 0.42,
+              },
+              {
+                opacity: 1,
+                transform: `translate3d(${endX}px, ${endY - 1}px, 0) scale(1.02)`,
+                filter: "blur(0px)",
+                offset: 0.7,
+              },
+              {
+                opacity: 0.92,
+                transform: `translate3d(${endX}px, ${endY}px, 0) scale(1)`,
+                filter: "blur(0px)",
+                offset: 0.82,
               },
               {
                 opacity: 0,
-                transform: `translate(${endX}px, ${endY}px) scale(0.96)`,
+                transform: `translate3d(${endX}px, ${endY}px, 0) scale(0.88)`,
+                filter: "blur(0.5px)",
                 offset: 1,
               },
             ],
             {
-              duration: 920,
-              easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+              duration,
+              easing: "cubic-bezier(0.16, 1, 0.3, 1)",
               fill: "forwards",
             }
           ).finished;
         } catch {
-          /* ignore abort */
+          pulseChip();
         } finally {
+          if (landTimer) clearTimeout(landTimer);
           fly.remove();
-          const chipNow =
-            this.els.statusGrid?.querySelector(`[data-status="${kind}"]`) || chip;
-          if (chipNow) {
-            chipNow.classList.add("status-chip-landed");
-            const landCls =
-              kind === "flight"
-                ? "status-chip-landed-flight"
-                : kind === "weather"
-                  ? "status-chip-landed-weather"
-                  : kind === "rental"
-                    ? "status-chip-landed-rental"
-                    : kind === "activity"
-                      ? "status-chip-landed-activity"
-                      : "status-chip-landed-budget";
-            chipNow.classList.add(landCls);
-            const valEl = chipNow.querySelector(".status-chip-val");
-            if (valEl && toText) {
-              valEl.textContent = String(toText).slice(0, 42);
-              valEl.classList.add("status-chip-val-flash");
-              clearTimeout(valEl._flashTimer);
-              valEl._flashTimer = setTimeout(() => {
-                valEl.classList.remove("status-chip-val-flash");
-              }, 900);
-            }
-            clearTimeout(chipNow._landTimer);
-            chipNow._landTimer = setTimeout(() => {
-              chipNow.classList.remove(
-                "status-chip-landed",
-                "status-chip-landed-flight",
-                "status-chip-landed-budget",
-                "status-chip-landed-weather",
-                "status-chip-landed-rental",
-                "status-chip-landed-activity"
-              );
-            }, 1100);
-          }
+          if (fromStage) hideMapActionStage();
           resolve(true);
         }
       };
