@@ -22,9 +22,9 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260723-207";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-207";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-207";
+} from "./map.js?v=20260723-208";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-208";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-208";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -890,14 +890,9 @@ export class UI {
     // Align with engine.progressFlags(): no spoilers before narrative beats
     const settled = budgetSettled && budget.total_cny != null && Number(budget.spent_cny) > 0;
     const flightSettled = flightDisclosed && Boolean(flight.flight_no);
-    const liveFlight = flightSettled && env?.flights?.[flight.flight_no];
     const flightChip = describeFlightStatusChip({
-      state,
-      env,
-      flags,
-      flight,
-      liveFlight,
       flightSettled,
+      flight,
       ledgerFlights: this._ledgerSnap?.flights || env?.ledger?.flights || [],
     });
     const flightStatus = flightChip.value;
@@ -967,7 +962,7 @@ export class UI {
       {
         key: "flight",
         icon: "✈️",
-        label: "下一航班",
+        label: "已订航班",
         value: flightStatus,
         sub: flightSub,
       },
@@ -981,8 +976,7 @@ export class UI {
       weather: weatherValue,
       visa: visaValue,
     };
-    const flightChanged =
-      prev.flight != null && prev.flight !== nextSnap.flight && nextSnap.flight !== "待预订";
+    // Flight chip animates only from book_flight / cancel_flight tools — not every paint.
     const weatherChanged =
       prev.weather != null &&
       prev.weather !== nextSnap.weather &&
@@ -1007,17 +1001,6 @@ export class UI {
       .join("");
     this.armStatusChipMarquees();
 
-    // Budget sync animation only from tool call — not every status-bar paint.
-    if (flightChanged) {
-      this.enqueueStatusLanding({
-        kind: "flight",
-        icon: "✈️",
-        title: "航班状态更新",
-        fromText: prev.flight,
-        toText: nextSnap.flight,
-        detail: flightSub || "状态栏已同步",
-      });
-    }
     if (weatherChanged) {
       this.enqueueStatusLanding({
         kind: "weather",
@@ -2215,43 +2198,28 @@ export class UI {
         }
       );
     } else if (name === "get_flight_status") {
+      // Query-only: map pulse — do NOT rewrite the top flight booking chip.
       const no = args.flight_no || result?.flight_no || "";
       const st = flightStatusLabel(result?.status) || result?.status || "查询中";
-      const route = result?.route || result?.legs || "";
       const delay =
         result?.delay_min != null && Number(result.delay_min) > 0
           ? `延误 ${result.delay_min} 分`
           : "";
-      const gate = result?.gate ? `登机口 ${result.gate}` : "";
-      const date = String(args.date || result?.date || "").slice(0, 10);
-      const toText = no ? `${no} · ${st}${delay ? ` · ${delay}` : ""}` : st;
-      const flightItems = [
-        no ? { label: "航班", value: no } : null,
-        { label: "状态", value: st },
-        route ? { label: "航线", value: route } : null,
-        date ? { label: "日期", value: date } : null,
-        delay ? { label: "延误", value: delay } : null,
-        gate ? { label: "登机口", value: gate.replace(/^登机口\s*/, "") } : null,
-        result?.note ? { label: "备注", value: truncate(String(result.note), 40) } : null,
-      ].filter(Boolean);
       focusPlanning({
         placeIds: ["pl_chc_airport"],
         mode: "consider",
         label: no ? `工具：航班 ${no}` : "工具：航班动态",
         force: true,
       }).catch(() => {});
-      return this.enqueueCinematic(
-        () =>
-          this.playStatusChipUpdate({
-            kind: "flight",
-            icon: "✈️",
-            title: "航班已同步",
-            toText,
-            detail: route || meta.detail || "",
-            items: flightItems,
-          }),
-        { fingerprint: `status:flight:${String(toText).slice(0, 60)}` }
-      );
+      return this.pulseMapFeedback({
+        id: `flight-status:${no}:${st}:${String(args.date || result?.date || "").slice(0, 10)}`,
+        icon: "✈️",
+        title: no ? `${no} · ${st}` : st,
+        detail: [delay, result?.route || result?.legs, result?.note].filter(Boolean).join(" · "),
+        kind: "agent_tool",
+        placeId: "pl_chc_airport",
+        holdMs: 2200,
+      });
     } else if (name === "search_web") {
       const items = result?.results || [];
       const q = String(args.query || result?.query || meta.title || "");
@@ -3263,20 +3231,16 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
       fingerprint: `write:rental:${n}:${status}`,
     };
   }
-  if (/book_flight|checkin_flight|cancel_flight/i.test(n)) {
+  if (/book_flight|cancel_flight/i.test(n)) {
     const no = String(args.flight_no || result?.flight?.flight_no || result?.flight_no || "").toUpperCase();
-    const st = /checkin/i.test(n)
-      ? "已值机"
-      : /cancel/i.test(n)
-        ? "已取消"
-        : "已出票";
+    const st = /cancel/i.test(n) ? "已取消" : "已出票";
     return {
       actionKind: "flight",
       statusKind: "flight",
       icon: "✈️",
       cardTitle: no || label,
       cardQuery: st,
-      statusTitle: "航班已同步",
+      statusTitle: /cancel/i.test(n) ? "机票已取消" : "机票已预订",
       toText: no ? `${no} · ${st}` : st,
       detail: summary || args.route || result?.flight?.note || "",
       items: [
@@ -3285,14 +3249,32 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
         args.route || result?.flight?.route
           ? { label: "航线", value: args.route || result.flight.route }
           : null,
-        args.seat || result?.flight?.seat
-          ? { label: "座位", value: args.seat || result.flight.seat }
-          : null,
         args.date || result?.flight?.date
           ? { label: "日期", value: String(args.date || result.flight.date).slice(0, 10) }
           : null,
       ].filter(Boolean),
       fingerprint: `write:flight:${no}:${st}`,
+    };
+  }
+  if (/checkin_flight/i.test(n)) {
+    const no = String(args.flight_no || result?.flight?.flight_no || result?.flight_no || "").toUpperCase();
+    return {
+      actionKind: "write",
+      statusKind: "activity",
+      icon: "✈️",
+      cardTitle: no || label,
+      cardQuery: "已值机",
+      statusTitle: "值机已完成",
+      toText: no ? `${no} · 已值机` : "已值机",
+      detail: summary || args.seat || result?.flight?.seat || "",
+      items: [
+        no ? { label: "航班", value: no } : null,
+        { label: "状态", value: "已值机" },
+        args.seat || result?.flight?.seat
+          ? { label: "座位", value: args.seat || result.flight.seat }
+          : null,
+      ].filter(Boolean),
+      fingerprint: `write:checkin:${no}`,
     };
   }
   if (/book_hotel|cancel_hotel/i.test(n)) {
@@ -3543,80 +3525,63 @@ function describeRentalStatusChip(rentalRow) {
 }
 
 /**
- * Top status-bar flight chip: prefer next unflown booked leg (was a map planning pill).
+ * Top status-bar flight chip: booked ticket state only (book / cancel).
+ * Does not mirror live get_flight_status delays / boarding.
  */
 function describeFlightStatusChip({
-  state,
-  env,
-  flags = {},
   flight = {},
-  liveFlight = null,
   flightSettled = false,
   ledgerFlights = [],
 } = {}) {
-  if (!flightSettled) {
-    return { value: "待预订", sub: "选定机票后更新" };
-  }
+  const rows = (Array.isArray(ledgerFlights) ? ledgerFlights : []).filter((f) => f?.flight_no);
+  const active = rows.filter((f) => !/cancel/i.test(String(f.status || "")));
+  const cancelled = rows.filter((f) => /cancel/i.test(String(f.status || "")));
 
-  const planDate = String(state?.__date || "").slice(0, 10);
-  const rows = Array.isArray(ledgerFlights) ? ledgerFlights : [];
-  const catalog = rows.map((f) => {
-    const blob = `${f.id || ""} ${f.route || ""} ${f.note || ""}`;
-    const outbound =
-      f.id === "flt_outbound" || /outbound|PVG\s*[→\-–]\s*CHC|去程/i.test(blob);
-    const date = String(f.date || (outbound ? "2026-10-10" : "2026-10-24")).slice(0, 10);
-    const flown = outbound
-      ? Boolean(flags.inNewZealand || (planDate && planDate >= date))
-      : Boolean(flags.tripClosing || (planDate && planDate > date));
+  if (active.length) {
+    // Prefer a single clear booking line; multiple tickets share one chip.
+    if (active.length === 1) {
+      const f = active[0];
+      const st = flightBookingChipLabel(f.status);
+      return {
+        value: `${f.flight_no} · ${st}`,
+        sub: [f.route, f.date ? String(f.date).slice(0, 10) : null, f.note]
+          .filter(Boolean)
+          .join(" · "),
+      };
+    }
+    const nos = active.map((f) => f.flight_no).join("/");
     return {
-      flight_no: f.flight_no,
-      route: f.route || (outbound ? "PVG → CHC" : "AKL → PVG"),
-      note: f.note || "",
-      status: f.status,
-      delay_min: f.delay_min,
-      flown,
-      outbound,
-    };
-  });
-
-  const nextUnflown = catalog.find((f) => !f.flown && f.flight_no);
-  if (nextUnflown) {
-    const live = env?.flights?.[nextUnflown.flight_no];
-    const st = live?.status || nextUnflown.status;
-    const delay =
-      live?.delay_min != null
-        ? Number(live.delay_min)
-        : nextUnflown.delay_min != null
-          ? Number(nextUnflown.delay_min)
-          : 0;
-    const stLabel =
-      st && st !== "confirmed" && st !== "on_time" ? flightStatusLabel(st) : null;
-    const value = [nextUnflown.flight_no, stLabel, delay > 0 ? `+${Math.round(delay / 60)}h` : null]
-      .filter(Boolean)
-      .join("·");
-    return {
-      value: value || "未飞",
-      sub: ["未飞", nextUnflown.route || live?.note || nextUnflown.note || "待起飞"]
-        .filter(Boolean)
+      value: `${nos} · 已订`,
+      sub: active
+        .map((f) => `${f.flight_no}${f.route ? ` ${f.route}` : ""}`)
         .join(" · "),
     };
   }
 
-  if (liveFlight) {
+  if (cancelled.length && !active.length) {
+    const last = cancelled[cancelled.length - 1];
     return {
-      value: `${liveFlight.flight_no || flight.flight_no}${
-        liveFlight.delay_min ? `·+${Math.round(liveFlight.delay_min / 60)}h` : ""
-      }`,
-      sub: `${flightStatusLabel(liveFlight.status || flight.status)} · ${
-        liveFlight.note || flight.note || (flags.atDepartureAirport ? "已确认到机场" : "已出票")
-      }`,
+      value: last.flight_no ? `${last.flight_no} · 已取消` : "已取消",
+      sub: cancelled.map((f) => f.flight_no).filter(Boolean).join(" · ") || "机票已取消",
     };
   }
 
-  return {
-    value: flight.flight_no || "已订",
-    sub: flight.status || flight.note || (flags.atDepartureAirport ? "已确认到机场" : "已出票"),
-  };
+  if (flightSettled && flight.flight_no) {
+    return {
+      value: `${flight.flight_no} · 已出票`,
+      sub: flight.route || flight.note || "已预订",
+    };
+  }
+
+  return { value: "待预订", sub: "选定机票后更新" };
+}
+
+function flightBookingChipLabel(st) {
+  const s = String(st || "").toLowerCase();
+  if (s === "cancelled" || s === "canceled") return "已取消";
+  if (s === "checked_in") return "已出票";
+  if (s === "confirmed" || s === "ticketed" || s === "booked" || !s) return "已出票";
+  return "已订";
 }
 
 function flightStatusLabel(st) {
