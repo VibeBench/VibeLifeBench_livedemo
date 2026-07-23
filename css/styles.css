@@ -328,6 +328,14 @@ select {
   font-weight: 650;
   line-height: 1;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-view-btn-icon {
+  display: block;
+  flex: 0 0 auto;
 }
 
 .map-view-btn:last-child {
@@ -346,6 +354,11 @@ select {
 .map-view-btn-clear {
   color: #b91c1c;
   font-size: 14px;
+}
+
+.map-view-btn-clear .map-view-btn-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .map-view-btn-clear:hover {
