@@ -4455,6 +4455,8 @@ select {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* Avoid width jump when the vertical scrollbar appears mid-stream. */
+  scrollbar-gutter: stable;
 }
 
 .bubble {
@@ -4464,6 +4466,7 @@ select {
   font-size: 13px;
   line-height: 1.45;
   animation: rise 0.2s ease;
+  box-sizing: border-box;
 }
 
 @keyframes rise {
@@ -4479,12 +4482,17 @@ select {
 
 .bubble.agent {
   align-self: flex-start;
+  /* Stable width — don't shrink/grow as thinking / tools stream in. */
+  width: 92%;
+  max-width: 92%;
   background: #fff;
   border: 1px solid var(--line);
 }
 
 .bubble.user {
   align-self: flex-end;
+  width: 92%;
+  max-width: 92%;
   background: var(--blue);
   color: #fff;
   border-bottom-right-radius: 5px;
@@ -4742,7 +4750,9 @@ select {
 
 /* —— Agent turn: thinking + tools as a timeline rail —— */
 .agent-turn {
-  max-width: 96%;
+  width: 92%;
+  max-width: 92%;
+  min-width: 0;
 }
 
 .turn-header-bar {
@@ -4789,6 +4799,9 @@ select {
   position: relative;
   margin: 2px 0 12px;
   padding: 0;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .agent-rail[hidden] {
@@ -4976,6 +4989,9 @@ select {
 /* 「正在使用工具」— one white card: header + tool rows */
 .tool-panel {
   margin: 2px 0 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   background: #fff;
