@@ -2739,13 +2739,24 @@ function classifyActivity(action, { isHome = false } = {}) {
   if (/自驾|转场自驾|高速|山路/.test(a)) return { kind: "driving", emoji: "🚗", label: a };
   if (/飞行|空中|飞往|巡航|起飞后/.test(a)) return { kind: "flying", emoji: "✈️", label: a };
   if (/游船|峡湾游/.test(a)) return { kind: "cruise", emoji: "🛳️", label: a };
-  if (/渡轮|登船|甲板/.test(a)) return { kind: "ferry", emoji: "⛴️", label: a };
+  // Only real boarding / sailing — not 「查询渡轮」「记录渡轮计划」prep lookups.
+  if (
+    /等待登船|正在登船|登船中|渡轮客舱|渡轮途中|在渡轮|甲板上|渡轮.*航行|航行中.*渡轮|过海航行/.test(
+      a
+    )
+  ) {
+    return { kind: "ferry", emoji: "⛴️", label: a };
+  }
   if (/温泉/.test(a)) return { kind: "hotspring", emoji: "♨️", label: a };
   if (/露营|营地/.test(a)) return { kind: "camp", emoji: "⛺", label: a };
   if (/机场|候机|落地/.test(a)) return { kind: "airport", emoji: "✈️", label: a };
   if (/漫步|游览|景点|地热|湖畔休息|市区/.test(a)) return { kind: "sightseeing", emoji: "📸", label: a };
   if (/比较房车|房车/.test(a)) return { kind: "rental", emoji: "🚐", label: a };
-  if (/在家|规划|签证|比较|核对|查询|邮件|收尾|整理|准备|天气预警|出发前/.test(a)) {
+  if (
+    /在家|规划|计划|签证|比较|核对|查询|记录|邮件|收尾|整理|准备|天气预警|出发前/.test(
+      a
+    )
+  ) {
     return { kind: "home", emoji: "🏠", label: a };
   }
   // Explicit junk defaults some models/UI used before
