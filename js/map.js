@@ -16,8 +16,8 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-105";
-import { playbackMs } from "./playback.js?v=20260723-105";
+} from "./routing.js?v=20260723-106";
+import { playbackMs } from "./playback.js?v=20260723-106";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -973,12 +973,12 @@ function briefRoadAnalysisNote(roadId, { mode = "checking", text = "", event = n
         hit
           .replace(/^(思考|工具)[:：]\s*/i, "")
           .replace(/\s+/g, " "),
-        28
+        56
       );
     }
   }
 
-  if (event?.note) return truncateMapNote(String(event.note), 28);
+  if (event?.note) return truncateMapNote(String(event.note), 56);
 
   if (mode === "blocked") return "路段封闭 / 受阻";
   if (mode === "clear") return "未发现生效封路 · 可通行";
@@ -1083,6 +1083,7 @@ async function paintRoadCheckMarks(marks) {
   layer.clearLayers();
   if (!marks?.length) return;
   const here = placeLatLng(lastCtx);
+  let markIdx = 0;
   for (const mark of marks) {
     const rid = mark.roadId;
     if (!rid) continue;
@@ -1096,9 +1097,7 @@ async function paintRoadCheckMarks(marks) {
 
     const status = String(mark.status || "checking").toLowerCase();
     const shortName = shortRoadName(mark.title || road?.name || rid);
-    const note = String(mark.note || "")
-      .replace(/\s+/g, " ")
-      .trim();
+    const note = cleanCheckNote(mark.note || "", shortName);
     const statusLabel =
       status === "blocked"
         ? "封闭"
@@ -1107,14 +1106,16 @@ async function paintRoadCheckMarks(marks) {
           : status === "warn"
             ? "注意"
             : "核查";
-    // Existing format: 核查/通行/封闭 · SH80 · 简略结果
-    const pillText = note
-      ? `${statusLabel} · ${shortName} · ${truncateMapNote(note, 28)}`
-      : `${statusLabel} · ${shortName}`;
+    // Full text — no ellipsis; icon box sized to fit.
+    const pillText = note ? `${statusLabel} · ${shortName} · ${note}` : `${statusLabel} · ${shortName}`;
 
     const anchor = pickClosureLabelAnchor(geom, here);
     if (!anchor) continue;
     const side = closureLabelSide(anchor, here);
+    const { width: iconW, height: iconH } = estimateCheckPillSize(pillText);
+    // Stagger multiple pills slightly so they don't stack on the same pin.
+    const yLift = 52 + (markIdx % 3) * 18;
+    markIdx += 1;
     const popupBits = [
       `<strong>${escapeHtml(road?.name || rid)}</strong>`,
       status === "blocked"
@@ -1132,8 +1133,9 @@ async function paintRoadCheckMarks(marks) {
       icon: window.L.divIcon({
         className: `map-emoji-icon check-tag check-tag-${status} check-tag-${side}`,
         html: `<span class="check-pill check-pill-${status}">${escapeHtml(pillText)}</span>`,
-        iconSize: [Math.min(240, 12 + pillText.length * 7), 28],
-        iconAnchor: side === "left" ? [Math.min(230, 10 + pillText.length * 7), 36] : [10, 36],
+        iconSize: [iconW, iconH],
+        iconAnchor:
+          side === "left" ? [iconW - 12, yLift] : [12, yLift],
       }),
       zIndexOffset: 2800,
       interactive: true,
@@ -1148,6 +1150,36 @@ async function paintRoadCheckMarks(marks) {
   } catch {
     /* ignore */
   }
+}
+
+/** Strip leading junk and keep the note readable (no hard ellipsis in the pill). */
+function cleanCheckNote(raw, roadShort = "") {
+  let t = String(raw || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^[-–—·|｜]+\s*/, "")
+    .replace(/^(思考|工具)[:：]\s*/i, "");
+  if (!t) return "";
+  // Drop redundant leading road id if we already show it in the pill prefix.
+  if (roadShort) {
+    const re = new RegExp(`^(?:道路|路段)?\\s*${roadShort.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*[:：,，]?\\s*`, "i");
+    t = t.replace(re, "");
+  }
+  return t.trim();
+}
+
+/** Pixel size for a nowrap check pill (CJK-aware). */
+function estimateCheckPillSize(text) {
+  let w = 0;
+  for (const ch of String(text || "")) {
+    if (/[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/.test(ch)) w += 12.2;
+    else if (/[·•]/.test(ch)) w += 6;
+    else if (/\s/.test(ch)) w += 4;
+    else w += 7.4;
+  }
+  // padding 11*2 + status dot 6 + gap 5 + safety
+  const width = Math.ceil(Math.min(520, Math.max(96, w + 36)));
+  return { width, height: 32 };
 }
 
 function truncateMapNote(s, n = 28) {

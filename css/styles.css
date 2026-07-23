@@ -3482,23 +3482,25 @@ select {
 .check-tag {
   background: transparent !important;
   border: none !important;
-  /* Do not force z-index — Leaflet pane/zIndexOffset must win over stay markers. */
+  /* Let pill size to content — Leaflet iconSize is set in JS to match. */
+  overflow: visible !important;
 }
 
-.check-pill {
+.check-tag .check-pill {
   display: inline-flex;
   align-items: center;
-  max-width: 220px;
-  gap: 4px;
+  gap: 5px;
+  max-width: none;
+  width: max-content;
   border-radius: 999px;
-  padding: 4px 9px;
-  font-size: 11px;
+  padding: 5px 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.3;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.14);
+  overflow: visible;
+  text-overflow: clip;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.16);
   pointer-events: auto;
   animation: check-pill-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
 }
