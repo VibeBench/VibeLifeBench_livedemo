@@ -720,17 +720,50 @@ function setPlanningBadge(label, mode) {
   if (text) text.textContent = label;
 }
 
+function inferRoadMarksFromIds(roadIds, mode, text = "") {
+  return buildRouteAnalysisMarks({
+    roadIds,
+    mode,
+    text,
+    activeRoads: lastCtx?.activeRoads || [],
+  });
+}
+
 /**
  * Focus map on agent route planning. Draws ephemeral overlay; does not replace itinerary.
- * @param {{ placeIds?: string[], roadIds?: string[], latlngs?: number[][], mode?: string, label?: string, force?: boolean, roadMarks?: Array<{ roadId: string, status?: string, note?: string, title?: string }> }} opts
+ * @param {{ placeIds?: string[], roadIds?: string[], latlngs?: number[][], mode?: string, label?: string, force?: boolean, roadMarks?: Array<{ roadId: string, status?: string, note?: string, title?: string }>, analysisText?: string }} opts
  */
 export async function focusPlanning(opts = {}) {
   if (!leafletMap || !window.L) return false;
   const placeIds = [...new Set((opts.placeIds || []).filter(Boolean))];
-  const roadIds = [...new Set((opts.roadIds || []).filter(Boolean))];
+  let roadIds = [...new Set((opts.roadIds || []).filter(Boolean))];
+  // Corridor place hops → related SH roads so check-pills have somewhere to land.
+  for (const id of inferRoadIdsFromPlaces(placeIds)) {
+    if (!roadIds.includes(id)) roadIds.push(id);
+  }
   const latlngs = Array.isArray(opts.latlngs) ? opts.latlngs : [];
   const mode = opts.mode || "consider";
-  const roadMarks = Array.isArray(opts.roadMarks) ? opts.roadMarks : [];
+  const analysisText = String(opts.analysisText || opts.label || "");
+  let roadMarks = Array.isArray(opts.roadMarks) ? opts.roadMarks.slice() : [];
+  if (!roadMarks.length && roadIds.length) {
+    roadMarks = buildRouteAnalysisMarks({
+      roadIds,
+      mode,
+      text: analysisText,
+      activeRoads: lastCtx?.activeRoads || [],
+    });
+  } else if (roadMarks.length) {
+    // Ensure every mark has a brief note.
+    roadMarks = roadMarks.map((m) => ({
+      ...m,
+      note:
+        m.note ||
+        briefRoadAnalysisNote(m.roadId, {
+          mode: m.status || mode,
+          text: analysisText,
+        }),
+    }));
+  }
   if (!placeIds.length && !roadIds.length && latlngs.length < 2 && !roadMarks.length) return false;
 
   const key = JSON.stringify({
@@ -754,8 +787,7 @@ export async function focusPlanning(opts = {}) {
 
   if (lastCtx) {
     for (const rid of drawRoadIds) {
-      const road = lastCtx.roadById?.[rid];
-      const geom = parseRoadGeom(road?.geom || road?.geom_json);
+      const geom = await resolveRoadDisplayGeom(rid);
       for (const ll of geom) focus.push(window.L.latLng(ll[0], ll[1]));
     }
     for (const id of placeIds) {
@@ -797,8 +829,7 @@ export async function focusPlanning(opts = {}) {
     for (const ll of path) focus.push(window.L.latLng(ll[0], ll[1]));
   } else if (drawRoadIds.length && lastCtx) {
     for (const rid of drawRoadIds) {
-      const road = lastCtx.roadById?.[rid];
-      const geom = parseRoadGeom(road?.geom || road?.geom_json);
+      const geom = await resolveRoadDisplayGeom(rid);
       if (geom.length >= 2) {
         const mark = roadMarks.find((m) => m.roadId === rid);
         const lineStyle =
@@ -809,6 +840,7 @@ export async function focusPlanning(opts = {}) {
               : mark?.status === "checking"
                 ? planningStyle("checking")
                 : style;
+        const road = lastCtx.roadById?.[rid];
         window.L.polyline(geom, lineStyle)
           .addTo(planningLayer)
           .bindTooltip(
@@ -841,7 +873,9 @@ export async function focusPlanning(opts = {}) {
   }
 
   // Persistent check-result pills on each verified road (note / status).
-  paintRoadCheckMarks(roadMarks.length ? roadMarks : inferRoadMarksFromIds(drawRoadIds, mode));
+  await paintRoadCheckMarks(
+    roadMarks.length ? roadMarks : inferRoadMarksFromIds(drawRoadIds, mode, analysisText)
+  );
 
   planningActive = true;
   planningFocusLatLngs = focus.length ? focus : null;
@@ -883,30 +917,156 @@ export async function focusPlanning(opts = {}) {
   return true;
 }
 
-function inferRoadMarksFromIds(roadIds, mode) {
-  const status =
-    mode === "blocked" ? "blocked" : mode === "clear" ? "clear" : mode === "checking" ? "checking" : "checking";
-  return (roadIds || []).map((roadId) => ({
-    roadId,
-    status,
-    note:
-      status === "blocked"
-        ? "路段受阻"
-        : status === "clear"
-          ? "通行正常"
-          : "核查中",
-  }));
+function inferRoadIdsFromPlaces(placeIds = []) {
+  const ids = [];
+  const set = new Set(placeIds || []);
+  const push = (id) => {
+    if (id && !ids.includes(id)) ids.push(id);
+  };
+  for (let i = 1; i < placeIds.length; i++) {
+    const a = placeIds[i - 1];
+    const b = placeIds[i];
+    const pair = new Set([a, b]);
+    if (pair.has("pl_mt_cook") && (pair.has("pl_tekapo") || pair.has("pl_chc_airport"))) {
+      push("rd_sh80_mtcook");
+    }
+    if (pair.has("pl_milford") && (pair.has("pl_queenstown") || pair.has("pl_tekapo") || pair.has("pl_wanaka"))) {
+      push("rd_sh94_milford");
+    }
+    if (pair.has("pl_tekapo") && (pair.has("pl_chc_airport") || pair.has("pl_mt_cook"))) {
+      push("rd_sh8_tekapo");
+    }
+  }
+  if (set.has("pl_mt_cook")) push("rd_sh80_mtcook");
+  if (set.has("pl_milford")) push("rd_sh94_milford");
+  if (set.has("pl_tekapo") && !set.has("pl_mt_cook")) push("rd_sh8_tekapo");
+  return ids;
+}
+
+/** Brief check / result copy for a road, from tool payload or agent prose. */
+function briefRoadAnalysisNote(roadId, { mode = "checking", text = "", event = null } = {}) {
+  const blob = String(text || "");
+  const roadHint =
+    roadId === "rd_sh80_mtcook"
+      ? /SH\s*80|库克山公路|Mt\s*Cook\s*Road|落石|雪崩|震/i
+      : roadId === "rd_sh94_milford"
+        ? /SH\s*94|米尔福德|Milford|峡湾公路|封路/i
+        : roadId === "rd_sh8_tekapo"
+          ? /SH\s*8\b|蒂卡波公路/i
+          : null;
+
+  // Prefer a short clause that mentions this road.
+  if (blob && roadHint) {
+    const sentences = blob.split(/[\n。；;！!？?]/).map((s) => s.trim()).filter(Boolean);
+    const hit = sentences.find((s) => roadHint.test(s));
+    if (hit) {
+      return truncateMapNote(
+        hit
+          .replace(/^(思考|工具)[:：]\s*/i, "")
+          .replace(/\s+/g, " "),
+        28
+      );
+    }
+  }
+
+  if (event?.note) return truncateMapNote(String(event.note), 28);
+
+  if (mode === "blocked") return "路段封闭 / 受阻";
+  if (mode === "clear") return "未发现生效封路 · 可通行";
+  if (mode === "adjust") return "建议绕行 / 改道";
+  if (mode === "warn") return "有路况事件 · 需留意";
+  return "正在核对通行状态";
+}
+
+/**
+ * Build check-pills for route analysis: 核查中 → 封闭/通行 + brief result.
+ * Same pill format as traffic tool overlays.
+ */
+function buildRouteAnalysisMarks({
+  roadIds = [],
+  mode = "checking",
+  text = "",
+  matched = [],
+  inactive = [],
+  activeRoads = [],
+} = {}) {
+  const byRoad = new Map();
+  for (const e of [...(matched || []), ...(activeRoads || [])]) {
+    if (!e?.road_id) continue;
+    if (!byRoad.has(e.road_id)) byRoad.set(e.road_id, e);
+  }
+  const ids = [...new Set([...(roadIds || []), ...byRoad.keys()])].filter(Boolean);
+  return ids.map((roadId) => {
+    const ev = byRoad.get(roadId) || (inactive || []).find((e) => e.road_id === roadId) || null;
+    const road = lastCtx?.roadById?.[roadId];
+    const title = ev?.road_name || road?.name || roadId;
+    let status = "checking";
+    if (mode === "blocked") {
+      status =
+        ev && Number(ev.active) === 1
+          ? "blocked"
+          : /封|关闭|closed|avalanche|debris|落石|雪崩/i.test(`${ev?.note || ""}`)
+            ? "blocked"
+            : "clear";
+    } else if (mode === "clear") {
+      status = "clear";
+    } else if (mode === "adjust") {
+      status = "warn";
+    } else if (mode === "checking") {
+      status = "checking";
+    } else if (ev && Number(ev.active) === 1) {
+      status = "blocked";
+    } else {
+      status = mode === "consider" ? "checking" : "checking";
+    }
+    return {
+      roadId,
+      status,
+      title,
+      note: briefRoadAnalysisNote(roadId, { mode: status === "checking" ? "checking" : status, text, event: ev }),
+      geom: ev?.geom || null,
+    };
+  });
+}
+
+/** Prefer a detailed path for stubby seed road geoms (often only 2 endpoints). */
+async function resolveRoadDisplayGeom(roadId) {
+  const road = lastCtx?.roadById?.[roadId];
+  let geom = parseRoadGeom(road?.geom || road?.geom_json);
+  if (geom.length >= 4) return geom;
+  if (!lastCtx) return geom;
+  try {
+    if (roadId === "rd_sh80_mtcook" || roadId === MT_COOK_SPUR.road_id) {
+      const path = await buildDrivingPath(lastCtx, [MT_COOK_SPUR.from, MT_COOK_SPUR.to]);
+      if (path.length >= 2) return path;
+    }
+    if (roadId === "rd_sh94_milford") {
+      const path = await buildDrivingPath(lastCtx, ["pl_queenstown", "pl_milford"]);
+      if (path.length >= 2) return path;
+    }
+    if (roadId === "rd_sh8_tekapo") {
+      const path = await buildDrivingPath(lastCtx, ["pl_chc_airport", "pl_tekapo"]);
+      if (path.length >= 2) return path;
+    }
+  } catch {
+    /* keep seed geom */
+  }
+  return geom;
 }
 
 /** Label each checked road with status + note on the planning overlay. */
-function paintRoadCheckMarks(marks) {
+async function paintRoadCheckMarks(marks) {
   if (!planningLayer || !window.L || !lastCtx || !marks?.length) return;
   const here = placeLatLng(lastCtx);
   for (const mark of marks) {
     const rid = mark.roadId;
     if (!rid) continue;
     const road = lastCtx.roadById?.[rid];
-    const geom = parseRoadGeom(road?.geom || road?.geom_json || mark.geom);
+    let geom = parseRoadGeom(road?.geom || road?.geom_json || mark.geom);
+    if (geom.length < 4) {
+      const richer = await resolveRoadDisplayGeom(rid);
+      if (richer.length >= 2) geom = richer;
+    }
     if (geom.length < 2) continue;
 
     const status = String(mark.status || "checking").toLowerCase();
@@ -922,11 +1082,13 @@ function paintRoadCheckMarks(marks) {
           : status === "warn"
             ? "注意"
             : "核查";
+    // Existing format: 核查/通行/封闭 · SH80 · 简略结果
     const pillText = note
       ? `${statusLabel} · ${shortName} · ${truncateMapNote(note, 28)}`
       : `${statusLabel} · ${shortName}`;
 
     const anchor = pickClosureLabelAnchor(geom, here);
+    if (!anchor) continue;
     const side = closureLabelSide(anchor, here);
     const popupBits = [
       `<strong>${escapeHtml(road?.name || rid)}</strong>`,
@@ -944,8 +1106,8 @@ function paintRoadCheckMarks(marks) {
       icon: window.L.divIcon({
         className: `map-emoji-icon check-tag check-tag-${status} check-tag-${side}`,
         html: `<span class="check-pill check-pill-${status}">${escapeHtml(pillText)}</span>`,
-        iconSize: [Math.min(220, 12 + pillText.length * 7), 28],
-        iconAnchor: side === "left" ? [Math.min(210, 10 + pillText.length * 7), 36] : [10, 36],
+        iconSize: [Math.min(240, 12 + pillText.length * 7), 28],
+        iconAnchor: side === "left" ? [Math.min(230, 10 + pillText.length * 7), 36] : [10, 36],
       }),
       zIndexOffset: 1400,
       interactive: true,
@@ -972,18 +1134,30 @@ export async function syncPlanningFromText(text, { label, force = false } = {}) 
   if (!force && !isRoutePlanningIntent(raw)) return false;
 
   const placeIds = extractPlaceIdsFromText(raw);
-  const roadIds = extractRoadIdsFromText(raw);
+  let roadIds = extractRoadIdsFromText(raw);
+  for (const id of inferRoadIdsFromPlaces(placeIds)) {
+    if (!roadIds.includes(id)) roadIds.push(id);
+  }
   // Need a real corridor or road — a single place name is not a route plan.
   if (roadIds.length < 1 && placeIds.length < 2) return false;
 
   const routeIds =
     placeIds.length >= 2 ? placeIds.slice(Math.max(0, placeIds.length - 4)) : placeIds;
   const mode = inferPlanningMode(raw);
+  const roadMarks = buildRouteAnalysisMarks({
+    roadIds,
+    mode,
+    text: raw,
+    activeRoads: lastCtx?.activeRoads || [],
+  });
   if (!isMapSession(session)) return false;
   return focusPlanning({
     placeIds: routeIds,
     roadIds,
     mode,
+    analysisText: raw,
+    roadMarks,
+    force,
     label:
       label ||
       (mode === "blocked"
@@ -1594,12 +1768,12 @@ function buildAgentPlanLinkSegments(ctx, routeIds = []) {
     if (
       (isTransitHubPlace(a) || isTransitHubPlace(b)) &&
       !ferry &&
-      haversineKm(pa.lat, pa.lng, pb.lat, pb.lng) > 180
+      haversineKm4(pa.lat, pa.lng, pb.lat, pb.lng) > 180
     ) {
       continue;
     }
     // Skip absurd legs (likely bad extraction).
-    if (haversineKm(pa.lat, pa.lng, pb.lat, pb.lng) > 650) continue;
+    if (haversineKm4(pa.lat, pa.lng, pb.lat, pb.lng) > 650) continue;
 
     segments.push([
       [pa.lat, pa.lng],
@@ -1609,7 +1783,7 @@ function buildAgentPlanLinkSegments(ctx, routeIds = []) {
   return segments;
 }
 
-function haversineKm(lat1, lng1, lat2, lng2) {
+function haversineKm4(lat1, lng1, lat2, lng2) {
   const R = 6371;
   const toR = (d) => (d * Math.PI) / 180;
   const dLat = toR(lat2 - lat1);
@@ -1760,8 +1934,15 @@ export async function focusTrafficResult(result, args = {}) {
   }
   const uniqRoads = [...new Set(roadIds.filter(Boolean))];
   const placeIds = extractPlaceIdsFromText(
-    [args.query, args.road_id, ...(matched.map((e) => `${e.note || ""} ${e.road_name || ""}`))].join(" ")
+    [args.query, args.road_id, ...(matched.map((e) => `${e.note || ""} ${e.road_name || ""}`))].join(
+      " "
+    )
   );
+  // Also pull roads implied by place mentions in the query / event notes.
+  for (const id of inferRoadIdsFromPlaces(placeIds)) {
+    if (!uniqRoads.includes(id)) uniqRoads.push(id);
+  }
+  const analysisText = [args.query, args.road_id, ...(matched.map((e) => e.note || ""))].join(" ");
 
   // Strict verification — inactive historical notes (with "closed" in text) must NOT paint red.
   const isBlockedEvent = (e) => {
@@ -1786,6 +1967,7 @@ export async function focusTrafficResult(result, args = {}) {
     placeIds,
     roadIds: uniqRoads,
     mode: "checking",
+    analysisText,
     label: uniqRoads.length
       ? `工具：核查 ${uniqRoads.length} 条路段…`
       : "工具：核查路况…",
@@ -1810,6 +1992,7 @@ export async function focusTrafficResult(result, args = {}) {
       placeIds,
       roadIds: uniqRoads,
       mode: "blocked",
+      analysisText,
       label: topNote
         ? `确认受阻 · ${truncateMapNote(topNote, 36)}`
         : "确认：路段受阻",
@@ -1829,6 +2012,7 @@ export async function focusTrafficResult(result, args = {}) {
     placeIds,
     roadIds: uniqRoads,
     mode: "clear",
+    analysisText,
     label: uniqRoads.length
       ? `路况正常 · 已核查 ${uniqRoads.length} 条`
       : "工具：路况正常",

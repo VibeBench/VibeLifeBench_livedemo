@@ -21,8 +21,8 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260723-98";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-98";
+} from "./map.js?v=20260723-99";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-99";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -1828,23 +1828,37 @@ export class UI {
         return;
       }
       if (roads.length) {
-        focusTrafficResult({ matched: roads, status: "blocked" }, {}).catch(() => {});
+        return this.enqueueCinematic(
+          () =>
+            focusTrafficResult(
+              { matched: roads, status: "blocked", roads: result?.roads || [] },
+              { query: roads.map((e) => e.road_id || e.note || "").join(" ") }
+            ),
+          { fingerprint: `alerts-roads:${roads.map((e) => e.road_id).join(",")}` }
+        );
       }
       this.pulseMapFeedback({
-        id: `tool-place:${name}:${anchor.roadId || roads[0]?.road_id || "alerts"}`,
+        id: `tool-place:${name}:${anchor.roadId || "alerts"}`,
         icon: meta.icon,
         title: meta.title,
         detail: meta.detail,
         kind: "agent_tool",
         placeId: anchor.placeId,
         geoKey: anchor.geoKey,
-        roadId: anchor.roadId || roads[0]?.road_id || null,
+        roadId: anchor.roadId || null,
       });
       return;
     }
 
     if (name === "get_traffic_estimate") {
-      focusTrafficResult(result || {}, args || {}).catch(() => {});
+      return this.enqueueCinematic(
+        () => focusTrafficResult(result || {}, args || {}),
+        {
+          fingerprint: `traffic:${args.road_id || args.query || result?.status || ""}:${String(
+            (result?.matched || []).map((e) => e.road_id).join(",")
+          ).slice(0, 40)}`,
+        }
+      );
     } else if (name === "get_current_weather" || name === "get_forecast_daily") {
       const geo = args.geo_key || result?.geo_key || anchor.geoKey;
       const place = geoLabel(geo) || geo || "";
@@ -1926,17 +1940,60 @@ export class UI {
       );
     } else if (name === "search_web") {
       const items = result?.results || [];
+      const q = String(args.query || result?.query || meta.title || "");
+      const blob = [q, ...items.map((r) => `${r.title || ""} ${r.snippet || ""}`)].join("\n");
+      const roadIds = extractRoadIdsFromText(blob);
+      const placeIds = extractPlaceIdsFromText(blob);
+      const routeRelated =
+        roadIds.length > 0 ||
+        /路况|封路|公路|国道|SH\s*\d+|路线|绕行|通行|封闭|avalanche|rockfall/i.test(blob);
       // Return promise so agent can await one tool cinematic before the next.
-      return this.playQueuedMapAction({
+      const searchPlay = this.playQueuedMapAction({
         kind: "search",
-        query: args.query || result?.query || meta.title,
+        query: q,
         items: items.map((r) => ({
           title: r.title,
           snippet: r.snippet,
           url: r.url,
         })),
-        fingerprint: `search:${String(args.query || result?.query || meta.title || "").slice(0, 80)}`,
+        fingerprint: `search:${q.slice(0, 80)}`,
       });
+      if (!routeRelated) return searchPlay;
+      return searchPlay.then(() =>
+        this.enqueueCinematic(
+          async () => {
+            const mode = /封|关闭|受阻|封闭|closed|avalanche|debris|落石|雪崩/i.test(blob)
+              ? "blocked"
+              : /正常|通行|开放|clear|reopen/i.test(blob)
+                ? "clear"
+                : "checking";
+            const roadMarks = roadIds.map((roadId) => {
+              const hit =
+                items.find((r) =>
+                  extractRoadIdsFromText(`${r.title || ""} ${r.snippet || ""}`).includes(roadId)
+                ) ||
+                items.find((r) => /路况|封|SH\s*\d+|公路/i.test(`${r.title || ""} ${r.snippet || ""}`));
+              return {
+                roadId,
+                status: mode === "blocked" ? "blocked" : mode === "clear" ? "clear" : "checking",
+                note: truncate(String(hit?.snippet || hit?.title || "检索路况摘要"), 28),
+              };
+            });
+            return focusPlanning({
+              placeIds,
+              roadIds,
+              mode,
+              analysisText: blob,
+              roadMarks: roadMarks.length ? roadMarks : undefined,
+              force: true,
+              label: roadIds.length
+                ? `检索：核查 ${roadIds.length} 条路段`
+                : "检索：路线相关",
+            });
+          },
+          { fingerprint: `search-roads:${roadIds.join(",") || "route"}:${q.slice(0, 40)}` }
+        )
+      );
     } else if (name === "write_journal" || /notion|journal|write_page/i.test(name)) {
       const notionTitle = args.title || result?.title || "游记";
       const notionBody =
