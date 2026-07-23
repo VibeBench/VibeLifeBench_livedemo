@@ -3241,6 +3241,14 @@ function stopFlightPlanRotate() {
   }
   flightPlanEntries = [];
   flightRotateIdx = 0;
+  clearFlightRouteBadge();
+}
+
+/** Unflown/flown route copy belongs in the top status bar — not the map planning pill. */
+function clearFlightRouteBadge() {
+  const text = document.querySelector("#mapPlanningBadgeText");
+  const t = String(text?.textContent || "");
+  if (/未飞航线|已飞航线/.test(t)) setPlanningBadge("");
 }
 
 function flightHubLatLng(geoKey) {
@@ -3332,13 +3340,8 @@ function paintPersistentFlightArcs(ctx) {
       }
     });
     updateLegend(document.querySelector("#mapPanel"), ctx);
-    const focus = flightPlanEntries[flightRotateIdx];
-    if (focus && !flightCrossingActive && !driveHopActive) {
-      setPlanningBadge(
-        `${focus.flown ? "已飞航线" : "未飞航线"} · ${focus.flightNo} · ${focus.route}`,
-        focus.flown ? "consider" : "checking"
-      );
-    }
+    // Do not park 未飞/已飞 copy on the map planning badge — status bar owns that.
+    clearFlightRouteBadge();
   };
 
   applyFocus(0);

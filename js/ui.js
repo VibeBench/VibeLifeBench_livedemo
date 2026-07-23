@@ -21,8 +21,8 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260723-97";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-97";
+} from "./map.js?v=20260723-98";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-98";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -879,13 +879,17 @@ export class UI {
     const settled = budgetSettled && budget.total_cny != null && Number(budget.spent_cny) > 0;
     const flightSettled = flightDisclosed && Boolean(flight.flight_no);
     const liveFlight = flightSettled && env?.flights?.[flight.flight_no];
-    const flightStatus = flightSettled
-      ? liveFlight
-        ? `${liveFlight.flight_no || flight.flight_no} · ${liveFlight.status || flight.status || ""}${
-            liveFlight.delay_min ? ` 延误${Math.round(liveFlight.delay_min / 60)}h` : ""
-          }`
-        : `${flight.flight_no} · ${flight.status || flight.note || "已预订"}`
-      : "待预订";
+    const flightChip = describeFlightStatusChip({
+      state,
+      env,
+      flags,
+      flight,
+      liveFlight,
+      flightSettled,
+      ledgerFlights: this._ledgerSnap?.flights || env?.ledger?.flights || [],
+    });
+    const flightStatus = flightChip.value;
+    const flightSub = flightChip.sub;
     // Kickoff「预算 5 万」即可展示目标；有支出后再切换为已用/总额
     const budgetValue =
       budgetDisclosed && budget.total_cny != null
@@ -901,9 +905,6 @@ export class UI {
             : ""
           : "用户已确认 · 预订产生后更新明细"
         : "用户说明预算后更新";
-    const flightSub = flightSettled
-      ? liveFlight?.note || flight.note || (flags.atDepartureAirport ? "已确认到机场" : "已出票")
-      : "选定机票后更新";
 
     const rentalRow = (this._ledgerSnap?.rentals || [])[0] || null;
     const rentalStatus = rentalRow?.status || "";
@@ -2994,6 +2995,84 @@ function hotelLabel(idOrName) {
   if (/alpine/i.test(s)) return "Alpine 酒店";
   if (/rotorua/i.test(s)) return "罗托鲁阿住宿";
   return shortHotel(s) || "酒店";
+}
+
+/**
+ * Top status-bar flight chip: prefer next unflown booked leg (was a map planning pill).
+ */
+function describeFlightStatusChip({
+  state,
+  env,
+  flags = {},
+  flight = {},
+  liveFlight = null,
+  flightSettled = false,
+  ledgerFlights = [],
+} = {}) {
+  if (!flightSettled) {
+    return { value: "待预订", sub: "选定机票后更新" };
+  }
+
+  const planDate = String(state?.__date || "").slice(0, 10);
+  const rows = Array.isArray(ledgerFlights) ? ledgerFlights : [];
+  const catalog = rows.map((f) => {
+    const blob = `${f.id || ""} ${f.route || ""} ${f.note || ""}`;
+    const outbound =
+      f.id === "flt_outbound" || /outbound|PVG\s*[→\-–]\s*CHC|去程/i.test(blob);
+    const date = String(f.date || (outbound ? "2026-10-10" : "2026-10-24")).slice(0, 10);
+    const flown = outbound
+      ? Boolean(flags.inNewZealand || (planDate && planDate >= date))
+      : Boolean(flags.tripClosing || (planDate && planDate > date));
+    return {
+      flight_no: f.flight_no,
+      route: f.route || (outbound ? "PVG → CHC" : "AKL → PVG"),
+      note: f.note || "",
+      status: f.status,
+      delay_min: f.delay_min,
+      flown,
+      outbound,
+    };
+  });
+
+  const nextUnflown = catalog.find((f) => !f.flown && f.flight_no);
+  if (nextUnflown) {
+    const live = env?.flights?.[nextUnflown.flight_no];
+    const st = live?.status || nextUnflown.status;
+    const delay =
+      live?.delay_min != null
+        ? Number(live.delay_min)
+        : nextUnflown.delay_min != null
+          ? Number(nextUnflown.delay_min)
+          : 0;
+    const stLabel =
+      st && st !== "confirmed" && st !== "on_time" ? flightStatusLabel(st) : null;
+    const value = [
+      "未飞",
+      nextUnflown.flight_no,
+      stLabel,
+      delay > 0 ? `延误${Math.round(delay / 60)}h` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return {
+      value,
+      sub: nextUnflown.route || live?.note || nextUnflown.note || "待起飞",
+    };
+  }
+
+  if (liveFlight) {
+    return {
+      value: `${liveFlight.flight_no || flight.flight_no} · ${flightStatusLabel(
+        liveFlight.status || flight.status
+      )}${liveFlight.delay_min ? ` 延误${Math.round(liveFlight.delay_min / 60)}h` : ""}`,
+      sub: liveFlight.note || flight.note || (flags.atDepartureAirport ? "已确认到机场" : "已出票"),
+    };
+  }
+
+  return {
+    value: `${flight.flight_no} · ${flight.status || flight.note || "已预订"}`,
+    sub: flight.note || (flags.atDepartureAirport ? "已确认到机场" : "已出票"),
+  };
 }
 
 function flightStatusLabel(st) {
