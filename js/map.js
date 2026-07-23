@@ -63,15 +63,17 @@ let planningClearTimer = null;
 let flightLayer = null;
 let flightAnim = null;
 let flightCrossingActive = false;
-/** Persistent booked flight arcs (flown + upcoming), rotate highlight. */
+/** Persistent booked flight arcs (flown + upcoming) — geometry locked, not rotated. */
 let flightPlanLayer = null;
 let flightRotateTimer = null;
 let flightRotateIdx = 0;
-/** @type {Array<{ polyline: object, flown: boolean, label: string, flightNo: string }> } */
+/** @type {Array<{ polyline: object, flown: boolean, label: string, flightNo: string, route: string, from: number[], to: number[] }> } */
 let flightPlanEntries = [];
+/** Skip clear+redraw when the booked-flight set hasn't changed. */
+let lastFlightCatalogSig = "";
 /**
  * Locked great-circle geometry once a flight is booked.
- * Prevents endpoint drift when map focus / lastCtx.home changes.
+ * Prevents endpoint drift when map focus / lastCtx.home / agent-plan fits change.
  * @type {Map<string, { from: number[], to: number[], arc: number[][] }>}
  */
 let lockedFlightArcs = new Map();
@@ -128,6 +130,8 @@ export function abortMapPlayback() {
   stopFlightCrossing();
   stopFlightPlanRotate();
   lockedFlightArcs = new Map();
+  lastFlightCatalogSig = "";
+  flightPlanEntries = [];
   stopDriveHop();
   try {
     pulseLayer?.clearLayers();
@@ -897,7 +901,7 @@ export async function focusPlanning(opts = {}) {
   // Prep stage with a booked air corridor: keep PVG→CHC framing; don't chase NZ focus.
   const holdFlightFrame =
     lastCtx?.isHome &&
-    (lockedFlightArcs.has("flt_outbound") ||
+    (lockedFlightArcs.size > 0 ||
       lastCtx?.flags?.flightBooked ||
       lastCtx?.flags?.showPlannedArrival ||
       lastCtx?.flags?.showOutboundFlightArc);
@@ -914,6 +918,7 @@ export async function focusPlanning(opts = {}) {
   } else if (lastCtx) {
     applyFitForCtx(lastCtx);
   }
+  clearFlightRouteBadge();
   return true;
 }
 
@@ -1644,10 +1649,10 @@ function parseDayPlaceStays(text) {
 }
 
 function shouldFitAgentPlanCamera() {
-  // Prep + booked flight: keep PVG→CHC framing; still paint stays underneath.
+  // Prep + booked flight: keep PVG↔CHC / air framing; still paint stays underneath.
   if (!lastCtx?.isHome) return true;
   return !(
-    lockedFlightArcs.has("flt_outbound") ||
+    lockedFlightArcs.size > 0 ||
     lastCtx?.flags?.flightBooked ||
     lastCtx?.flags?.showPlannedArrival ||
     lastCtx?.flags?.showOutboundFlightArc
@@ -2733,10 +2738,12 @@ function updateLegend(panel, ctx) {
   const flights = catalogBookedFlights(ctx);
   if (!flights.length) {
     flightLeg.hidden = true;
+    flightLeg.innerHTML = `<i class="lg-flight"></i>航线 · 已飞/未飞`;
     return;
   }
   flightLeg.hidden = false;
-  const focus = flights[flightRotateIdx % flights.length] || flights[0];
+  // Prefer next unflown leg for legend copy (status bar also owns this).
+  const focus = flights.find((f) => !f.flown) || flights[flights.length - 1];
   const mark = focus.flown ? "已飞" : "未飞";
   flightLeg.innerHTML = `<i class="lg-flight"></i>${mark} · ${escapeHtml(focus.flight_no)} · ${escapeHtml(
     focus.route
@@ -2775,6 +2782,8 @@ export function destroyMap() {
   driveHopLayer = null;
   agentPlanLayer = null;
   lockedFlightArcs = new Map();
+  lastFlightCatalogSig = "";
+  flightPlanEntries = [];
   lastCtx = null;
 }
 
@@ -3006,6 +3015,8 @@ function ensureLeaflet(host) {
   pulseLayer = window.L.layerGroup().addTo(leafletMap);
   planningLayer = window.L.layerGroup().addTo(leafletMap);
   flightLayer = window.L.layerGroup().addTo(leafletMap);
+  // Persistent air corridors — under planning/agent overlays so drive edits don't restack them.
+  flightPlanLayer = window.L.layerGroup().addTo(leafletMap);
   agentPlanLayer = window.L.layerGroup().addTo(leafletMap);
 }
 
@@ -3436,24 +3447,33 @@ function stopFlightPlanRotate() {
     clearInterval(flightRotateTimer);
     flightRotateTimer = null;
   }
-  flightPlanEntries = [];
   flightRotateIdx = 0;
   clearFlightRouteBadge();
 }
 
 /** Unflown/flown route copy belongs in the top status bar — not the map planning pill. */
 function clearFlightRouteBadge() {
+  const el = document.querySelector("#mapPlanningBadge");
   const text = document.querySelector("#mapPlanningBadgeText");
   const t = String(text?.textContent || "");
-  if (/未飞航线|已飞航线/.test(t)) setPlanningBadge("");
+  if (/未飞航线|已飞航线|未飞 ·|已飞 ·/i.test(t)) {
+    setPlanningBadge("");
+    return;
+  }
+  // Also clear if badge was left in "checking" cyan solely for a flight rotate.
+  if (el?.dataset?.mode === "checking" && /MU\d+|AKL|PVG|CHC|航线/i.test(t)) {
+    setPlanningBadge("");
+  }
 }
 
 function flightHubLatLng(geoKey) {
   const g = String(geoKey || "").toLowerCase();
   if (FLIGHT_HUBS[g]) return [...FLIGHT_HUBS[g]];
-  // Stable fallbacks — never use focus-dependent lastCtx.home
-  const live = latLngForGeoKey(g);
-  return live ? [...live] : null;
+  // Airport place ids
+  if (g === "pl_akl_airport" || g === "akl") return [...FLIGHT_HUBS.auckland];
+  if (g === "pl_chc_airport" || g === "chc") return [...FLIGHT_HUBS.christchurch];
+  // Never fall back to focus-dependent traveler / home pins — that makes arcs drift.
+  return null;
 }
 
 /** Resolve (and lock) great-circle geometry for a booked flight id. */
@@ -3464,25 +3484,33 @@ function lockedArcForFlight(f) {
   const a = flightHubLatLng(f.fromGeo);
   const b = flightHubLatLng(f.toGeo);
   if (!a || !b) return null;
-  const arc = greatCircle(a, b, 48);
+  const arc = greatCircle(a, b, 64);
   if (arc.length < 2) return null;
   const locked = { from: a, to: b, arc };
   lockedFlightArcs.set(id, locked);
   return locked;
 }
 
-/** Draw all booked air corridors; cycle highlight (flown vs not-yet) like ferry done/planned. */
+function flightCatalogSignature(flights = []) {
+  return flights
+    .map((f) => `${f.id}|${f.flight_no}|${f.route}|${f.flown ? 1 : 0}`)
+    .join(";");
+}
+
+/**
+ * Draw booked air corridors from locked airport hubs only.
+ * Geometry is sticky: agent-plan / drive-route repaints must NOT rebuild arcs.
+ */
 function paintPersistentFlightArcs(ctx) {
   if (!leafletMap || !window.L) return;
-  stopFlightPlanRotate();
-  if (!flightPlanLayer) flightPlanLayer = window.L.layerGroup().addTo(leafletMap);
-  flightPlanLayer.clearLayers();
+  clearFlightRouteBadge();
+
+  if (!flightPlanLayer) {
+    flightPlanLayer = window.L.layerGroup({ pane: "overlayPane" }).addTo(leafletMap);
+  }
 
   const flights = catalogBookedFlights(ctx);
-  if (!flights.length) {
-    updateLegend(document.querySelector("#mapPanel"), ctx);
-    return;
-  }
+  const sig = flightCatalogSignature(flights);
 
   // Drop locks for flights that are no longer in the catalog (e.g. rewind).
   const liveIds = new Set(flights.map((f) => f.id || `${f.flight_no}:${f.route}`));
@@ -3490,22 +3518,46 @@ function paintPersistentFlightArcs(ctx) {
     if (!liveIds.has(id)) lockedFlightArcs.delete(id);
   }
 
+  // Same catalog → keep existing polylines (do not clearLayers / restart timers).
+  if (sig && sig === lastFlightCatalogSig && flightPlanEntries.length === flights.length) {
+    updateLegend(document.querySelector("#mapPanel"), ctx);
+    clearFlightRouteBadge();
+    return;
+  }
+
+  stopFlightPlanRotate();
+  flightPlanLayer.clearLayers();
   flightPlanEntries = [];
+  lastFlightCatalogSig = sig;
+
+  if (!flights.length) {
+    updateLegend(document.querySelector("#mapPanel"), ctx);
+    return;
+  }
+
   for (const f of flights) {
     const locked = lockedArcForFlight(f);
     if (!locked) continue;
     const arc = locked.arc;
     const label = `${f.flown ? "已飞" : "未飞"} · ${f.flight_no} · ${f.route}`;
+    // Stable muted style — never cycle into planning-blue (looks like road核查).
     const line = window.L.polyline(arc, {
-      color: f.flown ? "#64748b" : "#94a3b8",
-      weight: f.flown ? 3.5 : 3,
-      opacity: f.flown ? 0.55 : 0.4,
-      dashArray: f.flown ? null : "6 10",
+      color: f.flown ? "#64748b" : "#6366f1",
+      weight: f.flown ? 3 : 3.5,
+      opacity: f.flown ? 0.5 : 0.72,
+      dashArray: f.flown ? null : "10 10",
       className: f.flown ? "flight-flown-line" : "flight-plan-line",
       interactive: true,
+      // Keep under agent-plan / planning overlays so drive edits don't "own" the arc.
+      bubblingMouseEvents: false,
     })
       .addTo(flightPlanLayer)
       .bindTooltip(label);
+    try {
+      line.bringToBack?.();
+    } catch {
+      /* ignore */
+    }
     flightPlanEntries.push({
       polyline: line,
       flown: f.flown,
@@ -3517,36 +3569,14 @@ function paintPersistentFlightArcs(ctx) {
     });
   }
 
-  const applyFocus = (idx) => {
-    if (!flightPlanEntries.length) return;
-    flightRotateIdx = ((idx % flightPlanEntries.length) + flightPlanEntries.length) % flightPlanEntries.length;
-    flightPlanEntries.forEach((e, i) => {
-      const on = i === flightRotateIdx;
-      e.polyline.setStyle({
-        color: e.flown ? (on ? "#334155" : "#94a3b8") : on ? "#2563eb" : "#cbd5e1",
-        weight: on ? 5 : e.flown ? 3 : 2.5,
-        opacity: on ? 0.92 : e.flown ? 0.4 : 0.28,
-        dashArray: e.flown ? null : on ? "8 8" : "4 10",
-      });
-      if (on) {
-        try {
-          e.polyline.bringToFront();
-        } catch {
-          /* ignore */
-        }
-      }
-    });
-    updateLegend(document.querySelector("#mapPanel"), ctx);
-    // Do not park 未飞/已飞 copy on the map planning badge — status bar owns that.
-    clearFlightRouteBadge();
-  };
-
-  applyFocus(0);
-  if (flightPlanEntries.length > 1) {
-    flightRotateTimer = setInterval(() => {
-      applyFocus(flightRotateIdx + 1);
-    }, 3200);
+  try {
+    flightPlanLayer.bringToBack?.();
+  } catch {
+    /* ignore */
   }
+
+  updateLegend(document.querySelector("#mapPanel"), ctx);
+  clearFlightRouteBadge();
 }
 
 function paintHomeFlightArc(ctx) {
@@ -4132,10 +4162,11 @@ function applyFitForCtx(ctx) {
   if (flightCrossingActive) return;
 
   // While agent is planning, keep the map on the thinking corridor —
-  // except during prep when a booked flight arc must stay framed PVG→CHC.
+  // except during prep when a booked flight arc must stay framed (PVG↔CHC / AKL↔PVG).
+  // Agent stay edits must NOT steal the camera or rebuild flight geometry.
   const holdFlightFrame =
     ctx.isHome &&
-    (lockedFlightArcs.has("flt_outbound") ||
+    (lockedFlightArcs.size > 0 ||
       ctx.flags?.flightBooked ||
       ctx.flags?.showPlannedArrival ||
       ctx.flags?.showOutboundFlightArc);
