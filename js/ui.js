@@ -21,9 +21,9 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260723-104";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-104";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-104";
+} from "./map.js?v=20260723-105";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-105";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-105";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -228,8 +228,9 @@ export class UI {
         /* ignore */
       }
     }
-    for (const el of document.querySelectorAll(".status-fly, .status-sync")) {
+    for (const el of document.querySelectorAll(".status-fly, .status-sync, .status-budget-pop")) {
       try {
+        el._budgetDismiss?.();
         el.remove();
       } catch {
         /* ignore */
@@ -1015,6 +1016,153 @@ export class UI {
   }
 
   /**
+   * Budget update: compact sheet anchored under the budget status chip.
+   * Replaces the old centered map-action wallet card.
+   */
+  playBudgetChipUpdate({
+    toText = "",
+    spent = "—",
+    remain = "—",
+    total = "—",
+    pct = 0,
+    location = "",
+    detail = "",
+  } = {}) {
+    return new Promise((resolve) => {
+      const chip = this.els.statusGrid?.querySelector('[data-status="budget"]');
+      if (!chip) {
+        resolve(false);
+        return;
+      }
+
+      document.querySelectorAll(".status-budget-pop").forEach((el) => el.remove());
+
+      const reduceMotion =
+        typeof matchMedia === "function" &&
+        matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      const pop = document.createElement("div");
+      pop.className = "status-budget-pop";
+      pop.setAttribute("role", "status");
+      const barPct = Math.max(0, Math.min(100, Number(pct) || 0));
+      const remainTone =
+        remain !== "—" && total !== "待确定" ? "is-ok" : "";
+      pop.innerHTML = `
+        <div class="status-budget-pop-caret" aria-hidden="true"></div>
+        <div class="status-budget-pop-inner">
+          <div class="status-budget-pop-head">
+            <span class="status-budget-pop-kicker">预算更新</span>
+            ${
+              location
+                ? `<span class="status-budget-pop-loc">${escapeHtml(location)}</span>`
+                : ""
+            }
+          </div>
+          <div class="status-budget-pop-hero ${remainTone}">
+            <span class="status-budget-pop-hero-label">剩余可用</span>
+            <span class="status-budget-pop-hero-val">${escapeHtml(remain)}</span>
+          </div>
+          <div class="status-budget-pop-meter" aria-hidden="true">
+            <span class="status-budget-pop-meter-fill" style="width:0%"></span>
+          </div>
+          <div class="status-budget-pop-cap">已用 ${barPct}%</div>
+          <div class="status-budget-pop-row">
+            <div class="status-budget-pop-cell">
+              <span class="status-budget-pop-cell-k">已用</span>
+              <span class="status-budget-pop-cell-v">${escapeHtml(spent)}</span>
+            </div>
+            <div class="status-budget-pop-cell">
+              <span class="status-budget-pop-cell-k">总额</span>
+              <span class="status-budget-pop-cell-v">${escapeHtml(total)}</span>
+            </div>
+            <div class="status-budget-pop-cell is-accent">
+              <span class="status-budget-pop-cell-k">剩余</span>
+              <span class="status-budget-pop-cell-v">${escapeHtml(remain)}</span>
+            </div>
+          </div>
+        </div>`;
+      document.body.appendChild(pop);
+
+      const place = () => {
+        const box = chip.getBoundingClientRect();
+        if (!box.width) return;
+        const popW = pop.offsetWidth || 240;
+        const left = Math.min(
+          Math.max(10, box.left + box.width / 2 - popW / 2),
+          window.innerWidth - popW - 10
+        );
+        pop.style.left = `${left}px`;
+        pop.style.top = `${box.bottom + 8}px`;
+        const caret = pop.querySelector(".status-budget-pop-caret");
+        if (caret) {
+          const caretX = box.left + box.width / 2 - left;
+          caret.style.left = `${Math.max(16, Math.min(popW - 16, caretX))}px`;
+        }
+      };
+      place();
+
+      const fill = pop.querySelector(".status-budget-pop-meter-fill");
+      requestAnimationFrame(() => {
+        place();
+        pop.classList.add(reduceMotion ? "is-in-instant" : "is-in");
+        if (fill) fill.style.width = `${barPct}%`;
+      });
+
+      // Pulse chip + update visible value
+      chip.classList.remove(
+        "status-chip-landed",
+        "status-chip-landed-budget",
+        "status-chip-landed-flight",
+        "status-chip-landed-weather",
+        "status-chip-landed-rental",
+        "status-chip-landed-activity"
+      );
+      void chip.offsetWidth;
+      chip.classList.add("status-chip-landed", "status-chip-landed-budget");
+      const valEl = chip.querySelector(".status-chip-val");
+      if (valEl && toText) {
+        valEl.textContent = String(toText).slice(0, 42);
+        valEl.classList.remove("status-chip-val-flash");
+        void valEl.offsetWidth;
+        valEl.classList.add("status-chip-val-flash");
+        clearTimeout(valEl._flashTimer);
+        valEl._flashTimer = setTimeout(() => {
+          valEl.classList.remove("status-chip-val-flash");
+        }, playbackMs(1100, { min: 200 }));
+      }
+      if (detail) chip.title = `预算状态 · ${detail}`;
+
+      clearTimeout(chip._landTimer);
+      chip._landTimer = setTimeout(() => {
+        chip.classList.remove("status-chip-landed", "status-chip-landed-budget");
+      }, playbackMs(1200, { min: 220 }));
+
+      const onResize = () => place();
+      window.addEventListener("resize", onResize);
+
+      const hold = playbackMs(reduceMotion ? 900 : 2400, { min: 420 });
+      const outMs = playbackMs(280, { min: 80 });
+      const done = () => {
+        window.removeEventListener("resize", onResize);
+        clearTimeout(hideTimer);
+        clearTimeout(removeTimer);
+        try {
+          pop.remove();
+        } catch {
+          /* ignore */
+        }
+        resolve(true);
+      };
+      const hideTimer = setTimeout(() => {
+        pop.classList.add("is-out");
+        pop.classList.remove("is-in", "is-in-instant");
+      }, hold);
+      const removeTimer = setTimeout(done, hold + outMs);
+      pop._budgetDismiss = done;
+    });
+  }
+
+  /**
    * Status sync: bottom map card (or soft rise) arcs into the matching chip.
    * Continuous FLIP-style flight — no hard cut between stage and status bar.
    */
@@ -1754,7 +1902,7 @@ export class UI {
     const meta = describeToolCall(name, args, result);
     const anchor = resolveToolMapAnchor(name, args, result);
 
-    // Budget: compact wallet card → soft sync into status bar.
+    // Budget: expand a compact sheet under the budget status chip (no centered map card).
     if (name === "get_budget_snapshot") {
       clearPlanning({ immediate: true });
       const b = result?.budget || {};
@@ -1780,31 +1928,18 @@ export class UI {
         totalN != null && totalN > 0 && spentN != null
           ? Math.max(0, Math.min(100, Math.round((spentN / totalN) * 100)))
           : 0;
-      return this.playQueuedMapAction({
-        kind: "budget",
-        title: "行程预算",
-        query: String(pct),
-        items: [
-          { label: "已用", value: spent },
-          { label: "剩余", value: remain },
-          { label: "总额", value: total },
-          loc ? { label: "位置", value: loc } : null,
-        ].filter(Boolean),
-        fingerprint: `budget:${total}:${spent}`,
-        leaveVisible: true,
-      }).then(() =>
-        this.enqueueCinematic(
-          () =>
-            this.playStatusLandingAnim({
-              kind: "budget",
-              icon: "💰",
-              title: "预算已同步",
-              toText,
-              detail: remain !== "—" ? `剩余 ${remain}` : meta.detail || "",
-              fromStage: true,
-            }),
-          { fingerprint: `status:budget:${String(toText).slice(0, 60)}` }
-        )
+      return this.enqueueCinematic(
+        () =>
+          this.playBudgetChipUpdate({
+            toText,
+            spent,
+            remain,
+            total,
+            pct,
+            location: loc,
+            detail: remain !== "—" ? `剩余 ${remain}` : meta.detail || "",
+          }),
+        { fingerprint: `budget-chip:${total}:${spent}` }
       );
     }
 

@@ -566,6 +566,198 @@ select {
   text-overflow: ellipsis;
 }
 
+/* Budget update sheet — anchored under the budget status chip */
+.status-budget-pop {
+  position: fixed;
+  z-index: 85;
+  width: min(268px, calc(100vw - 20px));
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.97);
+  transform-origin: top center;
+  transition:
+    opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+
+.status-budget-pop.is-in,
+.status-budget-pop.is-in-instant {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.status-budget-pop.is-in-instant {
+  transition: none;
+}
+
+.status-budget-pop.is-out {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.status-budget-pop-caret {
+  position: absolute;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  background: rgba(255, 252, 245, 0.98);
+  border-left: 1px solid rgba(253, 230, 138, 0.9);
+  border-top: 1px solid rgba(253, 230, 138, 0.9);
+  transform: translateX(-50%) rotate(45deg);
+  box-shadow: -2px -2px 6px rgba(120, 53, 15, 0.04);
+}
+
+.status-budget-pop-inner {
+  position: relative;
+  padding: 11px 12px 12px;
+  border-radius: 14px;
+  background:
+    linear-gradient(165deg, rgba(255, 252, 245, 0.98) 0%, rgba(255, 255, 255, 0.96) 55%, rgba(255, 251, 235, 0.94) 100%);
+  border: 1px solid rgba(253, 230, 138, 0.85);
+  box-shadow:
+    0 16px 36px rgba(120, 53, 15, 0.1),
+    0 2px 0 rgba(255, 255, 255, 0.9) inset;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.status-budget-pop-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.status-budget-pop-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #a16207;
+}
+
+.status-budget-pop-loc {
+  min-width: 0;
+  font-size: 10.5px;
+  color: #a8a29e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 55%;
+}
+
+.status-budget-pop-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.status-budget-pop-hero-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #a8a29e;
+}
+
+.status-budget-pop-hero-val {
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  color: #1c1917;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  animation: budget-hero-in calc(0.4s / var(--demo-speed, 1)) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.status-budget-pop-hero.is-ok .status-budget-pop-hero-val {
+  color: #b45309;
+}
+
+.status-budget-pop-meter {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(231, 229, 228, 0.9);
+  overflow: hidden;
+}
+
+.status-budget-pop-meter-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #fbbf24, #d97706 70%, #b45309);
+  transition: width calc(0.75s / var(--demo-speed, 1)) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.status-budget-pop-cap {
+  margin-top: 5px;
+  margin-bottom: 8px;
+  font-size: 10.5px;
+  color: #a8a29e;
+}
+
+.status-budget-pop-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.status-budget-pop-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 7px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(245, 245, 244, 0.95);
+  animation: map-action-row-in calc(0.32s / var(--demo-speed, 1)) ease both;
+}
+
+.status-budget-pop-cell:nth-child(2) {
+  animation-delay: calc(0.05s / var(--demo-speed, 1));
+}
+
+.status-budget-pop-cell:nth-child(3) {
+  animation-delay: calc(0.1s / var(--demo-speed, 1));
+}
+
+.status-budget-pop-cell.is-accent {
+  background: rgba(254, 243, 199, 0.55);
+  border-color: rgba(253, 230, 138, 0.7);
+}
+
+.status-budget-pop-cell-k {
+  font-size: 10px;
+  font-weight: 600;
+  color: #a8a29e;
+}
+
+.status-budget-pop-cell-v {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1c1917;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-budget-pop,
+  .status-budget-pop-hero-val,
+  .status-budget-pop-meter-fill,
+  .status-budget-pop-cell {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 /* Soft status sync pill → arcs into status chip */
 .status-sync {
   position: fixed;
