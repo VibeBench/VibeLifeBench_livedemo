@@ -16,7 +16,7 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-90";
+} from "./routing.js?v=20260723-91";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -1872,6 +1872,24 @@ export function playMapAction({
             <span>已同步到状态栏</span>
           </div>
         </div>`;
+    } else if (kind === "write") {
+      const wIcon = String(query || "🔧").trim() || "🔧";
+      stage.innerHTML = `
+        <div class="map-action-card map-action-write">
+          <div class="map-action-write-head">
+            <span class="map-action-write-ico">${escapeHtml(wIcon)}</span>
+            <div>
+              <div class="map-action-write-app">状态写入</div>
+              <div class="map-action-write-title">${escapeHtml(title || "更新行程状态")}</div>
+            </div>
+            <span class="map-action-status" id="mapActionStatus">写入中</span>
+          </div>
+          <div class="map-action-write-rows" id="mapActionBody"></div>
+          <div class="map-action-write-foot" id="mapActionFoot" hidden>
+            <span class="map-action-notion-check">✓</span>
+            <span>已同步到状态栏</span>
+          </div>
+        </div>`;
     } else {
       resolve(false);
       return;
@@ -1904,7 +1922,7 @@ export function playMapAction({
             ? "完成"
             : kind === "notion"
               ? "已提交"
-              : kind === "budget" || kind === "weather" || kind === "flight"
+              : kind === "budget" || kind === "weather" || kind === "flight" || kind === "write"
                 ? "已同步"
                 : "已写入";
       }
@@ -1921,13 +1939,17 @@ export function playMapAction({
         kind === "search"
           ? 1000
           : kind === "calendar"
-            ? 2000
-            : kind === "budget" || kind === "weather" || kind === "flight"
+            ? leaveVisible
+              ? 520
+              : 2000
+            : kind === "budget" || kind === "weather" || kind === "flight" || kind === "write"
               ? leaveVisible
                 ? 520
                 : 1800
               : kind === "notion"
-                ? 2400
+                ? leaveVisible
+                  ? 520
+                  : 2400
                 : 1500;
       mapActionTimer = setTimeout(() => {
         if (!leaveVisible && alive()) hideMapActionStage();
@@ -2126,6 +2148,38 @@ export function playMapAction({
       };
       setTimeout(addWeatherRow, 260);
       mapActionTimer = setTimeout(() => finish(), 12000);
+      return;
+    }
+
+    if (kind === "write") {
+      const bodyEl = stage.querySelector("#mapActionBody");
+      const statusEl = stage.querySelector("#mapActionStatus");
+      const writeRows = rows.length
+        ? rows
+        : [{ label: "状态", value: text || "写入中…" }];
+      let wi = 0;
+      const addWriteRow = () => {
+        if (!alive() || !bodyEl || finished) return finish(false);
+        if (wi >= writeRows.length) {
+          if (statusEl) statusEl.textContent = "已同步";
+          return finish();
+        }
+        const item = writeRows[wi];
+        const row = document.createElement("div");
+        row.className = "map-action-write-row";
+        row.innerHTML = `
+          <span class="map-action-write-label">${escapeHtml(item.label || item.title || "")}</span>
+          <span class="map-action-write-value">${escapeHtml(item.value || item.snippet || item)}</span>`;
+        bodyEl.appendChild(row);
+        wi += 1;
+        if (wi < writeRows.length) setTimeout(addWriteRow, 220);
+        else {
+          if (statusEl) statusEl.textContent = "已同步";
+          setTimeout(() => finish(), 260);
+        }
+      };
+      setTimeout(addWriteRow, 160);
+      mapActionTimer = setTimeout(() => finish(), 10000);
       return;
     }
 

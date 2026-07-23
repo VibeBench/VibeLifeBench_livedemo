@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-90";
-import { DemoEngine } from "./engine.js?v=20260723-90";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-91";
+import { DemoEngine } from "./engine.js?v=20260723-91";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,10 +7,10 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260723-90";
-import { Trajectory } from "./trajectory.js?v=20260723-90";
-import { UI } from "./ui.js?v=20260723-90";
-import { isOceanFlightCrossing, isDomesticTransfer, playDriveHop } from "./map.js?v=20260723-90";
+} from "./agent.js?v=20260723-91";
+import { Trajectory } from "./trajectory.js?v=20260723-91";
+import { UI } from "./ui.js?v=20260723-91";
+import { isOceanFlightCrossing, isDomesticTransfer, playDriveHop } from "./map.js?v=20260723-91";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -349,14 +349,18 @@ function ensureAgent() {
           status: "done",
         });
       }
-      // Wait for this tool's map cinematic before the next tool runs.
-      await Promise.resolve(ui.focusMapFromTool(name, args || {}, result));
-      // write_journal / calendar：工具调用卡已展示，不再重复刷状态卡
+      // State writes: refresh chips first, then bottom card → top status landing.
       const isJournalOrCal = /write_journal|notion|journal|page|block|calendar|schedule/i.test(name || "");
       const isWriteTool =
         /book|cancel|create|send|post|update|write|insert|reserve|confirm|refund|submit_nzeta|place_gear|record_pickup|report_scratch|record_return|checkin_flight/i.test(
           name || ""
         );
+      if (isWriteTool || isJournalOrCal) {
+        refreshDashboard();
+      }
+      // Wait for this tool's map cinematic (+ status check) before the next tool runs.
+      await Promise.resolve(ui.focusMapFromTool(name, args || {}, result));
+      // write_journal / calendar：工具调用卡已展示，不再重复刷聊天状态卡
       // Booking tools leave a durable state card in chat history
       if (!isJournalOrCal && isWriteTool) {
         const tab = "trip";
@@ -405,7 +409,6 @@ function ensureAgent() {
           kind: "tool-write",
           key: `tool-write:${name}:${JSON.stringify(args || {}).slice(0, 80)}`,
         });
-        refreshDashboard();
       }
     },
   });

@@ -21,8 +21,8 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260723-90";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-90";
+} from "./map.js?v=20260723-91";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-91";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -1103,15 +1103,20 @@ export class UI {
             this.els.statusGrid?.querySelector(`[data-status="${kind}"]`) || chip;
           if (chipNow) {
             chipNow.classList.add("status-chip-landed");
-            chipNow.classList.add(
+            const landCls =
               kind === "flight"
                 ? "status-chip-landed-flight"
                 : kind === "weather"
                   ? "status-chip-landed-weather"
-                  : "status-chip-landed-budget"
-            );
+                  : kind === "rental"
+                    ? "status-chip-landed-rental"
+                    : kind === "activity"
+                      ? "status-chip-landed-activity"
+                      : "status-chip-landed-budget";
+            chipNow.classList.add(landCls);
             const valEl = chipNow.querySelector(".status-chip-val");
             if (valEl && toText) {
+              valEl.textContent = String(toText).slice(0, 42);
               valEl.classList.add("status-chip-val-flash");
               clearTimeout(valEl._flashTimer);
               valEl._flashTimer = setTimeout(() => {
@@ -1124,7 +1129,9 @@ export class UI {
                 "status-chip-landed",
                 "status-chip-landed-flight",
                 "status-chip-landed-budget",
-                "status-chip-landed-weather"
+                "status-chip-landed-weather",
+                "status-chip-landed-rental",
+                "status-chip-landed-activity"
               );
             }, 1100);
           }
@@ -1809,13 +1816,27 @@ export class UI {
       const notionTitle = args.title || result?.title || "游记";
       const notionBody =
         args.content || result?.content || result?.preview || meta.detail || "";
-      // 工具调用卡已展示；只播地图动效，不再刷「已记入·笔记」状态卡
+      // 底部 Notion 动画 → 顶部「当前活动」状态 check
       return this.playQueuedMapAction({
         kind: "notion",
         title: notionTitle,
-        body: notionBody, // map: stream content → 已提交
+        body: notionBody,
         fingerprint: `notion:${String(notionTitle).slice(0, 80)}`,
-      });
+        leaveVisible: true,
+      }).then(() =>
+        this.enqueueCinematic(
+          () =>
+            this.playStatusLandingAnim({
+              kind: "activity",
+              icon: "📝",
+              title: "游记已同步",
+              toText: truncate(notionTitle, 28),
+              detail: truncate(notionBody, 48),
+              fromStage: true,
+            }),
+          { fingerprint: `status:activity:notion:${String(notionTitle).slice(0, 40)}` }
+        )
+      );
     } else if (name === "add_calendar_event" || /calendar|schedule/i.test(name)) {
       const ev = result?.event || {};
       const calTitle = args.title || ev.title || "日程";
@@ -1826,39 +1847,64 @@ export class UI {
         { label: "标题", value: calTitle },
         calNote ? { label: "备注", value: truncate(calNote, 48) } : null,
       ].filter(Boolean);
-      // 工具调用卡已展示；只播地图动效，不再刷「已记入·行程」状态卡
+      // 底部日程动画 → 顶部「当前活动」状态 check
       return this.playQueuedMapAction({
         kind: "calendar",
         title: calTitle,
         body: [calDate, calNote, calTitle].filter(Boolean).join("\n"),
         items,
-        // Unique per write so rapid successive adds each get an animation.
         fingerprint: `calendar:${calDate}:${calTitle}:${ev.id || Date.now()}`,
-      });
-    } else if (
-      /submit_nzeta|book_campervan|place_gear_order|record_pickup|report_scratch|record_return|checkin_flight|book_flight|book_hotel/.test(
-        name
-      )
-    ) {
-      const icon = TOOL_META[name]?.icon || meta.icon || "🔧";
-      const title = TOOL_META[name]?.label || meta.title || name;
-      const detail = result?.summary || meta.detail || "";
-      const placeId =
-        /campervan|pickup|return|scratch/i.test(name)
-          ? "pl_chc_airport"
-          : /checkin|flight/i.test(name)
-            ? "pl_chc_airport"
-            : /hotel/i.test(name)
-              ? "pl_queenstown"
-              : null;
-      return this.pulseMapFeedback({
-        id: `tool-write:${name}:${JSON.stringify(args || {}).slice(0, 60)}`,
-        icon,
-        title,
-        detail,
-        kind: "agent_tool",
-        placeId,
-      });
+        leaveVisible: true,
+      }).then(() =>
+        this.enqueueCinematic(
+          () =>
+            this.playStatusLandingAnim({
+              kind: "activity",
+              icon: "📅",
+              title: "日程已同步",
+              toText: truncate(calTitle, 28),
+              detail: calDate ? String(calDate).slice(0, 10) : "",
+              fromStage: true,
+            }),
+          { fingerprint: `status:activity:cal:${calDate}:${calTitle}` }
+        )
+      );
+    } else if (isStateWriteToolName(name)) {
+      const fb = describeStateWriteFeedback(name, args, result);
+      clearPlanning({ immediate: true });
+      const action =
+        fb.actionKind === "flight"
+          ? this.playQueuedMapAction({
+              kind: "flight",
+              title: fb.cardTitle,
+              query: fb.cardQuery,
+              items: fb.items,
+              fingerprint: fb.fingerprint,
+              leaveVisible: true,
+            })
+          : this.playQueuedMapAction({
+              kind: "write",
+              title: fb.cardTitle,
+              query: fb.icon,
+              body: fb.detail,
+              items: fb.items,
+              fingerprint: fb.fingerprint,
+              leaveVisible: true,
+            });
+      return action.then(() =>
+        this.enqueueCinematic(
+          () =>
+            this.playStatusLandingAnim({
+              kind: fb.statusKind,
+              icon: fb.icon,
+              title: fb.statusTitle,
+              toText: fb.toText,
+              detail: fb.detail,
+              fromStage: true,
+            }),
+          { fingerprint: `status:${fb.statusKind}:${String(fb.toText).slice(0, 60)}` }
+        )
+      );
     }
 
     // Place bubble for location lookups (weather / traffic / flight).
@@ -2559,9 +2605,169 @@ function humanizeToolName(name) {
 }
 
 function isWriteToolName(name) {
-  return /book|cancel|create|send|post|update|write|insert|reserve|confirm|refund/i.test(
+  return isStateWriteToolName(name) || /write_journal|add_calendar|notion|journal|page/i.test(String(name || ""));
+}
+
+/** Tools that mutate demo env / ledger and need bottom card + status-bar check. */
+function isStateWriteToolName(name) {
+  return /submit_nzeta|book_campervan|book_flight|book_hotel|place_gear_order|record_pickup|report_scratch|record_return|checkin_flight|cancel_hotel|cancel_flight/i.test(
     String(name || "")
   );
+}
+
+/** Bottom map card + top status-chip landing payload for write tools. */
+function describeStateWriteFeedback(name, args = {}, result = null) {
+  const n = String(name || "");
+  const summary = String(result?.summary || result?.note || "").trim();
+  const meta = TOOL_META[n] || {};
+  const icon = meta.icon || "🔧";
+  const label = meta.label || humanizeToolName(n);
+
+  if (/submit_nzeta/i.test(n)) {
+    const apps = result?.applications || [];
+    const st = apps.some((a) => a.status === "approved") ? "已批准" : "审批中";
+    return {
+      actionKind: "write",
+      statusKind: "activity",
+      icon,
+      cardTitle: label,
+      cardQuery: icon,
+      statusTitle: "签证状态已同步",
+      toText: `NZeTA · ${st}`,
+      detail: summary || `${apps.length || 2} 份申请`,
+      items: [
+        { label: "产品", value: "NZeTA" },
+        { label: "人数", value: String(apps.length || args.travelers?.length || 2) },
+        { label: "状态", value: st },
+      ],
+      fingerprint: `write:nzeta:${st}`,
+    };
+  }
+  if (/book_campervan|record_pickup|record_return|report_scratch/i.test(n)) {
+    const booking = result?.booking || {};
+    const status =
+      booking.status ||
+      (/return/i.test(n) ? "returned" : /pickup/i.test(n) ? "active" : /scratch/i.test(n) ? "active" : "held");
+    const statusLabel =
+      status === "returned" ? "已还车" : status === "active" ? "使用中" : status === "held" ? "已预订" : status;
+    const items = [
+      { label: "车型", value: booking.vehicle_name || args.vehicle_name || "Britz Venturer" },
+      { label: "状态", value: statusLabel },
+    ];
+    if (booking.booking_ref || args.booking_ref) {
+      items.push({ label: "订单", value: booking.booking_ref || args.booking_ref });
+    }
+    if (result?.incident?.case_ref) {
+      items.push({ label: "案件", value: result.incident.case_ref });
+    }
+    if (booking.bond_nzd != null) items.push({ label: "押金", value: `NZ$${booking.bond_nzd}` });
+    return {
+      actionKind: "write",
+      statusKind: "rental",
+      icon: /scratch/i.test(n) ? "🩹" : "🚐",
+      cardTitle: label,
+      cardQuery: /scratch/i.test(n) ? "🩹" : "🚐",
+      statusTitle: "房车状态已同步",
+      toText: statusLabel,
+      detail: summary || booking.vehicle_name || "",
+      items,
+      fingerprint: `write:rental:${n}:${status}`,
+    };
+  }
+  if (/book_flight|checkin_flight|cancel_flight/i.test(n)) {
+    const no = String(args.flight_no || result?.flight?.flight_no || result?.flight_no || "").toUpperCase();
+    const st = /checkin/i.test(n)
+      ? "已值机"
+      : /cancel/i.test(n)
+        ? "已取消"
+        : "已出票";
+    return {
+      actionKind: "flight",
+      statusKind: "flight",
+      icon: "✈️",
+      cardTitle: no || label,
+      cardQuery: st,
+      statusTitle: "航班已同步",
+      toText: no ? `${no} · ${st}` : st,
+      detail: summary || args.route || result?.flight?.note || "",
+      items: [
+        no ? { label: "航班", value: no } : null,
+        { label: "状态", value: st },
+        args.route || result?.flight?.route
+          ? { label: "航线", value: args.route || result.flight.route }
+          : null,
+        args.seat || result?.flight?.seat
+          ? { label: "座位", value: args.seat || result.flight.seat }
+          : null,
+        args.date || result?.flight?.date
+          ? { label: "日期", value: String(args.date || result.flight.date).slice(0, 10) }
+          : null,
+      ].filter(Boolean),
+      fingerprint: `write:flight:${no}:${st}`,
+    };
+  }
+  if (/book_hotel|cancel_hotel/i.test(n)) {
+    const hotel = args.hotel_name || args.name || result?.hotel?.name || args.hotel_id || "住宿";
+    const st = /cancel/i.test(n) ? "已取消" : "已确认";
+    return {
+      actionKind: "write",
+      statusKind: "activity",
+      icon: "🏨",
+      cardTitle: label,
+      cardQuery: "🏨",
+      statusTitle: "住宿已同步",
+      toText: truncate(String(hotel), 22),
+      detail: summary || st,
+      items: [
+        { label: "酒店", value: String(hotel) },
+        { label: "状态", value: st },
+        args.check_in || result?.hotel?.check_in
+          ? { label: "入住", value: String(args.check_in || result.hotel.check_in).slice(0, 10) }
+          : null,
+        args.price_nzd != null || result?.hotel?.price_nzd != null
+          ? { label: "房价", value: `NZ$${args.price_nzd ?? result.hotel.price_nzd}` }
+          : null,
+      ].filter(Boolean),
+      fingerprint: `write:hotel:${hotel}:${st}`,
+    };
+  }
+  if (/place_gear_order/i.test(n)) {
+    const order = result?.order || {};
+    const itemsList = Array.isArray(order.items)
+      ? order.items
+      : Array.isArray(args.items)
+        ? args.items
+        : ["护膝", "喷雾", "插头"];
+    const st = order.status === "delivered" ? "已送达" : "已支付";
+    return {
+      actionKind: "write",
+      statusKind: "activity",
+      icon: "📦",
+      cardTitle: label,
+      cardQuery: "📦",
+      statusTitle: "装备订单已同步",
+      toText: st,
+      detail: summary || itemsList.slice(0, 3).join(" / "),
+      items: [
+        { label: "订单", value: order.order_id || "gear" },
+        { label: "状态", value: st },
+        { label: "物品", value: itemsList.slice(0, 3).join(" / ") },
+      ],
+      fingerprint: `write:gear:${order.order_id || st}`,
+    };
+  }
+  return {
+    actionKind: "write",
+    statusKind: "activity",
+    icon,
+    cardTitle: label,
+    cardQuery: icon,
+    statusTitle: "状态已同步",
+    toText: truncate(summary || label, 28),
+    detail: summary,
+    items: [{ label: "结果", value: summary || "已写入" }],
+    fingerprint: `write:${n}:${summary.slice(0, 40)}`,
+  };
 }
 
 /** Resolve map anchor for a tool call (place / geo / road). */

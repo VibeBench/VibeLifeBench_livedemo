@@ -560,6 +560,14 @@ select {
   border-color: rgba(186, 230, 253, 0.9);
 }
 
+.status-sync-rental .status-sync-pill {
+  border-color: rgba(253, 230, 138, 0.95);
+}
+
+.status-sync-activity .status-sync-pill {
+  border-color: rgba(187, 247, 208, 0.95);
+}
+
 .status-sync-ico {
   flex-shrink: 0;
   width: 28px;
@@ -577,6 +585,14 @@ select {
 
 .status-sync-flight .status-sync-ico {
   background: #eff6ff;
+}
+
+.status-sync-rental .status-sync-ico {
+  background: #fffbeb;
+}
+
+.status-sync-activity .status-sync-ico {
+  background: #f0fdf4;
 }
 
 .status-sync-copy {
@@ -619,6 +635,14 @@ select {
 
 .status-chip.status-chip-landed-weather {
   background: linear-gradient(180deg, rgba(224, 242, 254, 0.95) 0%, rgba(255, 255, 255, 0.55) 100%);
+}
+
+.status-chip.status-chip-landed-rental {
+  background: linear-gradient(180deg, rgba(255, 251, 235, 0.95) 0%, rgba(255, 255, 255, 0.55) 100%);
+}
+
+.status-chip.status-chip-landed-activity {
+  background: linear-gradient(180deg, rgba(240, 253, 244, 0.95) 0%, rgba(255, 255, 255, 0.55) 100%);
 }
 
 .status-chip-val-flash {
@@ -1886,6 +1910,92 @@ select {
   font-size: 11px;
   font-weight: 600;
   color: #78716c;
+}
+
+.map-action-write {
+  min-width: min(280px, 86vw);
+  max-width: min(340px, 92vw);
+}
+
+.map-action-write-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.map-action-write-ico {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  background: #fff7ed;
+  flex-shrink: 0;
+}
+
+.map-action-write-app {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.map-action-write-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.map-action-write-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.map-action-write-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 8px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #f1f5f9;
+  animation: map-action-row-in 0.32s ease both;
+}
+
+.map-action-write-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.map-action-write-value {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-action-write-foot {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.map-action-write-foot.show {
+  display: flex;
 }
 
 .map-action-budget-foot.show {
