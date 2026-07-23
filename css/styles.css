@@ -3247,7 +3247,7 @@ select {
 .check-tag {
   background: transparent !important;
   border: none !important;
-  z-index: 560 !important;
+  /* Do not force z-index — Leaflet pane/zIndexOffset must win over stay markers. */
 }
 
 .check-pill {

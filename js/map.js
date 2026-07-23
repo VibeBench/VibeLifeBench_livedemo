@@ -16,7 +16,7 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-95";
+} from "./routing.js?v=20260723-102";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -94,6 +94,8 @@ let mapSession = 1;
 let mapActionToken = 0;
 /** Persistent post-plan itinerary overlay (stays + corridor). */
 let agentPlanLayer = null;
+/** Road-check status pills — own pane above stay markers. */
+let roadCheckLayer = null;
 /** @type {null | { stays: object[], routePlaceIds: string[], label?: string }} */
 let lastAgentPlan = null;
 
@@ -122,6 +124,7 @@ export function abortMapPlayback() {
   lastPlanningKey = "";
   try {
     planningLayer?.clearLayers();
+    roadCheckLayer?.clearLayers();
   } catch {
     /* ignore */
   }
@@ -1059,9 +1062,25 @@ async function resolveRoadDisplayGeom(roadId) {
   return geom;
 }
 
-/** Label each checked road with status + note on the planning overlay. */
+/** Ensure check pills sit above stay markers (markerPane=600). */
+function ensureRoadCheckLayer() {
+  if (!leafletMap || !window.L) return null;
+  if (!leafletMap.getPane("roadCheckPane")) {
+    const pane = leafletMap.createPane("roadCheckPane");
+    pane.style.zIndex = 650;
+  }
+  if (!roadCheckLayer) {
+    roadCheckLayer = window.L.layerGroup({ pane: "roadCheckPane" }).addTo(leafletMap);
+  }
+  return roadCheckLayer;
+}
+
+/** Label each checked road with status + note above stay / plan markers. */
 async function paintRoadCheckMarks(marks) {
-  if (!planningLayer || !window.L || !lastCtx || !marks?.length) return;
+  const layer = ensureRoadCheckLayer();
+  if (!layer || !window.L || !lastCtx) return;
+  layer.clearLayers();
+  if (!marks?.length) return;
   const here = placeLatLng(lastCtx);
   for (const mark of marks) {
     const rid = mark.roadId;
@@ -1108,17 +1127,25 @@ async function paintRoadCheckMarks(marks) {
     ].filter(Boolean);
 
     window.L.marker(anchor, {
+      pane: "roadCheckPane",
       icon: window.L.divIcon({
         className: `map-emoji-icon check-tag check-tag-${status} check-tag-${side}`,
         html: `<span class="check-pill check-pill-${status}">${escapeHtml(pillText)}</span>`,
         iconSize: [Math.min(240, 12 + pillText.length * 7), 28],
         iconAnchor: side === "left" ? [Math.min(230, 10 + pillText.length * 7), 36] : [10, 36],
       }),
-      zIndexOffset: 1400,
+      zIndexOffset: 2800,
       interactive: true,
     })
-      .addTo(planningLayer)
+      .addTo(layer)
       .bindPopup(popupBits.join("<br/>"));
+  }
+  try {
+    layer.bringToFront?.();
+    leafletMap.getPane("roadCheckPane")?.style &&
+      (leafletMap.getPane("roadCheckPane").style.zIndex = 650);
+  } catch {
+    /* ignore */
   }
 }
 
@@ -1185,6 +1212,7 @@ export function clearPlanning({ immediate = false } = {}) {
     lastPlanningKey = "";
     try {
       planningLayer?.clearLayers();
+      roadCheckLayer?.clearLayers();
     } catch {
       /* ignore */
     }
@@ -2777,6 +2805,7 @@ export function destroyMap() {
   activityLayer = null;
   pulseLayer = null;
   planningLayer = null;
+  roadCheckLayer = null;
   flightLayer = null;
   flightPlanLayer = null;
   driveHopLayer = null;
@@ -3018,6 +3047,12 @@ function ensureLeaflet(host) {
   // Persistent air corridors — under planning/agent overlays so drive edits don't restack them.
   flightPlanLayer = window.L.layerGroup().addTo(leafletMap);
   agentPlanLayer = window.L.layerGroup().addTo(leafletMap);
+  // Check pills last + dedicated pane so they stay above D# stay markers.
+  if (!leafletMap.getPane("roadCheckPane")) {
+    const pane = leafletMap.createPane("roadCheckPane");
+    pane.style.zIndex = 650;
+  }
+  roadCheckLayer = window.L.layerGroup({ pane: "roadCheckPane" }).addTo(leafletMap);
 }
 
 function paintLeafletBase(ctx) {
