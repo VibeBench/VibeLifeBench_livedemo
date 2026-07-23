@@ -12,6 +12,7 @@
   --red: #e11d48;
   --shadow: 0 10px 30px rgba(28, 49, 89, 0.08);
   --radius: 14px;
+  --demo-speed: 1;
   --font: "DM Sans", "Noto Sans SC", system-ui, sans-serif;
   --font-serif: "Source Serif 4", "Noto Serif SC", Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -129,6 +130,48 @@ select {
   background: var(--blue-soft);
   border-color: #a8c0ff;
   color: var(--blue-deep);
+}
+
+.speed-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12px;
+  color: #64748b;
+  user-select: none;
+}
+
+.speed-select-label {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.speed-select select {
+  appearance: none;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: #fff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%2364748b' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E")
+    no-repeat right 8px center;
+  border-radius: 999px;
+  padding: 6px 26px 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.speed-select select:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.35);
+  outline-offset: 1px;
+}
+
+#btnReplay.active {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #047857;
 }
 
 #btnRewind {
@@ -630,7 +673,7 @@ select {
 }
 
 .status-chip.status-chip-landed {
-  animation: status-chip-land 1s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: status-chip-land calc(1s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 2;
 }
 
@@ -640,7 +683,7 @@ select {
   inset: 3px;
   border-radius: 10px;
   pointer-events: none;
-  animation: status-chip-ring 1s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: status-chip-ring calc(1s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .status-chip.status-chip-landed-budget {

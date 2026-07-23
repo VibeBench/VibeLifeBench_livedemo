@@ -16,7 +16,8 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-103";
+} from "./routing.js?v=20260723-104";
+import { playbackMs } from "./playback.js?v=20260723-104";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -1234,7 +1235,7 @@ export function clearPlanning({ immediate = false } = {}) {
     } else if (lastCtx) {
       applyFitForCtx(lastCtx);
     }
-  }, 4200);
+  }, playbackMs(4200, { min: 400 }));
 }
 
 /** Clear the committed itinerary plan overlay (清空回溯). */
@@ -2188,6 +2189,8 @@ export function playMapAction({
     const session = mapSession;
     const actionId = ++mapActionToken;
     const alive = () => isMapSession(session) && actionId === mapActionToken;
+    const pace = (ms) => playbackMs(ms, { min: 8 });
+    const wait = (fn, ms) => setTimeout(fn, pace(ms));
     const stage = ensureMapActionStage();
     if (!stage) {
       resolve(false);
@@ -2403,7 +2406,7 @@ export function playMapAction({
                   ? 520
                   : 2400
                 : 1500;
-      mapActionTimer = setTimeout(() => {
+      mapActionTimer = wait(() => {
         if (!leaveVisible && alive()) hideMapActionStage();
         resolve(Boolean(ok) && alive());
       }, holdMs);
@@ -2415,7 +2418,7 @@ export function playMapAction({
       const meta = stage.querySelector(".map-action-search-meta");
       let i = 0;
       // Faster typing + staggered results; hold 1s after the last row.
-      const typeMs = 11;
+      const typeMs = pace(11);
       const rowGapMs = 200;
       const firstRowDelayMs = 120;
       const typeTimer = setInterval(() => {
@@ -2451,14 +2454,14 @@ export function playMapAction({
               ${item.url ? `<div class="map-action-search-row-url">${escapeHtml(item.url)}</div>` : ""}`;
             resEl.appendChild(row);
             r += 1;
-            if (r < rows.length) setTimeout(addRow, rowGapMs);
+            if (r < rows.length) wait(addRow, rowGapMs);
             else finish(); // all rows in → hold 1s then hide
           };
-          setTimeout(addRow, firstRowDelayMs);
+          wait(addRow, firstRowDelayMs);
         }
       }, typeMs);
       // Fallback only if typing/results somehow stall.
-      mapActionTimer = setTimeout(() => finish(), 20000);
+      mapActionTimer = wait(() => finish(), 20000);
       return;
     }
 
@@ -2488,13 +2491,13 @@ export function playMapAction({
         }
         if (i >= streamText.length) {
           if (statusEl) statusEl.textContent = "提交中";
-          setTimeout(() => finish(), 480);
+          wait(() => finish(), 480);
           return;
         }
-        setTimeout(chunk, 42);
+        wait(chunk, 42);
       };
-      setTimeout(chunk, 300);
-      mapActionTimer = setTimeout(() => finish(), Math.max(durationMs, 9000));
+      wait(chunk, 300);
+      mapActionTimer = wait(() => finish(), Math.max(durationMs, 9000));
       return;
     }
 
@@ -2527,14 +2530,14 @@ export function playMapAction({
           <span class="map-action-budget-value">${escapeHtml(item.value || item.snippet || item)}</span>`;
         bodyEl.appendChild(row);
         bi += 1;
-        if (bi < budgetRows.length) setTimeout(addBudgetRow, 260);
+        if (bi < budgetRows.length) wait(addBudgetRow, 260);
         else {
           if (statusEl) statusEl.textContent = "已同步";
-          setTimeout(() => finish(), 280);
+          wait(() => finish(), 280);
         }
       };
-      setTimeout(addBudgetRow, 200);
-      mapActionTimer = setTimeout(() => finish(), 10000);
+      wait(addBudgetRow, 200);
+      mapActionTimer = wait(() => finish(), 10000);
       return;
     }
 
@@ -2559,11 +2562,11 @@ export function playMapAction({
           <span class="map-action-flight-value">${escapeHtml(item.value || item.snippet || item)}</span>`;
         bodyEl.appendChild(row);
         fi += 1;
-        if (fi < flightRows.length) setTimeout(addFlightRow, 240);
-        else setTimeout(() => finish(), 280);
+        if (fi < flightRows.length) wait(addFlightRow, 240);
+        else wait(() => finish(), 280);
       };
-      setTimeout(addFlightRow, 180);
-      mapActionTimer = setTimeout(() => finish(), 10000);
+      wait(addFlightRow, 180);
+      mapActionTimer = wait(() => finish(), 10000);
       return;
     }
 
@@ -2592,14 +2595,14 @@ export function playMapAction({
           <span class="map-action-weather-value">${escapeHtml(item.value || item.snippet || item)}</span>`;
         bodyEl.appendChild(row);
         wi += 1;
-        if (wi < weatherRows.length) setTimeout(addWeatherRow, 400);
+        if (wi < weatherRows.length) wait(addWeatherRow, 400);
         else {
           if (statusEl) statusEl.textContent = "写入状态栏";
-          setTimeout(() => finish(), 380);
+          wait(() => finish(), 380);
         }
       };
-      setTimeout(addWeatherRow, 260);
-      mapActionTimer = setTimeout(() => finish(), 12000);
+      wait(addWeatherRow, 260);
+      mapActionTimer = wait(() => finish(), 12000);
       return;
     }
 
@@ -2624,14 +2627,14 @@ export function playMapAction({
           <span class="map-action-write-value">${escapeHtml(item.value || item.snippet || item)}</span>`;
         bodyEl.appendChild(row);
         wi += 1;
-        if (wi < writeRows.length) setTimeout(addWriteRow, 220);
+        if (wi < writeRows.length) wait(addWriteRow, 220);
         else {
           if (statusEl) statusEl.textContent = "已同步";
-          setTimeout(() => finish(), 260);
+          wait(() => finish(), 260);
         }
       };
-      setTimeout(addWriteRow, 160);
-      mapActionTimer = setTimeout(() => finish(), 10000);
+      wait(addWriteRow, 160);
+      mapActionTimer = wait(() => finish(), 10000);
       return;
     }
 
@@ -2671,14 +2674,14 @@ export function playMapAction({
         bodyEl.appendChild(row);
         ci += 1;
         if (statusEl && ci === 1) statusEl.textContent = "写入中";
-        if (ci < calRows.length) setTimeout(addCalRow, 420);
+        if (ci < calRows.length) wait(addCalRow, 420);
         else {
           if (statusEl) statusEl.textContent = "已加入";
-          setTimeout(() => finish(), 420);
+          wait(() => finish(), 420);
         }
       };
-      setTimeout(addCalRow, 280);
-      mapActionTimer = setTimeout(() => finish(), 12000);
+      wait(addCalRow, 280);
+      mapActionTimer = wait(() => finish(), 12000);
       return;
     }
 
@@ -3751,7 +3754,7 @@ export function playDriveHop({
     }
 
     const t0 = performance.now();
-    const dur = Math.max(1400, Math.min(3600, Number(durationMs) || 2400));
+    const dur = playbackMs(Number(durationMs) || 2400, { min: 350, max: 3600 });
 
     function frame(now) {
       if (!isMapSession(session) || !driveHopActive) {
@@ -3776,7 +3779,7 @@ export function playDriveHop({
           }
           if (isMapSession(session)) setPlanningBadge("");
           resolve(true);
-        }, 220);
+        }, playbackMs(220, { min: 40 }));
       }
     }
     driveHopAnim = requestAnimationFrame(frame);
@@ -3925,7 +3928,7 @@ export function playFlightCrossing({
     }
 
     const t0 = performance.now();
-    const dur = Math.max(4200, Number(durationMs) || 6800);
+    const dur = playbackMs(Number(durationMs) || 6800, { min: 700 });
 
     function frame(now) {
       if (!isMapSession(session) || !flightCrossingActive) {
@@ -3965,7 +3968,7 @@ export function playFlightCrossing({
           }
           if (lastCtx) applyFitForCtx(lastCtx);
           resolve(true);
-        }, 900);
+        }, playbackMs(900, { min: 120 }));
         return;
       }
       flightAnim = requestAnimationFrame(frame);

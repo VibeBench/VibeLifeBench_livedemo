@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-103";
-import { DemoEngine } from "./engine.js?v=20260723-103";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-104";
+import { DemoEngine } from "./engine.js?v=20260723-104";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,15 +7,22 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260723-103";
-import { Trajectory } from "./trajectory.js?v=20260723-103";
-import { UI } from "./ui.js?v=20260723-103";
+} from "./agent.js?v=20260723-104";
+import { Trajectory } from "./trajectory.js?v=20260723-104";
+import { UI } from "./ui.js?v=20260723-104";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
   playDriveHop,
   commitAgentItineraryPlan,
-} from "./map.js?v=20260723-103";
+} from "./map.js?v=20260723-104";
+import {
+  getPlaybackSpeed,
+  setPlaybackSpeed,
+  playbackMs,
+  sleepPlayback,
+  playbackSpeedLabel,
+} from "./playback.js?v=20260723-104";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -93,6 +100,12 @@ let lastSceneGeo = null;
 let flightPlayed = new Set();
 /** Play overland car hop at most once per from→to pair per run. */
 let drivePlayed = new Set();
+/** Snapshot of last completed (or partial) trajectory for offline加速回放. */
+let lastRecording = null;
+/** True while replaying cached agent turns (no LLM). */
+let replaying = false;
+/** event_id → agent_turn for the current replay pass. */
+let replayAgentByEvent = new Map();
 
 /** Demo default DeepSeek key (same as prior local setup). Override anytime in console. */
 const DEFAULT_DEEPSEEK_API_KEY = ["sk", "15f5ea94061c4fab82a51bfea7d71288"].join("-");
@@ -104,6 +117,9 @@ async function main() {
   fillProviderSelect();
   applySettingsToForm();
   bindProviderUi();
+  setPlaybackSpeed(settings.playbackSpeed || 1);
+  syncSpeedUi();
+  syncReplayButton();
   try {
     caseData = await loadDefaultCase("./data");
     bootCase(caseData);
@@ -293,7 +309,7 @@ function syncConsoleOnboard() {
 }
 
 /** Clear chat / agent memory / trajectory and rewind env playback to stage 0. */
-function clearAndRewind({ confirm: needConfirm = true } = {}) {
+function clearAndRewind({ confirm: needConfirm = true, skipGuide = false } = {}) {
   if (!caseData) return;
   const hasProgress =
     (engine && engine.cursor >= 0) ||
@@ -303,9 +319,14 @@ function clearAndRewind({ confirm: needConfirm = true } = {}) {
     const ok = window.confirm("清空对话、Agent 记忆与 trajectory，并回溯到行程起点？");
     if (!ok) return;
   }
+  // Keep lastRecording so「加速回放」still works after rewind.
+  if (trajectory?.steps?.length) {
+    snapshotRecording({ quiet: true });
+  }
   // Invalidate every in-flight step / stream / map cinematic first.
   playbackEpoch += 1;
   stopAutoplay();
+  stopReplay();
   busy = false;
   setBusyUI(false);
   try {
@@ -337,14 +358,15 @@ function clearAndRewind({ confirm: needConfirm = true } = {}) {
   ui.setPhoneTab("chat");
   refreshDashboard();
   lastSceneGeo = engine.currentState?.geo_key || "shanghai_home";
-  showEntryGuide();
-  ui.toast("已清空回溯到起点");
+  if (!skipGuide) showEntryGuide();
+  syncReplayButton();
+  if (!skipGuide) ui.toast("已清空回溯到起点");
 }
 
-function ensureAgent() {
+function ensureAgent({ allowOfflineTools = false } = {}) {
   const provider = settings.provider || DEFAULT_PROVIDER;
   const key = settings.apiKey || document.querySelector("#apiKey")?.value?.trim();
-  const allowEmptyKey = provider === "ollama";
+  const allowEmptyKey = provider === "ollama" || allowOfflineTools;
   if (!key && !allowEmptyKey) {
     agent = null;
     ui.setAgentStatus("Offline · 需配置 API Key", false);
@@ -361,7 +383,7 @@ function ensureAgent() {
 
   trajectory?.setModel(model);
   agent = new TravelAgent({
-    apiKey: key || "ollama",
+    apiKey: key || "replay-offline",
     baseUrl,
     model,
     provider: provider === "proxy" ? "proxy" : provider,
@@ -511,11 +533,14 @@ function refreshDashboard() {
   ui.renderFooter(engine);
 }
 
-async function stepOnce() {
+async function stepOnce({ useCache = false } = {}) {
   if (!engine || busy) return;
   if (engine.progress.done) {
-    ui.toast("全部事件已播放完毕");
+    snapshotRecording();
+    ui.toast(replaying ? "加速回放完成" : "全部事件已播放完毕");
     stopAutoplay();
+    stopReplay();
+    syncReplayButton();
     return;
   }
 
@@ -523,12 +548,15 @@ async function stepOnce() {
   busy = true;
   setBusyUI(true);
   try {
+    if (useCache) ui.clearCinematicFingerprints?.();
     const prevGeo = currentSceneGeo();
     const result = engine.step();
     if (!result) return;
     if (epoch !== playbackEpoch) return;
     const { event, agentText, feedToAgent, mutationResult } = result;
-    trajectory.pushEnvEvent(event, { mutationResult, feedToAgent });
+    if (!replaying) {
+      trajectory.pushEnvEvent(event, { mutationResult, feedToAgent });
+    }
 
     const t = event.time || null;
     const nextGeo = event.user_state?.geo_key || currentSceneGeo();
@@ -573,39 +601,46 @@ async function stepOnce() {
     lastSceneGeo = nextGeo || prevGeo || lastSceneGeo;
 
     if (feedToAgent && agentText) {
-      const a = ensureAgent();
-      if (!a) {
-        ui.appendChat({
-          role: "agent",
-          text: "（未配置 DeepSeek API Key — 打开演示控制台填入后可继续生成回复）",
-          time: t,
-        });
+      if (useCache) {
+        const cached = replayAgentByEvent.get(event.id);
+        if (cached) {
+          await replayCachedAgentTurn(cached, t);
+        }
       } else {
-        ui._streamBubble = ui.beginAgentTurn({ time: t, planContext: agentPlanContext() });
-        try {
-          const turn = await a.handleEnvEvent(agentText);
-          if (epoch !== playbackEpoch) return;
-          ui.finishAgentTurn(ui._streamBubble, {
-            thinking: turn.thinking,
-            content: turn.content || "（空回复）",
-            toolCalls: turn.toolCalls || [],
-            planContext: agentPlanContext(),
+        const a = ensureAgent();
+        if (!a) {
+          ui.appendChat({
+            role: "agent",
+            text: "（未配置 DeepSeek API Key — 打开演示控制台填入后可继续生成回复）",
+            time: t,
           });
-          trajectory.pushAgentTurn({
-            eventId: event.id,
-            input: agentText,
-            output: turn.content,
-            thinking: turn.thinking,
-            toolCalls: turn.toolCalls,
-            usage: turn.usage,
-          });
-        } catch (err) {
-          if (err?.name === "AbortError" || epoch !== playbackEpoch) return;
-          console.error(err);
-          ui.finishAgentTurn(ui._streamBubble, { error: err.message });
-          stopAutoplay();
-        } finally {
-          if (epoch === playbackEpoch) ui._streamBubble = null;
+        } else {
+          ui._streamBubble = ui.beginAgentTurn({ time: t, planContext: agentPlanContext() });
+          try {
+            const turn = await a.handleEnvEvent(agentText);
+            if (epoch !== playbackEpoch) return;
+            ui.finishAgentTurn(ui._streamBubble, {
+              thinking: turn.thinking,
+              content: turn.content || "（空回复）",
+              toolCalls: turn.toolCalls || [],
+              planContext: agentPlanContext(),
+            });
+            trajectory.pushAgentTurn({
+              eventId: event.id,
+              input: agentText,
+              output: turn.content,
+              thinking: turn.thinking,
+              toolCalls: turn.toolCalls,
+              usage: turn.usage,
+            });
+          } catch (err) {
+            if (err?.name === "AbortError" || epoch !== playbackEpoch) return;
+            console.error(err);
+            ui.finishAgentTurn(ui._streamBubble, { error: err.message });
+            stopAutoplay();
+          } finally {
+            if (epoch === playbackEpoch) ui._streamBubble = null;
+          }
         }
       }
     }
@@ -619,6 +654,85 @@ async function stepOnce() {
       busy = false;
       setBusyUI(false);
     }
+  }
+}
+
+/** Re-run a recorded agent turn: reveal text + re-execute tools for state + map anims. */
+async function replayCachedAgentTurn(turn, time) {
+  const epoch = playbackEpoch;
+  const a = ensureAgent({ allowOfflineTools: true });
+  ui._streamBubble = ui.beginAgentTurn({ time, planContext: agentPlanContext() });
+  try {
+    await ui.revealAgentTurn(ui._streamBubble, {
+      thinking: turn.thinking || "",
+      content: turn.output || "",
+    });
+    if (epoch !== playbackEpoch) return;
+
+    const tools = turn.tool_calls || [];
+    for (const tc of tools) {
+      if (epoch !== playbackEpoch) return;
+      const name = tc.name;
+      const args = tc.args || {};
+      let result = tc.result;
+      try {
+        if (a?.executeTool) result = a.executeTool(name, args);
+      } catch (err) {
+        console.warn("replay tool", name, err);
+        result = tc.result || { ok: false, error: String(err?.message || err) };
+      }
+      if (ui._streamBubble) {
+        ui.appendToolCall(ui._streamBubble, {
+          name,
+          args,
+          result,
+          status: "done",
+        });
+      }
+      const isJournalOrCal = /write_journal|notion|journal|page|block|calendar|schedule/i.test(
+        name || ""
+      );
+      const isWriteTool =
+        /book|cancel|create|send|post|update|write|insert|reserve|confirm|refund|submit_nzeta|place_gear|record_pickup|report_scratch|record_return|checkin_flight/i.test(
+          name || ""
+        );
+      if (isWriteTool || isJournalOrCal) refreshDashboard();
+      await Promise.resolve(ui.focusMapFromTool(name, args, result));
+      if (/calendar|schedule|book_hotel|cancel_hotel/i.test(name || "")) {
+        if (ui._streamBubble) {
+          ui._streamBubble._planContext = agentPlanContext();
+          ui._streamBubble._planToolCalls = ui._streamBubble._planToolCalls || [];
+          ui._streamBubble._planToolCalls.push({ name, args, result });
+        }
+        commitAgentItineraryPlan({
+          ...agentPlanContext(),
+          toolCalls: ui._streamBubble?._planToolCalls || [{ name, args, result }],
+          content: turn.output || "",
+          thinking: turn.thinking || "",
+          fit: "auto",
+        }).catch(() => {});
+      }
+    }
+
+    if (epoch !== playbackEpoch) return;
+    ui.finishAgentTurn(ui._streamBubble, {
+      thinking: turn.thinking || "",
+      content: turn.output || "（空回复）",
+      toolCalls: tools,
+      planContext: agentPlanContext(),
+    });
+    if (!replaying) {
+      trajectory.pushAgentTurn({
+        eventId: turn.event_id || null,
+        input: turn.input,
+        output: turn.output,
+        thinking: turn.thinking,
+        toolCalls: tools,
+        usage: turn.usage,
+      });
+    }
+  } finally {
+    if (epoch === playbackEpoch) ui._streamBubble = null;
   }
 }
 
@@ -671,38 +785,167 @@ async function sendUserChat(text) {
 }
 
 function startAutoplay() {
+  if (replaying) stopReplay();
   autoplay = true;
   document.querySelector("#btnAutoplay").classList.add("active");
   document.querySelector("#btnAutoplay").textContent = "自动播放中";
+  syncReplayButton();
   tickAutoplay();
 }
 
 function stopAutoplay() {
   autoplay = false;
   clearTimeout(autoplayTimer);
-  document.querySelector("#btnAutoplay").classList.remove("active");
-  document.querySelector("#btnAutoplay").textContent = "自动播放";
+  document.querySelector("#btnAutoplay")?.classList.remove("active");
+  document.querySelector("#btnAutoplay") &&
+    (document.querySelector("#btnAutoplay").textContent = "自动播放");
+  syncReplayButton();
 }
 
 async function tickAutoplay() {
   if (!autoplay) return;
-  await stepOnce();
+  await stepOnce({ useCache: false });
   if (autoplay && !engine.progress.done) {
-    const delay = Number(settings.autoplayMs) || 1200;
+    const delay = playbackMs(Number(settings.autoplayMs) || 1200, { min: 80 });
     autoplayTimer = setTimeout(tickAutoplay, delay);
   } else {
+    if (engine?.progress?.done) snapshotRecording();
     stopAutoplay();
+    syncReplayButton();
+  }
+}
+
+function snapshotRecording({ quiet = false } = {}) {
+  if (!trajectory?.steps?.length || !caseData) return;
+  const hasAgent = trajectory.steps.some((s) => s.type === "agent_turn");
+  if (!hasAgent && !engine?.progress?.done) return;
+  lastRecording = trajectory.toJSON();
+  if (!quiet) syncReplayButton();
+}
+
+function stopReplay() {
+  replaying = false;
+  replayAgentByEvent = new Map();
+  const btn = document.querySelector("#btnReplay");
+  if (btn) {
+    btn.classList.remove("active");
+    btn.textContent = "加速回放";
+  }
+  syncReplayButton();
+}
+
+function syncReplayButton() {
+  const btn = document.querySelector("#btnReplay");
+  if (!btn) return;
+  const can =
+    Boolean(lastRecording?.steps?.length) &&
+    lastRecording.case_id === caseData?.meta?.case_id &&
+    !busy &&
+    !autoplay;
+  btn.disabled = !can && !replaying;
+  if (replaying) {
+    btn.classList.add("active");
+    btn.textContent = `回放中 ${playbackSpeedLabel()}`;
+    btn.disabled = false;
+  } else {
+    btn.classList.remove("active");
+    btn.textContent = "加速回放";
+  }
+}
+
+function syncSpeedUi() {
+  const sel = document.querySelector("#playbackSpeed");
+  if (sel) sel.value = String(getPlaybackSpeed());
+}
+
+async function startAcceleratedReplay() {
+  if (replaying) {
+    playbackEpoch += 1;
+    stopReplay();
+    stopAutoplay();
+    busy = false;
+    setBusyUI(false);
+    ui.abortCinematics?.();
+    ui.toast("已停止加速回放");
+    return;
+  }
+  if (!lastRecording?.steps?.length) {
+    if (trajectory?.steps?.length) snapshotRecording({ quiet: true });
+  }
+  if (!lastRecording?.steps?.length) {
+    ui.toast("请先跑完一局（或至少产生模型回合），再加速回放");
+    return;
+  }
+  if (lastRecording.case_id !== caseData?.meta?.case_id) {
+    ui.toast("回放记录与当前 case 不匹配");
+    return;
+  }
+
+  let speedSel = Number(document.querySelector("#playbackSpeed")?.value) || settings.playbackSpeed || 1;
+  // 「加速回放」：若仍为 1×，自动提到 4×
+  if (speedSel <= 1) speedSel = 4;
+  setPlaybackSpeed(speedSel);
+  settings.playbackSpeed = speedSel;
+  syncSpeedUi();
+
+  clearAndRewind({ confirm: false, skipGuide: true });
+  ui.setPhoneTab("chat");
+
+  replayAgentByEvent = new Map();
+  for (const s of lastRecording.steps) {
+    if (s.type === "agent_turn" && s.event_id) {
+      replayAgentByEvent.set(s.event_id, s);
+    }
+  }
+
+  replaying = true;
+  syncReplayButton();
+  ui.toast(`加速回放 ${playbackSpeedLabel()} · 不重跑模型`);
+
+  const epoch = playbackEpoch;
+  try {
+    while (replaying && epoch === playbackEpoch && engine && !engine.progress.done) {
+      await stepOnce({ useCache: true });
+      if (!replaying || epoch !== playbackEpoch) break;
+      if (engine.progress.done) break;
+      await sleepPlayback(Number(settings.autoplayMs) || 1200, { min: 40 });
+    }
+    if (epoch === playbackEpoch && engine?.progress?.done) {
+      ui.toast("加速回放完成");
+    }
+  } finally {
+    if (epoch === playbackEpoch) {
+      stopReplay();
+      busy = false;
+      setBusyUI(false);
+      syncReplayButton();
+    }
   }
 }
 
 function setBusyUI(on) {
   document.body.classList.toggle("is-busy", on);
+  syncReplayButton();
 }
 
 function bindChrome() {
   document.querySelector("#btnAutoplay").addEventListener("click", () => {
     if (autoplay) stopAutoplay();
     else startAutoplay();
+  });
+  document.querySelector("#btnReplay")?.addEventListener("click", () => {
+    startAcceleratedReplay();
+  });
+  document.querySelector("#playbackSpeed")?.addEventListener("change", (e) => {
+    const v = Number(e.target.value) || 1;
+    setPlaybackSpeed(v);
+    settings.playbackSpeed = v;
+    try {
+      localStorage.setItem("vibelifebench_demo_settings", JSON.stringify(settings));
+    } catch {
+      /* ignore */
+    }
+    if (replaying) syncReplayButton();
   });
   document.querySelector("#btnConsole").addEventListener("click", () => openConsole());
   document.querySelector("#btnCloseConsole").addEventListener("click", () => openConsole(false));
@@ -744,7 +987,9 @@ function bindChrome() {
         data.workspace = caseData.workspace;
       }
       data.flat = data.flat; // already normalized
+      lastRecording = null;
       bootCase(data);
+      syncReplayButton();
       ui.toast("已加载：" + file.name);
     } catch (err) {
       ui.toast("加载失败：" + err.message);
@@ -957,6 +1202,8 @@ function applySettingsToForm() {
   const think = document.querySelector("#apiThinking");
   if (think) think.checked = settings.thinking !== false;
   document.querySelector("#autoplayMs").value = settings.autoplayMs || 1200;
+  const speedSel = document.querySelector("#playbackSpeed");
+  if (speedSel) speedSel.value = String(settings.playbackSpeed || 1);
   const upstreamField = document.querySelector("#upstreamField");
   const upstreamInput = document.querySelector("#apiUpstream");
   if (provider === "proxy") {
@@ -982,6 +1229,9 @@ function saveSettingsFromForm() {
   settings.model = document.querySelector("#apiModel").value.trim() || DEFAULT_MODEL;
   settings.thinking = Boolean(document.querySelector("#apiThinking")?.checked);
   settings.autoplayMs = Number(document.querySelector("#autoplayMs").value) || 1200;
+  settings.playbackSpeed =
+    Number(document.querySelector("#playbackSpeed")?.value) || settings.playbackSpeed || 1;
+  setPlaybackSpeed(settings.playbackSpeed);
   if (provider === "proxy") {
     settings.upstreamBase =
       document.querySelector("#apiUpstream")?.value.trim() ||

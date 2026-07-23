@@ -21,8 +21,9 @@ import {
   hideMapActionStage,
   commitAgentItineraryPlan,
   clearAgentPlan,
-} from "./map.js?v=20260723-103";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-103";
+} from "./map.js?v=20260723-104";
+import { groupLedgerByDate } from "./ledger.js?v=20260723-104";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-104";
 
 const KIND_META = {
   user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
@@ -158,8 +159,15 @@ export class UI {
   }
 
   _wasCinematicPlayed(fp, withinMs = 12000) {
+    // At higher speeds, shrink dedupe window so replayed tools don't get skipped.
+    const windowMs = getPlaybackSpeed() > 1 ? playbackMs(withinMs, { min: 400, max: 3000 }) : withinMs;
     const t = this._cinePlayed?.get(fp);
-    return Boolean(t && Date.now() - t < withinMs);
+    return Boolean(t && Date.now() - t < windowMs);
+  }
+
+  /** Drop cinematic fingerprints (used between replayed stages). */
+  clearCinematicFingerprints() {
+    this._cinePlayed = new Map();
   }
 
   async _drainCinematics() {
@@ -1132,7 +1140,7 @@ export class UI {
           clearTimeout(valEl._flashTimer);
           valEl._flashTimer = setTimeout(() => {
             valEl.classList.remove("status-chip-val-flash");
-          }, 1100);
+          }, playbackMs(1100, { min: 200 }));
         }
         clearTimeout(chipNow._landTimer);
         chipNow._landTimer = setTimeout(() => {
@@ -1144,7 +1152,7 @@ export class UI {
             "status-chip-landed-rental",
             "status-chip-landed-activity"
           );
-        }, 1200);
+        }, playbackMs(1200, { min: 220 }));
       };
 
       const run = async () => {
@@ -1152,20 +1160,20 @@ export class UI {
         try {
           if (fromStage) {
             // Stage already faded via is-handing-off; clear after handoff starts.
-            setTimeout(() => hideMapActionStage(), hasStageFlight ? 180 : 0);
+            setTimeout(() => hideMapActionStage(), hasStageFlight ? playbackMs(180, { min: 40 }) : 0);
           }
 
           if (reduceMotion) {
             fly.style.opacity = "1";
             fly.style.transform = `translate3d(${endX}px, ${endY}px, 0) scale(1)`;
-            await new Promise((r) => setTimeout(r, 220));
+            await sleepPlayback(220, { min: 40 });
             pulseChip();
             fly.style.opacity = "0";
-            await new Promise((r) => setTimeout(r, 160));
+            await sleepPlayback(160, { min: 30 });
             return;
           }
 
-          const duration = hasStageFlight ? 1180 : 860;
+          const duration = playbackMs(hasStageFlight ? 1180 : 860, { min: 180 });
           // Overlap chip pulse with the settle (before fly fades out).
           landTimer = setTimeout(pulseChip, Math.round(duration * 0.62));
 
@@ -2499,6 +2507,36 @@ export class UI {
     }
 
     this._scrollChatToBottom();
+  }
+
+  /**
+   * Fast-forward a recorded agent turn (thinking + answer) without LLM streaming.
+   */
+  async revealAgentTurn(wrap, { thinking = "", content = "" } = {}) {
+    if (!wrap) return;
+    const think = String(thinking || "");
+    const answer = String(content || "");
+    if (think) {
+      const parts = Math.max(1, Math.min(6, Math.ceil(think.length / (120 * getPlaybackSpeed()))));
+      for (let i = 1; i <= parts; i++) {
+        this.updateAgentTurn(wrap, {
+          thinking: think.slice(0, Math.ceil((think.length * i) / parts)),
+          phase: "thinking",
+        });
+        await sleepPlayback(36, { min: 8 });
+      }
+    }
+    if (answer) {
+      const parts = Math.max(1, Math.min(5, Math.ceil(answer.length / (90 * getPlaybackSpeed()))));
+      for (let i = 1; i <= parts; i++) {
+        this.updateAgentTurn(wrap, {
+          thinking: think,
+          content: answer.slice(0, Math.ceil((answer.length * i) / parts)),
+          phase: "answering",
+        });
+        await sleepPlayback(28, { min: 6 });
+      }
+    }
   }
 
   finishAgentTurn(wrap, { thinking, content, error, toolCalls = [], planContext = null } = {}) {
