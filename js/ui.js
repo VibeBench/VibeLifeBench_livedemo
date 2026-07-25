@@ -670,18 +670,21 @@ export class UI {
         channel: isMail ? "email" : "sms",
         eventId: event.id,
       });
-      this.pulseMapFeedback({
-        id: `env:${event.id}`,
-        icon: toast.icon || (isMail ? "✉️" : "💬"),
-        title: truncate(title, 36),
-        detail: truncate(body && body !== title ? body : toast.text || "", 72),
-        kind: isMail ? "email" : "sms",
-        holdMs: 1600,
-      });
+      if (!silentToast) {
+        this.pulseMapFeedback({
+          id: `env:${event.id}`,
+          icon: toast.icon || (isMail ? "✉️" : "💬"),
+          title: truncate(title, 36),
+          detail: truncate(body && body !== title ? body : toast.text || "", 72),
+          kind: isMail ? "email" : "sms",
+          holdMs: 1600,
+        });
+      }
       return;
     }
 
     // Other location-related env messages: place bubble on the map.
+    if (silentToast) return;
     const blob = `${title} ${body} ${event.user_state?.location || ""}`;
     const placeIds = extractPlaceIdsFromText(blob);
     const roadIds = extractRoadIdsFromText(blob);
