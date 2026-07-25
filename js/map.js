@@ -16,8 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260723-211";
-import { playbackMs } from "./playback.js?v=20260723-211";
+} from "./routing.js?v=20260725-i18n";
+import { playbackMs } from "./playback.js?v=20260725-i18n";
+import { t, getLocale } from "./i18n.js?v=20260725-i18n";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -835,7 +836,7 @@ function inferPlanningMode(text) {
 /** True when text is actually about routing / roads — not budget, visa, packing, etc. */
 function isRoutePlanningIntent(text) {
   const s = String(text || "");
-  return /路线|改道|绕行|路况|封路|通行|自驾|开往|前往|开车|公路|路段|行程安排|重新规划|避开|封闭|渡轮时刻|ferry\s*route|drive|route|reroute|traffic|SH\s*\d+|国道/i.test(
+  return /路线|改道|绕行|路况|封路|通行|自驾|开往|前往|开车|公路|路段|行程安排|重新规划|避开|封闭|渡轮时刻|ferry\s*route|drive|route|reroute|traffic|SH\s*\d+|国道|itinerary|road\s*condition|detour|self-?drive/i.test(
     s
   );
 }
@@ -1679,7 +1680,7 @@ function placeIsland(placeId) {
 }
 
 function looksLikeOvernightStayLabel(label = "") {
-  return /过夜|住宿|营地|入住|入住|Hotel|Motel|Lodge|Holiday\s*Park|Park|露营|住一晚|入住|check[\s-]?in/i.test(
+  return /过夜|住宿|营地|入住|入住|Hotel|Motel|Lodge|Holiday\s*Park|Park|露营|住一晚|入住|check[\s-]?in|overnight|stay|camp(site)?|arrival\s*night|landing/i.test(
     String(label || "")
   );
 }
@@ -2481,7 +2482,7 @@ async function repaintAgentPlan({ fit = false, announce = false } = {}) {
   }
 
   const n = seen.size;
-  if (announce) setAgentPlanBadge(`行程规划 · ${n} 个住宿点`);
+  if (announce) setAgentPlanBadge(t("plan.badge", { n }));
   if (fit && shouldFitAgentPlanCamera()) fitAgentPlanBounds();
   return true;
 }

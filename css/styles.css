@@ -361,6 +361,12 @@ select {
   height: 14px;
 }
 
+.lang-toggle {
+  min-width: 40px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 .map-view-btn-clear:hover {
   background: rgba(239, 68, 68, 0.1);
   color: #dc2626;

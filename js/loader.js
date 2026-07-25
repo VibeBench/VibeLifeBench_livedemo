@@ -2,6 +2,8 @@
  * Generic case loader — works with any vibelifebench event.yaml of the same schema:
  *   stages: { N: [ { id, time, kind, body?, user_state?, from?, source?, channel?, apply?, silent? } ] }
  */
+import { localizeEvent } from "./i18n.js?v=20260725-i18n";
+
 export const EVENT_KINDS = [
   "user_message",
   "app_notification",
@@ -239,21 +241,22 @@ async function fetchJson(url) {
   return res.json();
 }
 
-/** Render event into the same agent-facing text as task.py */
+/** Render event into the same agent-facing text as task.py (locale-aware body/state). */
 export function renderEventForAgent(ev) {
-  const time = ev.time || "";
-  const kind = ev.kind || "";
-  const body = ev.body || "";
-  const src = ev.channel || ev.source || "system";
+  const localized = localizeEvent(ev);
+  const time = localized.time || "";
+  const kind = localized.kind || "";
+  const body = localized.body || "";
+  const src = localized.channel || localized.source || "system";
   let tag;
-  if (kind === "user_message") tag = `[Message from ${ev.from || "user"} @ ${time}]`;
+  if (kind === "user_message") tag = `[Message from ${localized.from || "user"} @ ${time}]`;
   else if (kind === "notification" || kind === "app_notification") tag = `[Notification @ ${time} from ${src}]`;
   else if (kind === "world" || kind === "env_change") tag = `[World event @ ${time} from ${src}]`;
   else if (kind === "weather") tag = `[Weather state @ ${time} from ${src}]`;
   else if (kind === "routine") tag = `[Routine trip node @ ${time}]`;
   else tag = `[${kind} @ ${time}]`;
 
-  const st = ev.user_state || {};
+  const st = localized.user_state || {};
   const parts = [];
   if (st.location) parts.push(`location=${st.location}`);
   if (st.geo_key) parts.push(`geo_key=${st.geo_key}`);

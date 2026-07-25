@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./css/styles.css?v=20260723-211" />
+    <link rel="stylesheet" href="./css/styles.css?v=20260725-i18n" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
@@ -23,27 +23,30 @@
         <div class="brand" id="caseTitle">VibeLifeBench</div>
         <div class="top-actions">
           <span class="progress-pill" id="progressLabel">0 / 0</span>
-          <label class="speed-select" title="动画与回放倍速">
-            <span class="speed-select-label">倍速</span>
-            <select id="playbackSpeed" aria-label="播放倍速">
+          <button type="button" class="btn lang-toggle" id="btnLang" data-locale="zh" title="切换中文 / English" aria-label="切换中文 / English">EN</button>
+          <label class="speed-select" data-i18n-title="top.speedTitle" title="动画与回放倍速">
+            <span class="speed-select-label" data-i18n="top.speed">倍速</span>
+            <select id="playbackSpeed" data-i18n-aria="top.speedAria" aria-label="播放倍速">
               <option value="1">1×</option>
               <option value="2">2×</option>
               <option value="4">4×</option>
               <option value="8">8×</option>
             </select>
           </label>
-          <button class="btn" id="btnAutoplay" type="button">自动播放</button>
+          <button class="btn" id="btnAutoplay" type="button" data-i18n="top.autoplay">自动播放</button>
           <button
             class="btn"
             id="btnReplay"
             type="button"
             disabled
+            data-i18n="top.replay"
+            data-i18n-title="top.replayTitle"
             title="跑完后可加速回放本局全部动画与模型结果（不重调 LLM）"
           >
             加速回放
           </button>
-          <button class="btn" id="btnRewind" type="button" title="清空对话与轨迹，回退到行程起点">清空回溯</button>
-          <button class="btn primary" id="btnConsole" type="button">演示控制台</button>
+          <button class="btn" id="btnRewind" type="button" data-i18n="top.rewind" data-i18n-title="top.rewindTitle" title="清空对话与轨迹，回退到行程起点">清空回溯</button>
+          <button class="btn primary" id="btnConsole" type="button" data-i18n="top.console">演示控制台</button>
         </div>
       </header>
 
@@ -56,10 +59,10 @@
               <div class="float-ribbon panel-glass">
                 <div class="day-ribbon" id="dayRibbon"></div>
               </div>
-              <div class="map-view-controls panel-glass" id="mapViewControls" role="group" aria-label="地图控制">
-                <button type="button" class="map-view-btn" id="btnMapZoomIn" title="放大">＋</button>
-                <button type="button" class="map-view-btn" id="btnMapZoomOut" title="缩小">－</button>
-                <button type="button" class="map-view-btn map-view-btn-clear" id="btnMapClearOverlays" title="清除地图标注" aria-label="清除地图标注">
+              <div class="map-view-controls panel-glass" id="mapViewControls" role="group" data-i18n-aria="map.controls" aria-label="地图控制">
+                <button type="button" class="map-view-btn" id="btnMapZoomIn" data-i18n-title="map.zoomIn" title="放大">＋</button>
+                <button type="button" class="map-view-btn" id="btnMapZoomOut" data-i18n-title="map.zoomOut" title="缩小">－</button>
+                <button type="button" class="map-view-btn map-view-btn-clear" id="btnMapClearOverlays" data-i18n-title="map.clear" data-i18n-aria="map.clear" title="清除地图标注" aria-label="清除地图标注">
                   <svg class="map-view-btn-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M4 7h16" />
                     <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
@@ -75,11 +78,10 @@
           <div class="map-chrome-mid">
             <div class="map-planning-badge" id="mapPlanningBadge" hidden>
               <span class="map-planning-dot" aria-hidden="true"></span>
-              <span id="mapPlanningBadgeText">路线推演中</span>
+              <span id="mapPlanningBadgeText" data-i18n="map.planning">路线推演中</span>
             </div>
             <div class="map-agent-plan-badge" id="mapAgentPlanBadge" hidden></div>
             <div class="map-toast-rail" id="mapToastRail" aria-live="polite"></div>
-            <!-- Tool cinematics live in mid layer so bottom docks never shift -->
             <div class="map-chrome-actions">
               <div class="map-action-stage" id="mapActionStage" hidden></div>
             </div>
@@ -92,30 +94,30 @@
               id="btnMapLegend"
               aria-expanded="false"
               aria-controls="mapLegendPop"
+              data-i18n-title="map.legendTitle"
               title="查看图例"
             >
               ?
             </button>
             <div class="map-legend-pop panel-glass" id="mapLegendPop" hidden>
               <div class="map-legend-pop-head">
-                <span>地图图例</span>
-                <button type="button" class="map-legend-pop-close" id="btnMapLegendClose" aria-label="关闭">
+                <span data-i18n="map.legendHead">地图图例</span>
+                <button type="button" class="map-legend-pop-close" id="btnMapLegendClose" data-i18n-aria="map.legendClose" aria-label="关闭">
                   ×
                 </button>
               </div>
               <div class="map-legend float-info-legend" id="mapLegend">
-                <span><i class="lg-done"></i>已走</span>
-                <span><i class="lg-route"></i>规划未走</span>
-                <span><i class="lg-live"></i>当前路段</span>
-                <span><i class="lg-plan"></i>推演/调整</span>
-                <span><i class="lg-stay"></i>计划住宿</span>
-                <span><i class="lg-check"></i>核查中</span>
-                <span data-leg="flight"><i class="lg-flight"></i>航线 · 已飞/未飞</span>
-                <span><i class="lg-ferry"></i>渡轮</span>
-                <span><i class="lg-close"></i>确认受阻</span>
+                <span><i class="lg-done"></i><span data-i18n="map.leg.done">已走</span></span>
+                <span><i class="lg-route"></i><span data-i18n="map.leg.route">规划未走</span></span>
+                <span><i class="lg-live"></i><span data-i18n="map.leg.live">当前路段</span></span>
+                <span><i class="lg-plan"></i><span data-i18n="map.leg.plan">推演/调整</span></span>
+                <span><i class="lg-stay"></i><span data-i18n="map.leg.stay">计划住宿</span></span>
+                <span><i class="lg-check"></i><span data-i18n="map.leg.check">核查中</span></span>
+                <span data-leg="flight"><i class="lg-flight"></i><span data-i18n="map.leg.flight">航线 · 已飞/未飞</span></span>
+                <span><i class="lg-ferry"></i><span data-i18n="map.leg.ferry">渡轮</span></span>
+                <span><i class="lg-close"></i><span data-i18n="map.leg.close">确认受阻</span></span>
               </div>
             </div>
-            <!-- legend help only; event flow lives in the phone chat -->
             <div class="event-stream" id="eventStream" hidden aria-hidden="true"></div>
           </div>
         </div>
@@ -128,66 +130,67 @@
               <div class="avatar">A</div>
               <div>
                 <h2>Travel Agent</h2>
-                <p class="agent-status offline" id="agentStatus">Offline</p>
+                <p class="agent-status offline" id="agentStatus" data-i18n="phone.offline">Offline</p>
               </div>
             </div>
             <div class="phone-screens">
               <div class="phone-screen-pane active" data-pane="chat" id="paneChat">
                 <div class="chat-messages" id="chatMessages"></div>
                 <form class="chat-form" id="chatForm">
-                  <input id="chatInput" placeholder="输入消息，与 Agent 持续互动…" autocomplete="off" />
-                  <button type="submit">发送</button>
+                  <input id="chatInput" data-i18n-placeholder="phone.chatPlaceholder" placeholder="输入消息，与 Agent 持续互动…" autocomplete="off" />
+                  <button type="submit" data-i18n="phone.send">发送</button>
                 </form>
               </div>
               <div class="phone-screen-pane" data-pane="trip" id="paneTrip" hidden>
                 <div class="phone-pane-head">
-                  <h3>行程账本</h3>
-                  <p>机票 · 酒店 · 日历</p>
+                  <h3 data-i18n="phone.tripTitle">行程账本</h3>
+                  <p data-i18n="phone.tripSub">机票 · 酒店 · 日历</p>
                 </div>
                 <div class="trip-ledger" id="tripLedger"></div>
               </div>
               <div class="phone-screen-pane" data-pane="mail" id="paneMail" hidden>
                 <div class="phone-pane-head">
-                  <h3>收件箱</h3>
-                  <p>通知 · 资讯 · 邮件归档</p>
+                  <h3 data-i18n="phone.mailTitle">收件箱</h3>
+                  <p data-i18n="phone.mailSub">通知 · 资讯 · 邮件归档</p>
                 </div>
                 <div class="mail-inbox" id="mailInbox"></div>
               </div>
               <div class="phone-screen-pane" data-pane="notes" id="paneNotes" hidden>
                 <div class="phone-pane-head">
                   <h3 id="notionTitle">NZ Road Trip 2026</h3>
-                  <p>Notion 游记摘要</p>
+                  <p data-i18n="phone.notesSub">Notion 游记摘要</p>
                 </div>
                 <div class="notion-ledger" id="notionLedger"></div>
               </div>
               <div class="phone-screen-pane" data-pane="settings" id="paneSettings" hidden>
                 <div class="phone-pane-head">
-                  <h3>演示控制台</h3>
-                  <p>API · 自动播放 · 导出</p>
+                  <h3 data-i18n="phone.settingsTitle">演示控制台</h3>
+                  <p data-i18n="phone.settingsSub">API · 自动播放 · 导出</p>
                 </div>
                 <div class="phone-settings" id="consolePanel">
                   <div class="console-onboard" id="consoleOnboard" hidden>
-                    <div class="console-onboard-title">两步开始自动演示</div>
+                    <div class="console-onboard-title" data-i18n="console.onboardTitle">两步开始自动演示</div>
                     <ol>
-                      <li>选择提供商，填写 <strong>API Key</strong>（推荐 DeepSeek）</li>
-                      <li>点下方「保存并连接」，回到对话再点 <strong>开始自动演示</strong></li>
+                      <li data-i18n="console.onboard1" data-i18n-html>选择提供商，填写 <strong>API Key</strong>（推荐 DeepSeek）</li>
+                      <li data-i18n="console.onboard2" data-i18n-html>点下方「保存并连接」，回到对话再点 <strong>开始自动演示</strong></li>
                     </ol>
-                    <p class="console-onboard-note">Key 只保存在本机；打开设置时不会回显，避免泄露。</p>
+                    <p class="console-onboard-note" data-i18n="console.onboardNote">Key 只保存在本机；打开设置时不会回显，避免泄露。</p>
                   </div>
-                  <p class="hint">
+                  <p class="hint" data-i18n="console.hint" data-i18n-html>
                     任意 <strong>OpenAI 兼容</strong> Chat Completions 端点均可。浏览器直连常被 CORS
                     拦截时：本机 <code>./start.sh</code>，Base 填
                     <code>http://127.0.0.1:8787</code>。
                   </p>
                   <label class="field">
-                    提供商
+                    <span data-i18n="console.provider">提供商</span>
                     <select id="apiProvider"></select>
                   </label>
                   <label class="field">
-                    API Key
+                    <span data-i18n="console.apiKey">API Key</span>
                     <input
                       id="apiKey"
                       type="password"
+                      data-i18n-placeholder="console.apiKeyPh"
                       placeholder="粘贴新 Key（不会回显已保存的 Key）"
                       autocomplete="new-password"
                       spellcheck="false"
@@ -195,37 +198,37 @@
                     <span class="field-hint" id="apiKeyHint" hidden></span>
                   </label>
                   <label class="field">
-                    API Base
+                    <span data-i18n="console.apiBase">API Base</span>
                     <input id="apiBase" type="text" placeholder="https://api.deepseek.com" />
                   </label>
                   <label class="field" id="upstreamField" hidden>
-                    上游 Base（经本地代理转发）
+                    <span data-i18n="console.upstream">上游 Base（经本地代理转发）</span>
                     <input id="apiUpstream" type="text" placeholder="https://api.deepseek.com" />
                   </label>
                   <label class="field">
-                    Model
+                    <span data-i18n="console.model">Model</span>
                     <input id="apiModel" type="text" list="modelSuggestions" placeholder="deepseek-v4-pro" />
                     <datalist id="modelSuggestions"></datalist>
                   </label>
                   <label class="field check">
                     <input id="apiThinking" type="checkbox" checked />
-                    启用 Thinking / Reasoning（DeepSeek / 部分 OpenAI·OpenRouter 模型）
+                    <span data-i18n="console.thinking">启用 Thinking / Reasoning（DeepSeek / 部分 OpenAI·OpenRouter 模型）</span>
                   </label>
                   <p class="hint provider-hint" id="providerHint"></p>
                   <label class="field">
-                    自动播放间隔 (ms)
+                    <span data-i18n="console.autoplayMs">自动播放间隔 (ms)</span>
                     <input id="autoplayMs" type="number" min="300" step="100" value="1200" />
                   </label>
                   <label class="field">
-                    加载同格式 case 文件
+                    <span data-i18n="console.caseFile">加载同格式 case 文件</span>
                     <input id="caseFile" type="file" accept=".yaml,.yml,.json" />
                   </label>
                   <div class="console-actions">
-                    <button class="btn primary" type="button" id="btnSaveSettings">保存并连接</button>
-                    <button class="btn" type="button" id="btnClearKey" title="清除本机保存的 API Key">清除 Key</button>
-                    <button class="btn" type="button" id="btnExport">导出 Trajectory</button>
-                    <button class="btn" type="button" id="btnReset">清空回溯</button>
-                    <button class="btn" type="button" id="btnCloseConsole">返回对话</button>
+                    <button class="btn primary" type="button" id="btnSaveSettings" data-i18n="console.save">保存并连接</button>
+                    <button class="btn" type="button" id="btnClearKey" data-i18n="console.clearKey" data-i18n-title="console.clearKeyTitle" title="清除本机保存的 API Key">清除 Key</button>
+                    <button class="btn" type="button" id="btnExport" data-i18n="console.export">导出 Trajectory</button>
+                    <button class="btn" type="button" id="btnReset" data-i18n="console.reset">清空回溯</button>
+                    <button class="btn" type="button" id="btnCloseConsole" data-i18n="console.back">返回对话</button>
                   </div>
                 </div>
               </div>
@@ -234,26 +237,26 @@
             <nav class="phone-nav" id="phoneNav">
               <button type="button" class="active" data-tab="chat">
                 <span class="nav-ico" aria-hidden="true">💬</span>
-                <span class="nav-label">对话</span>
+                <span class="nav-label" data-i18n="nav.chat">对话</span>
               </button>
               <button type="button" data-tab="trip">
                 <span class="nav-ico" aria-hidden="true">🗓️</span>
-                <span class="nav-label">行程</span>
+                <span class="nav-label" data-i18n="nav.trip">行程</span>
                 <span class="nav-badge" data-badge="trip" hidden>0</span>
               </button>
               <button type="button" data-tab="mail">
                 <span class="nav-ico" aria-hidden="true">✉️</span>
-                <span class="nav-label">邮件</span>
+                <span class="nav-label" data-i18n="nav.mail">邮件</span>
                 <span class="nav-badge" data-badge="mail" hidden>0</span>
               </button>
               <button type="button" data-tab="notes">
                 <span class="nav-ico" aria-hidden="true">📝</span>
-                <span class="nav-label">笔记</span>
+                <span class="nav-label" data-i18n="nav.notes">笔记</span>
                 <span class="nav-badge" data-badge="notes" hidden>0</span>
               </button>
               <button type="button" data-tab="settings">
                 <span class="nav-ico" aria-hidden="true">⚙️</span>
-                <span class="nav-label">设置</span>
+                <span class="nav-label" data-i18n="nav.settings">设置</span>
               </button>
             </nav>
           </div>
@@ -263,6 +266,6 @@
 
     <div class="toast" id="toast" hidden></div>
 
-    <script type="module" src="./js/app.js?v=20260723-211"></script>
+    <script type="module" src="./js/app.js?v=20260725-i18n"></script>
   </body>
 </html>

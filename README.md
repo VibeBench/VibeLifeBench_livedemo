@@ -23,6 +23,8 @@ Enable Pages once (repo admin):
 Demo console supports **OpenAI-compatible** providers (DeepSeek / OpenAI / OpenRouter / SiliconFlow / Ollama / custom).  
 Browser CORS: pick provider **本地 CORS 代理**, Base `http://127.0.0.1:8787`, set upstream (e.g. DeepSeek).
 
+Use the top-bar **中 / EN** toggle to switch the full UI and task copy between Chinese and English (Agent replies follow the selected language going forward).
+
 ## Rebuild data
 
 ```bash

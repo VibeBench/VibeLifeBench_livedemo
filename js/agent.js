@@ -44,25 +44,45 @@ export function detectProvider(baseUrl = "") {
   return "custom";
 }
 
-export function buildSystemPrompt(workspace, meta) {
-  const parts = [
-    "你是一位专业、主动、可靠的旅行助手（Travel Agent）。",
-    "当前 demo case：" + (meta.title || meta.case_id),
-    "请用中文与用户沟通。金额同时标注 CNY 与 NZD（约 1 NZD ≈ 4.2 CNY）。",
-    "安全第一：靠左驾驶、疲劳驾驶、天气路况。赵梅有轻度关节炎，活动安排须低强度。",
-    "遇到静默变更（mutation）相关线索时，请主动调用工具查询天气/路况/航班，不要假设一切正常。",
-    "需要外部资讯时用 search_web；确认的行程要点可 write_journal / add_calendar_event 写入游记与日程。",
-    "用户明确授权后可用 submit_nzeta / book_campervan / book_flight / book_hotel / place_gear_order 等写入工具；取还车用 record_pickup / report_scratch / record_return；值机用 checkin_flight。",
-    "重大不可退或单笔超过 ¥3000 的预订先征询用户；医疗结论绝不代下。",
-    "回复使用标准 Markdown。对比/清单用 GFM 表格（必须含表头分隔行），例如：",
-    "| 项目 | 金额 |\n| --- | --- |\n| 已花 | ¥33,000 |\n| 剩余 | ¥17,000 |",
-    "不要用空格对齐伪表格；手机窄屏下伪表格无法渲染。",
-  ];
-  if (workspace?.["SOUL.md"]) parts.push("\n## 行为原则\n" + workspace["SOUL.md"]);
-  if (workspace?.["USER.md"]) parts.push("\n## 用户授权\n" + workspace["USER.md"]);
-  if (workspace?.["PERSONA.md"]) parts.push("\n## 人物\n" + workspace["PERSONA.md"]);
-  if (workspace?.["AGENTS.md"]) parts.push("\n## 运营手册\n" + workspace["AGENTS.md"]);
-  if (workspace?.["TOOLS.md"]) parts.push("\n## 工具\n" + workspace["TOOLS.md"]);
+export function buildSystemPrompt(workspace, meta, locale = "zh") {
+  const en = locale === "en";
+  const parts = en
+    ? [
+        "You are a professional, proactive, reliable travel assistant (Travel Agent).",
+        "Current demo case: " + (meta?.title || meta?.case_id || ""),
+        "Communicate with the user in English. Quote amounts in both CNY and NZD (≈ 1 NZD ≈ 4.2 CNY).",
+        "Safety first: drive on the left, avoid fatigue, watch weather/road status. Zhao Mei has mild arthritis — keep activities low-intensity.",
+        "When silent mutations or alerts appear, proactively call tools for weather/roads/flights — never assume everything is fine.",
+        "Use search_web for external info; write confirmed itinerary points with write_journal / add_calendar_event.",
+        "After explicit user authorization, use write tools such as submit_nzeta / book_campervan / book_flight / book_hotel / place_gear_order; pickup/return via record_pickup / report_scratch / record_return; check-in via checkin_flight.",
+        "Ask first for non-refundable bookings or single spends over ¥3,000; never make medical decisions.",
+        "Reply in standard Markdown. Use GFM tables for comparisons (header + separator row required), e.g.:",
+        "| Item | Amount |\n| --- | --- |\n| Spent | ¥33,000 |\n| Remaining | ¥17,000 |",
+        "Do not use space-padded fake tables; they break on narrow phone screens.",
+      ]
+    : [
+        "你是一位专业、主动、可靠的旅行助手（Travel Agent）。",
+        "当前 demo case：" + (meta?.title || meta?.case_id || ""),
+        "请用中文与用户沟通。金额同时标注 CNY 与 NZD（约 1 NZD ≈ 4.2 CNY）。",
+        "安全第一：靠左驾驶、疲劳驾驶、天气路况。赵梅有轻度关节炎，活动安排须低强度。",
+        "遇到静默变更（mutation）相关线索时，请主动调用工具查询天气/路况/航班，不要假设一切正常。",
+        "需要外部资讯时用 search_web；确认的行程要点可 write_journal / add_calendar_event 写入游记与日程。",
+        "用户明确授权后可用 submit_nzeta / book_campervan / book_flight / book_hotel / place_gear_order 等写入工具；取还车用 record_pickup / report_scratch / record_return；值机用 checkin_flight。",
+        "重大不可退或单笔超过 ¥3000 的预订先征询用户；医疗结论绝不代下。",
+        "回复使用标准 Markdown。对比/清单用 GFM 表格（必须含表头分隔行），例如：",
+        "| 项目 | 金额 |\n| --- | --- |\n| 已花 | ¥33,000 |\n| 剩余 | ¥17,000 |",
+        "不要用空格对齐伪表格；手机窄屏下伪表格无法渲染。",
+      ];
+  const hSoul = en ? "\n## Principles\n" : "\n## 行为原则\n";
+  const hUser = en ? "\n## User authorization\n" : "\n## 用户授权\n";
+  const hPersona = en ? "\n## People\n" : "\n## 人物\n";
+  const hAgents = en ? "\n## Playbook\n" : "\n## 运营手册\n";
+  const hTools = en ? "\n## Tools\n" : "\n## 工具\n";
+  if (workspace?.["SOUL.md"]) parts.push(hSoul + workspace["SOUL.md"]);
+  if (workspace?.["USER.md"]) parts.push(hUser + workspace["USER.md"]);
+  if (workspace?.["PERSONA.md"]) parts.push(hPersona + workspace["PERSONA.md"]);
+  if (workspace?.["AGENTS.md"]) parts.push(hAgents + workspace["AGENTS.md"]);
+  if (workspace?.["TOOLS.md"]) parts.push(hTools + workspace["TOOLS.md"]);
   return parts.join("\n");
 }
 
@@ -368,6 +388,7 @@ export class TravelAgent {
     onStream,
     onTool,
     thinking = true,
+    locale = "zh",
   }) {
     this.apiKey = apiKey;
     this.provider = provider || detectProvider(baseUrl) || DEFAULT_PROVIDER;
@@ -375,7 +396,12 @@ export class TravelAgent {
     this.model = model || DEFAULT_MODEL;
     this.engine = engine;
     this.thinking = thinking !== false;
-    this.messages = [{ role: "system", content: buildSystemPrompt(workspace, meta) }];
+    this._locale = locale === "en" ? "en" : "zh";
+    this._workspace = workspace;
+    this._meta = meta;
+    this.messages = [
+      { role: "system", content: buildSystemPrompt(workspace, meta, this._locale) },
+    ];
     this.tools = buildTools();
     this.onStream = onStream || (() => {});
     this.onTool = onTool || (() => {});
@@ -384,9 +410,35 @@ export class TravelAgent {
     this._abortController = null;
   }
 
-  resetConversation(workspace, meta) {
+  resetConversation(workspace, meta, locale = this._locale) {
     this.abort();
-    this.messages = [{ role: "system", content: buildSystemPrompt(workspace, meta) }];
+    this._workspace = workspace;
+    this._meta = meta;
+    this._locale = locale === "en" ? "en" : "zh";
+    this.messages = [
+      { role: "system", content: buildSystemPrompt(workspace, meta, this._locale) },
+    ];
+  }
+
+  /**
+   * Refresh system prompt / workspace language without wiping chat history.
+   * Past assistant turns keep their original language; future turns follow locale.
+   */
+  applyLocale(locale, workspace, meta) {
+    this._locale = locale === "en" ? "en" : "zh";
+    if (workspace) this._workspace = workspace;
+    if (meta) this._meta = meta;
+    const system = buildSystemPrompt(this._workspace, this._meta, this._locale);
+    if (this.messages[0]?.role === "system") {
+      this.messages[0] = { role: "system", content: system };
+    } else {
+      this.messages.unshift({ role: "system", content: system });
+    }
+    const nudge =
+      this._locale === "en"
+        ? "[System] From now on, reply to the user in English."
+        : "[系统] 此后请用中文与用户沟通。";
+    this.messages.push({ role: "system", content: nudge });
   }
 
   /** Cancel in-flight LLM stream / tool loop (清空回溯). */

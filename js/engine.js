@@ -5,8 +5,8 @@
  * uiFocus holds a read-only snapshot when the user clicks a past/current day
  * on the ribbon (map + status follow the snapshot; agent tools still use live env).
  */
-import { renderEventForAgent } from "./loader.js?v=20260723-211";
-import { buildLedger, emptyLedger } from "./ledger.js?v=20260723-211";
+import { renderEventForAgent } from "./loader.js?v=20260725-i18n";
+import { buildLedger, emptyLedger } from "./ledger.js?v=20260725-i18n";
 
 export class DemoEngine {
   constructor(caseData) {
@@ -112,7 +112,11 @@ export class DemoEngine {
       const st = ev.user_state;
       if (!st) continue;
       const body = String(ev.body || "");
-      if (ev.kind === "user_message" && /预算/.test(body) && (/万|50000|¥\s*50/.test(body) || st.budget?.total_cny != null)) {
+      if (
+        ev.kind === "user_message" &&
+        /预算|budget/i.test(body) &&
+        (/万|50000|¥\s*50|50,?000/i.test(body) || st.budget?.total_cny != null)
+      ) {
         budgetMentioned = true;
       }
       const fno = st.next_flight?.flight_no;

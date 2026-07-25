@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260723-211";
-import { DemoEngine } from "./engine.js?v=20260723-211";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260725-i18n";
+import { DemoEngine } from "./engine.js?v=20260725-i18n";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260723-211";
-import { Trajectory } from "./trajectory.js?v=20260723-211";
-import { UI } from "./ui.js?v=20260723-211";
+} from "./agent.js?v=20260725-i18n";
+import { Trajectory } from "./trajectory.js?v=20260725-i18n";
+import { UI } from "./ui.js?v=20260725-i18n";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,14 +18,27 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260723-211";
+} from "./map.js?v=20260725-i18n";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
   playbackMs,
   sleepPlayback,
   playbackSpeedLabel,
-} from "./playback.js?v=20260723-211";
+} from "./playback.js?v=20260725-i18n";
+import {
+  loadI18nPacks,
+  initLocaleFromStorage,
+  toggleLocale,
+  getLocale,
+  t as i18nT,
+  localizeEvent,
+  localizeUserState,
+  localizeMeta,
+  workspaceForLocale,
+  onLocaleChange,
+  applyDomI18n,
+} from "./i18n.js?v=20260725-i18n";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -109,13 +122,39 @@ let lastRecording = null;
 let replaying = false;
 /** event_id → agent_turn for the current replay pass. */
 let replayAgentByEvent = new Map();
+/** Raw case events revealed so far (for locale re-render of task history). */
+let revealedEvents = [];
 
 /** Demo default DeepSeek key (same as prior local setup). Override anytime in console. */
 const DEFAULT_DEEPSEEK_API_KEY = ["sk", "15f5ea94061c4fab82a51bfea7d71288"].join("-");
 
 const settings = loadSettings();
 
+function activeMeta() {
+  return localizeMeta(caseData?.meta || engine?.meta || {});
+}
+
+function trackRevealed(event) {
+  if (!event?.id) return;
+  if (revealedEvents.some((e) => e.id === event.id)) return;
+  revealedEvents.push(event);
+}
+
+function rerenderForLocale() {
+  applyDomI18n();
+  if (caseData?.meta) ui.setMeta(activeMeta());
+  if (agent && caseData) {
+    agent.applyLocale(getLocale(), workspaceForLocale(caseData.workspace), activeMeta());
+  }
+  ui.rerenderTaskHistory(revealedEvents.map((ev) => localizeEvent(ev)));
+  refreshDashboard();
+  syncAutoplayButtonLabel();
+  ui.toast(i18nT(getLocale() === "en" ? "lang.toast.en" : "lang.toast.zh"));
+}
+
 async function main() {
+  await loadI18nPacks();
+  initLocaleFromStorage();
   bindChrome();
   fillProviderSelect();
   applySettingsToForm();
@@ -123,14 +162,15 @@ async function main() {
   setPlaybackSpeed(settings.playbackSpeed || 1);
   syncSpeedUi();
   syncReplayButton();
+  onLocaleChange(() => rerenderForLocale());
   try {
     caseData = await loadDefaultCase("./data");
     bootCase(caseData);
-    ui.toast("已加载 newzealand_drive_30d_v3");
+    ui.toast(getLocale() === "en" ? "Loaded newzealand_drive_30d_v3" : "已加载 newzealand_drive_30d_v3");
     maybeAutoOpenConsole();
   } catch (e) {
     console.error(e);
-    ui.toast("默认数据加载失败：" + e.message);
+    ui.toast((getLocale() === "en" ? "Failed to load default data: " : "默认数据加载失败：") + e.message);
   }
 }
 
@@ -141,7 +181,8 @@ function bootCase(data) {
   lastSceneGeo = null;
   flightPlayed = new Set();
   drivePlayed = new Set();
-  ui.setMeta(data.meta);
+  revealedEvents = [];
+  ui.setMeta(activeMeta());
   ui.clearChat();
   ui.resetLedgerAlerts();
   ui.setPhoneTab("chat");
@@ -180,7 +221,7 @@ function agentPlanContext() {
     calendarDedup.push(c);
   }
   return {
-    tripDays: engine?.meta?.trip_days || [],
+    tripDays: activeMeta()?.trip_days || engine?.meta?.trip_days || [],
     calendar: calendarDedup,
     hotels,
   };
@@ -309,8 +350,16 @@ function syncConsoleOnboard() {
   el.hidden = hasApiKeyConfigured();
   const saveBtn = document.querySelector("#btnSaveSettings");
   if (saveBtn) {
-    saveBtn.textContent = hasApiKeyConfigured() ? "保存并连接" : "保存并连接 → 下一步";
+    saveBtn.textContent = i18nT("console.save") + (hasApiKeyConfigured() ? "" : (getLocale() === "en" ? " → Next" : " → 下一步"));
   }
+}
+
+function syncAutoplayButtonLabel() {
+  const btn = document.querySelector("#btnAutoplay");
+  if (!btn) return;
+  if (autoplay) btn.textContent = i18nT("top.autoplayStop");
+  else if (engine?.progress?.done) btn.textContent = i18nT("top.autoplay");
+  else btn.textContent = i18nT("top.autoplayStart");
 }
 
 /** Clear chat / agent memory / trajectory and rewind env playback to stage 0. */
@@ -321,7 +370,7 @@ function clearAndRewind({ confirm: needConfirm = true, skipGuide = false } = {})
     (trajectory && trajectory.steps.length > 0) ||
     (ui.els.chatMessages?.children?.length > 1);
   if (needConfirm && hasProgress) {
-    const ok = window.confirm("清空对话、Agent 记忆与 trajectory，并回溯到行程起点？");
+    const ok = window.confirm(i18nT("confirm.rewind"));
     if (!ok) return;
   }
   // Keep lastRecording so「加速回放」still works after rewind.
@@ -343,6 +392,7 @@ function clearAndRewind({ confirm: needConfirm = true, skipGuide = false } = {})
   lastSceneGeo = null;
   flightPlayed = new Set();
   drivePlayed = new Set();
+  revealedEvents = [];
 
   // Fresh engine + trajectory
   engine = new DemoEngine(caseData);
@@ -351,7 +401,7 @@ function clearAndRewind({ confirm: needConfirm = true, skipGuide = false } = {})
   // Reset agent conversation (keep API settings)
   if (agent) {
     agent.engine = engine;
-    agent.resetConversation(caseData.workspace, caseData.meta);
+    agent.resetConversation(workspaceForLocale(caseData.workspace), activeMeta(), getLocale());
     trajectory.setModel(settings.model || DEFAULT_MODEL);
   } else {
     ensureAgent();
@@ -365,7 +415,7 @@ function clearAndRewind({ confirm: needConfirm = true, skipGuide = false } = {})
   lastSceneGeo = engine.currentState?.geo_key || "shanghai_home";
   if (!skipGuide) showEntryGuide();
   syncReplayButton();
-  if (!skipGuide) ui.toast("已清空回溯到起点");
+  if (!skipGuide) ui.toast(i18nT("toast.rewound"));
 }
 
 function ensureAgent({ allowOfflineTools = false } = {}) {
@@ -374,7 +424,10 @@ function ensureAgent({ allowOfflineTools = false } = {}) {
   const allowEmptyKey = provider === "ollama" || allowOfflineTools;
   if (!key && !allowEmptyKey) {
     agent = null;
-    ui.setAgentStatus("Offline · 需配置 API Key", false);
+    ui.setAgentStatus(
+      getLocale() === "en" ? "Offline · API Key required" : "Offline · 需配置 API Key",
+      false
+    );
     return null;
   }
   const model = settings.model || DEFAULT_MODEL;
@@ -393,8 +446,9 @@ function ensureAgent({ allowOfflineTools = false } = {}) {
     model,
     provider: provider === "proxy" ? "proxy" : provider,
     engine,
-    workspace: caseData.workspace,
-    meta: caseData.meta,
+    workspace: workspaceForLocale(caseData.workspace),
+    meta: activeMeta(),
+    locale: getLocale(),
     thinking: settings.thinking !== false,
     onStream: (payload) => {
       if (agent?._aborted) return;
@@ -493,19 +547,20 @@ function ensureAgent({ allowOfflineTools = false } = {}) {
 
 function refreshDashboard() {
   if (!engine) return;
+  const meta = activeMeta();
   const liveDate = engine.latestDate();
   const focus = engine.uiFocus;
   let viewDate = liveDate;
   if (focus?.kind === "day" || focus?.kind === "prep") {
     viewDate = focus.date;
   } else if (focus?.kind === "pre") {
-    const prepReached = (engine.meta.prep_days || []).filter((d) => !liveDate || d.date <= liveDate);
+    const prepReached = (meta.prep_days || []).filter((d) => !liveDate || d.date <= liveDate);
     viewDate = prepReached[prepReached.length - 1]?.date || liveDate;
   }
   const reached = engine.reachedDate();
 
-  ui.renderDayRibbon(engine.meta.trip_days || [], viewDate, {
-    prepDays: engine.meta.prep_days || [],
+  ui.renderDayRibbon(meta.trip_days || [], viewDate, {
+    prepDays: meta.prep_days || [],
     reachedDate: reached,
     liveDate,
   });
@@ -514,7 +569,7 @@ function refreshDashboard() {
   const flags = engine.progressFlags();
   const ledger = engine.ledgerView();
   ui._ledgerSnap = ledger;
-  ui.renderStatus(view.state, view.env, {
+  ui.renderStatus(localizeUserState(view.state), view.env, {
     budgetDisclosed: flags.budgetDisclosed,
     budgetSettled: flags.budgetSettled,
     flightDisclosed: flags.flightDisclosed,
@@ -556,35 +611,50 @@ async function stepOnce({ useCache = false } = {}) {
     if (!replaying) {
       trajectory.pushEnvEvent(event, { mutationResult, feedToAgent });
     }
+    trackRevealed(event);
+    const locEv = localizeEvent(event);
 
     const t = event.time || null;
     const nextGeo = event.user_state?.geo_key || currentSceneGeo();
 
-    // Phone: surface user / notifications / heartbeats / routines
+    // Phone: surface user / notifications / heartbeats / routines (locale-aware copy)
     if (event.kind === "user_message") {
-      ui.appendChat({ role: "user", text: event.body, from: event.from, time: t });
+      ui.appendChat({
+        role: "user",
+        text: locEv.body,
+        from: event.from,
+        time: t,
+        eventId: event.id,
+      });
     } else if (event.kind === "app_notification" || event.kind === "world") {
-      ui.notifyEnvEvent(event);
+      ui.notifyEnvEvent(locEv);
     } else if (event.kind === "notification") {
-      ui.appendChat({ role: "system", text: `🫀 心跳 · ${truncate(event.body, 180)}`, time: t });
-      ui.notifyEnvEvent(event);
+      ui.appendChat({
+        role: "system",
+        text: i18nT("chat.heartbeat", { body: truncate(locEv.body, 180) }),
+        time: t,
+        eventId: event.id,
+      });
+      ui.notifyEnvEvent(locEv);
     } else if (event.kind === "weather") {
-      const w = event.user_state?.weather || truncate(event.body, 120);
-      const bad = event.user_state?.weather_impact === "disruptive";
+      const w = locEv.user_state?.weather || truncate(locEv.body, 120);
+      const bad = locEv.user_state?.weather_impact === "disruptive";
       ui.appendChat({
         role: "system",
-        text: `${bad ? "🌧️" : "🌦️"} 天气 · ${w}`,
+        text: `${bad ? "🌧️" : "🌦️"} ${getLocale() === "en" ? "Weather" : "天气"} · ${w}`,
         time: t,
+        eventId: event.id,
       });
-      ui.notifyEnvEvent(event);
+      ui.notifyEnvEvent(locEv);
     } else if (event.kind === "routine") {
-      const action = event.user_state?.demo_action || "日常节点";
+      const action = locEv.user_state?.demo_action || i18nT("toast.routine");
       ui.appendChat({
         role: "system",
-        text: `🚗 ${action}${event.user_state?.location ? ` · ${event.user_state.location}` : ""}`,
+        text: `🚗 ${action}${locEv.user_state?.location ? ` · ${locEv.user_state.location}` : ""}`,
         time: t,
+        eventId: event.id,
       });
-      ui.notifyEnvEvent(event);
+      ui.notifyEnvEvent(locEv);
     } else if (event.kind === "mutation") {
       // Silent backend write — apply via engine only; never surface in chat/timeline/UI.
     }
@@ -921,6 +991,9 @@ function setBusyUI(on) {
 }
 
 function bindChrome() {
+  document.querySelector("#btnLang")?.addEventListener("click", () => {
+    toggleLocale();
+  });
   document.querySelector("#btnAutoplay").addEventListener("click", () => {
     if (autoplay) stopAutoplay();
     else startAutoplay();

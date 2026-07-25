@@ -22,23 +22,38 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260723-211";
-import { groupLedgerByDate } from "./ledger.js?v=20260723-211";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260723-211";
+} from "./map.js?v=20260725-i18n";
+import { groupLedgerByDate } from "./ledger.js?v=20260725-i18n";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260725-i18n";
+import { t, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260725-i18n";
 
-const KIND_META = {
-  user_message: { icon: "👤", cls: "kind-user", label: "用户消息" },
-  app_notification: { icon: "🔔", cls: "kind-app", label: "APP / 短信" },
-  world: { icon: "🌐", cls: "kind-world", label: "外部资讯" },
-  weather: { icon: "🌦️", cls: "kind-weather", label: "天气更新" },
-  mutation: { icon: "⚙️", cls: "kind-mut", label: "环境静默变更" },
-  notification: { icon: "🫀", cls: "kind-heart", label: "系统心跳" },
-  routine: { icon: "🚗", cls: "kind-routine", label: "行程节点" },
-  env_change: { icon: "🌐", cls: "kind-world", label: "环境变更" },
-  agent_tool: { icon: "🛠️", cls: "kind-agent-tool", label: "Agent 工具" },
-  agent_reply: { icon: "💬", cls: "kind-agent-reply", label: "Agent 回复" },
-  agent_state: { icon: "📋", cls: "kind-agent-state", label: "账本变更" },
-};
+function kindMeta(kind) {
+  const base = {
+    user_message: { icon: "👤", cls: "kind-user" },
+    app_notification: { icon: "🔔", cls: "kind-app" },
+    world: { icon: "🌐", cls: "kind-world" },
+    weather: { icon: "🌦️", cls: "kind-weather" },
+    mutation: { icon: "⚙️", cls: "kind-mut" },
+    notification: { icon: "🫀", cls: "kind-heart" },
+    routine: { icon: "🚗", cls: "kind-routine" },
+    env_change: { icon: "🌐", cls: "kind-world" },
+    agent_tool: { icon: "🛠️", cls: "kind-agent-tool" },
+    agent_reply: { icon: "💬", cls: "kind-agent-reply" },
+    agent_state: { icon: "📋", cls: "kind-agent-state" },
+  };
+  const row = base[kind] || { icon: "•", cls: "" };
+  return { ...row, label: kindLabel(kind) };
+}
+
+/** @deprecated use kindMeta — kept for any leftover refs */
+const KIND_META = new Proxy(
+  {},
+  {
+    get(_t, prop) {
+      return kindMeta(String(prop));
+    },
+  }
+);
 
 const DAY_ICONS = {
   plane: "✈️",
@@ -534,13 +549,15 @@ export class UI {
     time,
     kind,
     chat = true,
+    silent = false,
   } = {}) {
     const k = key || `manual:${text}`;
     if (!this._seenLedgerKeys) this._seenLedgerKeys = new Set();
-    if (this._seenLedgerKeys.has(k)) return;
-    this._seenLedgerKeys.add(k);
-    if (tab === "trip" || tab === "notes") this.bumpNavBadge(tab, 1);
-    if (chat) {
+    if (this._seenLedgerKeys.has(k) && !silent) return;
+    if (!silent) this._seenLedgerKeys.add(k);
+    else this._seenLedgerKeys.delete(k); // allow refresh on locale switch
+    if (!silent && (tab === "trip" || tab === "notes")) this.bumpNavBadge(tab, 1);
+    if (chat && !silent) {
       this.appendStateCard({
         icon,
         title: title || text,
@@ -550,21 +567,34 @@ export class UI {
         kind: kind || "state",
       });
     }
-    this.enqueuePhoneBanners([
-      {
-        icon,
-        text,
-        tab,
-        app,
+    if (!silent) {
+      this.enqueuePhoneBanners([
+        {
+          icon,
+          text,
+          tab,
+          app,
+          key: k,
+          title,
+          body,
+          from,
+          time,
+          kind,
+          openTab: "mail",
+        },
+      ]);
+    } else if (k.startsWith("event:")) {
+      this.archiveToInbox({
         key: k,
-        title,
-        body,
-        from,
+        icon,
+        app,
+        from: from || app,
+        title: title || text,
+        body: body || text,
         time,
         kind,
-        openTab: "mail",
-      },
-    ]);
+      });
+    }
   }
 
   /**
@@ -576,7 +606,7 @@ export class UI {
   }
 
   /** Phone toast for playback events that should surface on the handset. */
-  notifyEnvEvent(event) {
+  notifyEnvEvent(event, { silentToast = false } = {}) {
     if (!event) return;
     const toast = envEventToast(event);
     if (!toast) return;
@@ -588,15 +618,19 @@ export class UI {
       const geoKey = event.user_state?.geo_key || null;
       const w = event.user_state?.weather || title || body;
       const blob = `${w} ${title} ${body}`;
-      this.pulseMapFeedback({
-        id: `env:${event.id}`,
-        icon: weatherEmojiFromText(blob),
-        title: geoLabel(geoKey) ? `${geoLabel(geoKey)}天气` : "天气更新",
-        detail: String(w || "").slice(0, 96),
-        kind: "weather",
-        placeId: extractPlaceIdsFromText(blob)[0] || null,
-        geoKey,
-      });
+      if (!silentToast) {
+        this.pulseMapFeedback({
+          id: `env:${event.id}`,
+          icon: weatherEmojiFromText(blob),
+          title: geoLabel(geoKey)
+            ? `${geoLabel(geoKey)}${getLocale() === "en" ? " weather" : "天气"}`
+            : t("app.weatherUpdate"),
+          detail: String(w || "").slice(0, 96),
+          kind: "weather",
+          placeId: extractPlaceIdsFromText(blob)[0] || null,
+          geoKey,
+        });
+      }
       this.archiveToInbox({
         ...toast,
         key: `event:${event.id}`,
@@ -619,19 +653,22 @@ export class UI {
       from: toast.from || toast.app,
       // SMS goes into chat via appendSmsChat — skip generic state card.
       chat: !(event.kind === "world" || event.kind === "app_notification"),
+      silent: silentToast,
     });
 
     // World / APP notices → chat SMS bubble + map: pan to user + shake emoji on pin.
     if (event.kind === "world" || event.kind === "app_notification") {
       const isMail =
+        toast.app === t("app.mail") ||
         toast.app === "邮件" ||
         /email/i.test(String(event.channel || event.source || "")) ||
-        /邮件|收件箱|@/.test(`${toast.from || ""} ${body || ""}`);
+        /邮件|收件箱|inbox|@/i.test(`${toast.from || ""} ${body || ""}`);
       this.appendSmsChat({
         text: truncate(body || toast.text || title, 160),
-        from: toast.from || toast.app || (isMail ? "收件箱" : "短信通知"),
+        from: toast.from || toast.app || (isMail ? t("app.inbox") : t("app.smsNotify")),
         time: event.time || null,
         channel: isMail ? "email" : "sms",
+        eventId: event.id,
       });
       this.pulseMapFeedback({
         id: `env:${event.id}`,
@@ -838,7 +875,13 @@ export class UI {
       const isActive = Boolean(activeDate) && d.date === activeDate;
       const isPast = Boolean(activeDate) && d.date < activeDate;
       const isLive = Boolean(liveDate) && d.date === liveDate;
-      const statusLabel = isActive ? (isLive || !liveDate ? "当前" : "查看") : "";
+      const statusLabel = isActive
+        ? isLive || !liveDate
+          ? t("ribbon.now")
+          : getLocale() === "en"
+            ? "View"
+            : "查看"
+        : "";
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className =
@@ -854,23 +897,31 @@ export class UI {
       btn.disabled = locked;
       btn.title = locked
         ? isPrep
-          ? "尚未进展到这一天"
-          : "尚未进展到这一天（规划待揭晓）"
+          ? getLocale() === "en"
+            ? "Not reached yet"
+            : "尚未进展到这一天"
+          : getLocale() === "en"
+            ? "Not reached yet (locked)"
+            : "尚未进展到这一天（规划待揭晓）"
         : isPrep
-          ? `查看行前 ${d.md} · ${d.label}`
-          : `查看 Day ${d.day} 地图与状态`;
+          ? getLocale() === "en"
+            ? `Prep ${d.md} · ${d.label}`
+            : `查看行前 ${d.md} · ${d.label}`
+          : getLocale() === "en"
+            ? `View Day ${d.day} map & status`
+            : `查看 Day ${d.day} 地图与状态`;
       if (locked) {
         btn.innerHTML = `
         <span class="day-icon">🔒</span>
-        <span class="day-num">${isPrep ? "行前" : `Day ${d.day}`}</span>
+        <span class="day-num">${isPrep ? t("ribbon.prep") : `Day ${d.day}`}</span>
         <span class="day-md">??/??</span>
-        <span class="day-label">待揭晓</span>`;
+        <span class="day-label">${t("ribbon.locked")}</span>`;
       } else if (isPrep) {
         btn.innerHTML = `
         <span class="day-icon">${DAY_ICONS[d.icon] || "📋"}</span>
-        <span class="day-num">行前</span>
+        <span class="day-num">${t("ribbon.prep")}</span>
         <span class="day-md">${d.md}</span>
-        <span class="day-label">${statusLabel ? `${statusLabel} · ` : ""}${escapeHtml(d.label || "准备")}</span>`;
+        <span class="day-label">${statusLabel ? `${statusLabel} · ` : ""}${escapeHtml(d.label || (getLocale() === "en" ? "Prep" : "准备"))}</span>`;
       } else {
         btn.innerHTML = `
         <span class="day-icon">${DAY_ICONS[d.icon] || "📍"}</span>
@@ -908,10 +959,17 @@ export class UI {
       budgetDisclosed && budget.total_cny != null
         ? settled
           ? budget.remaining_cny != null
-            ? `已用 ¥${fmt(budget.spent_cny)} / ¥${fmt(budget.total_cny)} · 剩余 ¥${fmt(budget.remaining_cny)}`
-            : `已用 ¥${fmt(budget.spent_cny)} / ¥${fmt(budget.total_cny)}`
-          : "用户已确认 · 预订产生后更新明细"
-        : "用户说明预算后更新";
+            ? t("status.budgetUsed", {
+                spent: fmt(budget.spent_cny),
+                total: fmt(budget.total_cny),
+                remain: fmt(budget.remaining_cny),
+              })
+            : t("status.budgetUsedShort", {
+                spent: fmt(budget.spent_cny),
+                total: fmt(budget.total_cny),
+              })
+          : t("status.budgetReady")
+        : t("status.budgetPending");
 
     const rentalChip = describeRentalStatusChip(
       (this._ledgerSnap?.rentals || [])[0] || null
@@ -922,51 +980,61 @@ export class UI {
     const visaValue = visaChip.value;
     const visaSub = visaChip.sub;
 
+    const prepNode = getLocale() === "en" ? "Pre-trip prep" : "行前准备";
     const cards = [
-      { key: "location", icon: "📍", label: "当前位置", value: state?.location || "—", sub: state?.geo_key || "" },
+      { key: "location", icon: "📍", label: t("status.location"), value: state?.location || "—", sub: state?.geo_key || "" },
       {
         key: "activity",
         icon: "🧭",
-        label: "当前活动",
+        label: t("status.activity"),
         value: !state
-          ? "尚未开始"
-          : !state.demo_action || state.demo_action === "行程中"
-            ? state.geo_key === "shanghai_home" || state.trip_node === "行前准备"
-              ? "行前准备"
+          ? t("status.notStarted")
+          : !state.demo_action || state.demo_action === "行程中" || state.demo_action === "On the trip"
+            ? state.geo_key === "shanghai_home" ||
+              state.trip_node === "行前准备" ||
+              state.trip_node === "Pre-trip prep"
+              ? t("status.prep")
               : "—"
             : state.demo_action,
-        sub: state?.trip_node || (state ? "" : "开启自动播放开始"),
+        sub: state?.trip_node || (state ? "" : t("status.prepHint")),
       },
-      { key: "weather", icon: weatherEmojiFromText(state?.weather) || "☀️", label: "天气", value: shortWeather(state?.weather), sub: weatherSub(state) },
+      {
+        key: "weather",
+        icon: weatherEmojiFromText(state?.weather) || "☀️",
+        label: t("status.weather"),
+        value: shortWeather(state?.weather),
+        sub: weatherSub(state),
+      },
       {
         key: "budget",
         icon: "💰",
-        label: "预算状态",
+        label: t("status.budget"),
         value: budgetValue,
         sub: budgetSub,
       },
       {
         key: "visa",
         icon: "🛂",
-        label: "签证",
+        label: t("status.visa"),
         value: visaValue,
         sub: visaSub,
       },
       {
         key: "rental",
         icon: "🚐",
-        label: "房车",
+        label: t("status.rental"),
         value: rentalValue,
         sub: rentalSub,
       },
       {
         key: "flight",
         icon: "✈️",
-        label: "已订航班",
+        label: t("status.flight"),
         value: flightStatus,
         sub: flightSub,
       },
     ];
+    void prepNode;
 
     const prev = this._statusSnap || {};
     const weatherValue = shortWeather(state?.weather);
@@ -1864,16 +1932,20 @@ export class UI {
     return wrap;
   }
 
-  appendChat({ role, text, from, streaming = false, time = null }) {
+  appendChat({ role, text, from, streaming = false, time = null, eventId = null } = {}) {
     const wrap = document.createElement("div");
     wrap.className = `bubble ${role}` + (streaming ? " streaming" : "");
+    if (eventId) wrap.dataset.eventId = eventId;
+    if (role === "user" || role === "system") wrap.dataset.taskBubble = "1";
     const stamp = formatSimStamp(time);
     const timeHtml = stamp ? `<div class="bubble-time">${escapeHtml(stamp)}</div>` : "";
     if (role === "user") {
-      const name = this.speakers[from]?.name || from || "我";
+      const name = this.speakers[from]?.name || from || (getLocale() === "en" ? "Me" : "我");
       wrap.innerHTML = `${timeHtml}<div class="bubble-name">${escapeHtml(name)}</div><div class="bubble-text"></div>`;
     } else if (role === "system") {
       wrap.className = "bubble system";
+      if (eventId) wrap.dataset.eventId = eventId;
+      wrap.dataset.taskBubble = "1";
       wrap.innerHTML = `${timeHtml}<div class="bubble-text"></div>`;
     } else {
       wrap.innerHTML = `${timeHtml}<div class="bubble-name">Agent</div><div class="bubble-text"></div>`;
@@ -1888,19 +1960,27 @@ export class UI {
   }
 
   /** Incoming SMS / email-style message (world / app notifications) — yellow shell. */
-  appendSmsChat({ text = "", from = "系统通知", time = null, channel = "sms" } = {}) {
+  appendSmsChat({
+    text = "",
+    from = null,
+    time = null,
+    channel = "sms",
+    eventId = null,
+  } = {}) {
     const wrap = document.createElement("div");
     const isMail = channel === "email" || channel === "mail";
     wrap.className = `bubble sms-in${isMail ? " mail-in" : ""}`;
+    wrap.dataset.taskBubble = "1";
+    if (eventId) wrap.dataset.eventId = eventId;
     const stamp = formatSimStamp(time);
     const timeHtml = stamp ? `<div class="bubble-time">${escapeHtml(stamp)}</div>` : "";
-    const sender = String(from || "系统通知").trim() || "系统通知";
+    const sender = String(from || t("sms.system")).trim() || t("sms.system");
     const body = String(text || "").trim();
     wrap.innerHTML = `
       ${timeHtml}
       <div class="sms-shell">
         <div class="sms-meta">
-          <span class="sms-badge">${isMail ? "邮件" : "短信"}</span>
+          <span class="sms-badge">${isMail ? t("mail.badge") : t("sms.badge")}</span>
           <span class="sms-from">${escapeHtml(sender)}</span>
         </div>
         <div class="sms-text"></div>
@@ -1909,6 +1989,86 @@ export class UI {
     this.els.chatMessages.appendChild(wrap);
     this._scrollChatToBottom({ force: true });
     return wrap;
+  }
+
+  /**
+   * Rebuild task/user/system/SMS bubbles from localized events; keep Agent turns.
+   * @param {object[]} localizedEvents
+   */
+  rerenderTaskHistory(localizedEvents = []) {
+    const host = this.els.chatMessages;
+    if (!host) return;
+    // Drop previous task bubbles (tagged); keep agent / state cards.
+    host.querySelectorAll("[data-task-bubble]").forEach((el) => el.remove());
+    // Refresh mail archive rows for events (locale switch).
+    if (this._seenLedgerKeys) {
+      for (const k of [...this._seenLedgerKeys]) {
+        if (String(k).startsWith("event:")) this._seenLedgerKeys.delete(k);
+      }
+    }
+    if (this._inbox?.length) {
+      this._inbox = this._inbox.filter((m) => !String(m.key || "").startsWith("event:"));
+    }
+    const insertBeforeAgent = () => {
+      // Append in revealed order at end of current non-agent? Simpler: append all task
+      // bubbles before the first agent-turn if any, else at end.
+      return host.querySelector(".bubble.agent, .bubble.agent-turn");
+    };
+    const frag = document.createDocumentFragment();
+    const tmpHost = { appendChild: (n) => frag.appendChild(n), children: frag.childNodes };
+    void tmpHost;
+    // Render into a fragment using the normal appenders, then insert before first agent.
+    const anchor = insertBeforeAgent();
+    const saved = this.els.chatMessages;
+    const holder = document.createElement("div");
+    this.els.chatMessages = holder;
+    for (const ev of localizedEvents) {
+      if (!ev || ev.kind === "mutation") continue;
+      const time = ev.time || null;
+      if (ev.kind === "user_message") {
+        this.appendChat({
+          role: "user",
+          text: ev.body,
+          from: ev.from,
+          time,
+          eventId: ev.id,
+        });
+      } else if (ev.kind === "app_notification" || ev.kind === "world") {
+        this.notifyEnvEvent(ev, { silentToast: true });
+      } else if (ev.kind === "notification") {
+        this.appendChat({
+          role: "system",
+          text: t("chat.heartbeat", { body: truncate(ev.body, 180) }),
+          time,
+          eventId: ev.id,
+        });
+        this.notifyEnvEvent(ev, { silentToast: true });
+      } else if (ev.kind === "weather") {
+        const w = ev.user_state?.weather || truncate(ev.body, 120);
+        const bad = ev.user_state?.weather_impact === "disruptive";
+        this.appendChat({
+          role: "system",
+          text: `${bad ? "🌧️" : "🌦️"} ${getLocale() === "en" ? "Weather" : "天气"} · ${w}`,
+          time,
+          eventId: ev.id,
+        });
+        this.notifyEnvEvent(ev, { silentToast: true });
+      } else if (ev.kind === "routine") {
+        const action = ev.user_state?.demo_action || t("toast.routine");
+        this.appendChat({
+          role: "system",
+          text: `🚗 ${action}${ev.user_state?.location ? ` · ${ev.user_state.location}` : ""}`,
+          time,
+          eventId: ev.id,
+        });
+        this.notifyEnvEvent(ev, { silentToast: true });
+      }
+    }
+    this.els.chatMessages = saved;
+    while (holder.firstChild) {
+      if (anchor) saved.insertBefore(holder.firstChild, anchor);
+      else saved.appendChild(holder.firstChild);
+    }
   }
 
   /** Agent turn: thinking quote + 「正在使用工具」card + answer */
@@ -1946,13 +2106,13 @@ export class UI {
                 <p class="rail-think-summary" data-think-summary></p>
                 <div class="rail-think-full" data-think-full hidden></div>
               </blockquote>
-              <button type="button" class="rail-think-more" data-think-more hidden>展开全文</button>
+              <button type="button" class="rail-think-more" data-think-more hidden>${t("tool.expand")}</button>
             </div>
           </div>
         </div>
         <div class="tool-panel" data-tool-panel hidden>
           <button type="button" class="tool-panel-head" data-tool-panel-toggle aria-expanded="true">
-            <span class="tool-panel-title">正在使用工具</span>
+            <span class="tool-panel-title">${t("tool.using")}</span>
             <span class="tool-panel-chevron" aria-hidden="true"></span>
           </button>
           <div class="tool-panel-body" data-tool-log></div>
@@ -3394,7 +3554,9 @@ function resolveToolMapAnchor(name, args = {}, result = null) {
 
 function geoLabel(key) {
   const k = String(key || "").toLowerCase();
-  const map = {
+  const fromI18n = geoDisplayName(k);
+  if (fromI18n && fromI18n !== k && fromI18n !== `geo.${k}`) return fromI18n;
+  const mapZh = {
     shanghai_home: "上海",
     christchurch: "基督城",
     tekapo: "蒂卡波",
@@ -3406,20 +3568,40 @@ function geoLabel(key) {
     frankton: "弗兰克顿",
     picton: "皮克顿",
     wellington: "惠灵顿",
+    taupo: "陶波",
     rotorua: "罗托鲁阿",
     manapouri: "马纳保利",
+    auckland: "奥克兰",
   };
-  return map[k] || key || "";
+  const mapEn = {
+    shanghai_home: "Shanghai",
+    christchurch: "Christchurch",
+    tekapo: "Tekapo",
+    mt_cook: "Mt Cook",
+    queenstown: "Queenstown",
+    milford: "Milford",
+    wanaka: "Wanaka",
+    te_anau: "Te Anau",
+    frankton: "Frankton",
+    picton: "Picton",
+    wellington: "Wellington",
+    taupo: "Taupō",
+    rotorua: "Rotorua",
+    manapouri: "Manapouri",
+    auckland: "Auckland",
+  };
+  return (getLocale() === "en" ? mapEn : mapZh)[k] || key || "";
 }
 
 function roadLabel(idOrName) {
   const s = String(idOrName || "");
-  if (/sh80|mt.?cook|quake/i.test(s)) return "SH80 库克山公路";
-  if (/sh94|milford/i.test(s)) return "SH94 米尔福德公路";
-  if (/ferry|cook.?strait|te_cook/i.test(s)) return "库克海峡渡轮";
+  const en = getLocale() === "en";
+  if (/sh80|mt.?cook|quake/i.test(s)) return en ? "SH80 Mt Cook Hwy" : "SH80 库克山公路";
+  if (/sh94|milford/i.test(s)) return en ? "SH94 Milford Road" : "SH94 米尔福德公路";
+  if (/ferry|cook.?strait|te_cook/i.test(s)) return en ? "Cook Strait ferry" : "库克海峡渡轮";
   if (/sh6/i.test(s)) return "SH6";
   if (/sh8/i.test(s)) return "SH8";
-  return s.replace(/^rd_|^re_|^te_|^htl_/i, "").replace(/_/g, " ") || "相关路段";
+  return s.replace(/^rd_|^re_|^te_|^htl_/i, "").replace(/_/g, " ") || (en ? "Road" : "相关路段");
 }
 
 function hotelLabel(idOrName) {
@@ -4067,7 +4249,7 @@ function guessSmsSender(body) {
   return "";
 }
 
-/** Map env playback events → phone toast copy (archived to 邮件). */
+/** Map env playback events → phone toast copy (archived to mail). */
 function envEventToast(ev) {
   const kind = ev.kind || "";
   const body = String(ev.body || "").replace(/\s+/g, " ").trim();
@@ -4079,28 +4261,34 @@ function envEventToast(ev) {
   if (kind === "app_notification") {
     return {
       icon: isMail ? "✉️" : "💬",
-      app: isMail ? "邮件" : appName || "短信",
-      from: isMail ? "收件箱" : appName || guessSmsSender(body) || "短信通知",
+      app: isMail ? t("app.mail") : appName || t("app.sms"),
+      from: isMail ? t("app.inbox") : appName || guessSmsSender(body) || t("app.smsNotify"),
       tab: "mail",
-      text: snippet || (isMail ? "收到一封新邮件" : `${appName || "短信"}发来一条消息`),
+      text:
+        snippet ||
+        (isMail
+          ? t("toast.newMail")
+          : getLocale() === "en"
+            ? `New message from ${appName || "SMS"}`
+            : `${appName || "短信"}发来一条消息`),
     };
   }
   if (kind === "world") {
     return {
       icon: isMail ? "✉️" : "💬",
-      app: isMail ? "邮件" : "短信",
-      from: isMail ? "收件箱" : appName || guessSmsSender(body) || "外部通知",
+      app: isMail ? t("app.mail") : t("app.sms"),
+      from: isMail ? t("app.inbox") : appName || guessSmsSender(body) || t("app.external"),
       tab: "mail",
-      text: snippet || "收到一条短信通知",
+      text: snippet || t("toast.newSms"),
     };
   }
   if (kind === "notification") {
     return {
       icon: "🫀",
-      app: "系统心跳",
-      from: "系统检查",
+      app: t("app.heartbeat"),
+      from: t("app.sysCheck"),
       tab: "mail",
-      text: snippet || "系统心跳：巡检当前行程风险",
+      text: snippet || t("toast.heartbeat"),
     };
   }
   if (kind === "weather") {
@@ -4108,10 +4296,10 @@ function envEventToast(ev) {
     const w = ev.user_state?.weather || snippet;
     return {
       icon: impact === "disruptive" ? "🌧️" : "🌦️",
-      app: "天气更新",
-      from: "天气",
+      app: t("app.weatherUpdate"),
+      from: t("app.weather"),
       tab: "mail",
-      text: impact === "disruptive" ? `⚠ 不利天气 · ${w}` : w || "天气状态已更新",
+      text: impact === "disruptive" ? t("toast.weatherBad", { w }) : w || t("toast.weatherOk"),
     };
   }
   if (kind === "routine") {
@@ -4119,10 +4307,10 @@ function envEventToast(ev) {
     const loc = ev.user_state?.location || "";
     return {
       icon: "🚗",
-      app: "行程节点",
-      from: "行程推进",
+      app: t("app.routine"),
+      from: t("app.routineFrom"),
       tab: "mail",
-      text: [action || "日常行程节点", loc].filter(Boolean).join(" · ") || snippet || "行程节点更新",
+      text: [action || t("toast.routine"), loc].filter(Boolean).join(" · ") || snippet,
     };
   }
   if (kind === "mutation") {
