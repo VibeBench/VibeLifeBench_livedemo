@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-mapflash";
-import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-mapflash";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-mapflash";
+} from "./routing.js?v=20260727-hotelmark2";
+import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-hotelmark2";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelmark2";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -102,9 +102,12 @@ const FLIGHT_HUBS = {
 let driveHopLayer = null;
 let driveHopAnim = null;
 let driveHopActive = false;
-/** Transient hotel book/cancel pin + info card. */
-let hotelFxLayer = null;
+/** Persistent booked-hotel H marks — pane below planning / D# stays. */
+let hotelMarksLayer = null;
+/** Transient flash timers for book/cancel hotel mark cinematics. */
 let hotelFxTimers = [];
+/** True while a book/cancel hotel flash is playing — blocks permanent layer rebuild. */
+let hotelFxActive = false;
 /** Hold camera on a tool cinematic (hotel pin etc.) so async fitLeaflet can't steal it. */
 let cameraLockUntil = 0;
 let cameraLockLatLng = null;
@@ -296,8 +299,13 @@ export function pulseMapEvent({
 function clearHotelFx() {
   for (const t of hotelFxTimers) clearTimeout(t);
   hotelFxTimers = [];
+  hotelFxActive = false;
+  // Strip flash classes from persistent marks; don't wipe the layer (booked pins stay).
   try {
-    hotelFxLayer?.clearLayers();
+    hotelMarksLayer?.eachLayer?.((layer) => {
+      const el = layer.getElement?.()?.querySelector?.(".hotel-mark");
+      el?.classList.remove("is-flash", "is-flash-cancel", "is-remove");
+    });
   } catch {
     /* ignore */
   }
@@ -375,7 +383,8 @@ function applyCameraLockIfNeeded() {
 }
 
 /**
- * Book / cancel hotel: big pin pop (or remove) + short info card (~1s).
+ * Book / cancel hotel: same H mark under the planning layer.
+ * Book → orange flash, leave pin. Cancel → red flash, remove pin.
  */
 export function playHotelPinCinematic({
   mode = "book",
@@ -408,7 +417,16 @@ export function playHotelPinCinematic({
       geoKey: resolvedGeo || geoKey,
     });
     let at = resolvePulseLatLng({ placeId: resolvedId, geoKey: resolvedGeo || geoKey });
-    // Last resort: traveler / home pin so the booking still gets a camera move.
+    if (!at && lastCtx) {
+      const resolved = resolveHotelLatLng(lastCtx, {
+        place_id: resolvedId,
+        geo_key: resolvedGeo || geoKey,
+        name: hotelName,
+        hotel_id: hotelId,
+        location,
+      });
+      if (resolved) at = window.L.latLng(resolved.lat, resolved.lng);
+    }
     if (!at) {
       const here = lastCtx ? placeLatLng(lastCtx) : null;
       if (here) at = window.L.latLng(here[0] ?? here.lat, here[1] ?? here.lng);
@@ -419,7 +437,8 @@ export function playHotelPinCinematic({
     }
 
     clearHotelFx();
-    if (!hotelFxLayer) hotelFxLayer = window.L.layerGroup().addTo(leafletMap);
+    ensureHotelMarksLayer();
+    hotelFxActive = true;
 
     const isCancel = mode === "cancel";
     const name = String(hotelName || L("住宿", "Stay"))
@@ -427,73 +446,124 @@ export function playHotelPinCinematic({
       .trim()
       .slice(0, 36);
     const date = String(checkIn || "").slice(0, 10);
-    const price =
-      priceNzd != null && Number.isFinite(Number(priceNzd))
-        ? `NZ$${Number(priceNzd)}`
-        : "";
-    const metaBits = [date, price, location || detail].filter(Boolean);
-    const meta = metaBits.join(" · ").slice(0, 48);
+    const tip = [name, date].filter(Boolean).join(" · ");
 
     // Lock camera so refreshDashboard → fitLeaflet can't yank the view away mid-cinematic.
-    const holdMs = isReplayMode() ? cardDisplayMs(1600) : 2800;
+    const holdMs = isReplayMode() ? cardDisplayMs(1400) : 2200;
     lockCamera(at, { zoom: Math.max(leafletMap.getZoom() || 7, 9), holdMs });
 
-    const marker = window.L.marker(at, {
-      icon: window.L.divIcon({
-        className: "map-hotel-fx-wrap",
-        html: `<div class="map-hotel-fx ${isCancel ? "is-cancel" : "is-book"}" role="status">
-          <span class="map-hotel-fx-burst" aria-hidden="true"></span>
-          <span class="map-hotel-fx-ring" aria-hidden="true"></span>
-          <span class="map-hotel-fx-pin" aria-hidden="true">
-            <span class="map-hotel-fx-h">H</span>
-          </span>
-          <div class="map-hotel-fx-card">
-            <div class="map-hotel-fx-kicker">${isCancel ? L("取消住宿", "Cancel stay") : L("预订住宿", "Book stay")}</div>
-            <div class="map-hotel-fx-name">${escapeHtml(name)}</div>
-            ${meta ? `<div class="map-hotel-fx-meta">${escapeHtml(meta)}</div>` : ""}
-          </div>
-        </div>`,
-        iconSize: [220, 110],
-        iconAnchor: [30, 52],
-      }),
-      interactive: false,
-      keyboard: false,
-      zIndexOffset: 1800,
-    }).addTo(hotelFxLayer);
+    // Prefer flashing an existing booked pin at this spot; otherwise create one.
+    let marker = findHotelMarkNear(at);
+    if (!marker) {
+      marker = window.L.marker(at, {
+        icon: hotelMarkDivIcon({ tip, flash: true, cancel: isCancel }),
+        interactive: !isCancel,
+        keyboard: false,
+        pane: "hotelMarksPane",
+        zIndexOffset: 200,
+      }).addTo(hotelMarksLayer);
+      if (!isCancel && tip) {
+        marker.bindTooltip(tip, { direction: "top", offset: [0, -12] });
+      }
+    } else {
+      marker.setIcon(hotelMarkDivIcon({ tip, flash: true, cancel: isCancel }));
+    }
 
-    // Card hold ~1s live / ≤1s in加速回放, then fade card; pin settles / removes.
-    const cardHold = cardDisplayMs(1000);
-    const fadeOut = isReplayMode() ? cardDisplayMs(280) : playbackMs(420, { min: 120 });
-    const pinTail = isReplayMode()
-      ? cardDisplayMs(isCancel ? 280 : 360)
-      : playbackMs(isCancel ? 380 : 520, { min: 100 });
-
-    const tCard = setTimeout(() => {
-      if (!isMapSession(session)) return;
-      const root = marker.getElement()?.querySelector?.(".map-hotel-fx");
-      root?.classList.add("is-card-out");
-    }, cardHold);
-
+    const flashMs = isReplayMode() ? cardDisplayMs(900) : playbackMs(1100, { min: 420 });
     const tDone = setTimeout(() => {
       if (!isMapSession(session)) {
+        hotelFxActive = false;
         resolve(false);
         return;
       }
-      const root = marker.getElement()?.querySelector?.(".map-hotel-fx");
-      root?.classList.add(isCancel ? "is-remove" : "is-settle");
-      const tClear = setTimeout(() => {
-        try {
-          hotelFxLayer?.removeLayer(marker);
-        } catch {
-          /* ignore */
+      const root = marker.getElement()?.querySelector?.(".hotel-mark");
+      if (isCancel) {
+        root?.classList.add("is-remove");
+        const tClear = setTimeout(() => {
+          try {
+            hotelMarksLayer?.removeLayer(marker);
+          } catch {
+            /* ignore */
+          }
+          hotelFxTimers = [];
+          hotelFxActive = false;
+          // Keep permanent layer in sync with cancelled ledger.
+          if (lastCtx) paintBookedHotelMarks(lastCtx);
+          resolve(true);
+        }, isReplayMode() ? cardDisplayMs(280) : 320);
+        hotelFxTimers.push(tClear);
+      } else {
+        // Settle: stop flash, leave the same H mark on the map.
+        root?.classList.remove("is-flash", "is-flash-cancel");
+        marker.setIcon(hotelMarkDivIcon({ tip, flash: false, cancel: false }));
+        if (tip) {
+          try {
+            marker.unbindTooltip();
+            marker.bindTooltip(tip, { direction: "top", offset: [0, -12] });
+          } catch {
+            /* ignore */
+          }
         }
+        hotelFxTimers = [];
+        hotelFxActive = false;
+        if (lastCtx) paintBookedHotelMarks(lastCtx);
         resolve(true);
-      }, pinTail);
-      hotelFxTimers.push(tClear);
-    }, cardHold + fadeOut);
+      }
+    }, flashMs);
 
-    hotelFxTimers.push(tCard, tDone);
+    hotelFxTimers.push(tDone);
   });
+}
+
+function ensureHotelMarksLayer() {
+  if (!leafletMap || !window.L) return null;
+  if (!leafletMap.getPane("hotelMarksPane")) {
+    const pane = leafletMap.createPane("hotelMarksPane");
+    // Below markerPane (600) / planning D# stays — above tile + road overlays.
+    pane.style.zIndex = 550;
+  }
+  if (!hotelMarksLayer) {
+    hotelMarksLayer = window.L.layerGroup({ pane: "hotelMarksPane" }).addTo(leafletMap);
+  }
+  return hotelMarksLayer;
+}
+
+function hotelMarkDivIcon({ tip = "", flash = false, cancel = false } = {}) {
+  const cls = [
+    "hotel-mark",
+    flash ? (cancel ? "is-flash-cancel" : "is-flash") : "",
+    cancel && flash ? "is-cancel" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return window.L.divIcon({
+    className: "hotel-mark-wrap",
+    html: `<span class="${cls}" title="${escapeHtml(tip)}" role="img" aria-label="${escapeHtml(tip || "hotel")}">
+      <span class="hotel-mark-burst" aria-hidden="true"></span>
+      <span class="hotel-mark-ring" aria-hidden="true"></span>
+      <span class="hotel-mark-face" aria-hidden="true"><span class="hotel-mark-h">H</span></span>
+    </span>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+}
+
+function findHotelMarkNear(latlng, maxDeg = 0.02) {
+  if (!hotelMarksLayer || !latlng) return null;
+  const lat = latlng.lat ?? latlng[0];
+  const lng = latlng.lng ?? latlng[1];
+  let best = null;
+  let bestD = Infinity;
+  hotelMarksLayer.eachLayer((layer) => {
+    const ll = layer.getLatLng?.();
+    if (!ll) return;
+    const d = Math.hypot(ll.lat - lat, ll.lng - lng);
+    if (d < maxDeg && d < bestD) {
+      bestD = d;
+      best = layer;
+    }
+  });
+  return best;
 }
 
 function resolvePulseLatLng({ placeId = null, geoKey = null, roadId = null, latlng = null } = {}) {
@@ -3720,7 +3790,7 @@ export function destroyMap() {
   flightLayer = null;
   flightPlanLayer = null;
   driveHopLayer = null;
-  hotelFxLayer = null;
+  hotelMarksLayer = null;
   agentPlanLayer = null;
   lockedFlightArcs = new Map();
   lastFlightCatalogSig = "";
@@ -3918,9 +3988,16 @@ function resolveHotelLatLng(ctx, hotel) {
   return null;
 }
 
-/** Persistent 🏨 markers at booked hotel locations (any time after book_hotel). */
+/** Persistent H hotel marks on hotelMarksPane (below planning / D# stays). */
 function paintBookedHotelMarks(ctx) {
-  if (!window.L || !leafletLayer) return;
+  if (!window.L || !leafletMap) return;
+  ensureHotelMarksLayer();
+  if (!hotelMarksLayer) return;
+
+  // Don't wipe mid-cinematic flash markers — only rebuild settled pins when idle.
+  if (hotelFxActive) return;
+
+  hotelMarksLayer.clearLayers();
   const hotels = ctx?.bookedHotels || [];
   if (!hotels.length) return;
 
@@ -3941,7 +4018,6 @@ function paintBookedHotelMarks(ctx) {
     if (!at) continue;
     let { lat, lng } = at;
     const dedupe = `${lat.toFixed(4)},${lng.toFixed(4)}`;
-    // Slight east offset when coinciding with a day-stay marker or another hotel.
     const nearStay = stayPts.some(
       ([slat, slng]) => Math.abs(slat - lat) < 0.012 && Math.abs(slng - lng) < 0.012
     );
@@ -3957,19 +4033,16 @@ function paintBookedHotelMarks(ctx) {
       .join(" · ");
 
     window.L.marker([lat, lng], {
-      icon: window.L.divIcon({
-        className: "map-emoji-icon hotel-badge",
-        html: `<span class="hotel-badge-pill" title="${escapeHtml(tip)}">🏨</span>`,
-        iconSize: [26, 26],
-        iconAnchor: [13, 13],
-      }),
-      zIndexOffset: 850,
+      icon: hotelMarkDivIcon({ tip, flash: false, cancel: false }),
       interactive: true,
+      keyboard: false,
+      pane: "hotelMarksPane",
+      zIndexOffset: 200,
     })
-      .addTo(leafletLayer)
-      .bindTooltip(tip, { direction: "top", offset: [0, -10] })
+      .addTo(hotelMarksLayer)
+      .bindTooltip(tip, { direction: "top", offset: [0, -12] })
       .bindPopup(
-        `<strong>🏨 ${escapeHtml(name)}</strong>` +
+        `<strong>${escapeHtml(name)}</strong>` +
           (checkIn ? `<br/>${L("入住", "Check-in")} ${escapeHtml(checkIn)}` : "") +
           (h.price_nzd != null || h.nightly_price != null
             ? `<br/>NZ$${escapeHtml(String(h.price_nzd ?? h.nightly_price))}`
@@ -4107,6 +4180,8 @@ function ensureLeaflet(host) {
   });
   leafletLayer = window.L.layerGroup().addTo(leafletMap);
   routeLayer = window.L.layerGroup().addTo(leafletMap);
+  // Hotel H marks — dedicated pane under planning / D# stay markers.
+  ensureHotelMarksLayer();
   activityLayer = window.L.layerGroup().addTo(leafletMap);
   pulseLayer = window.L.layerGroup().addTo(leafletMap);
   planningLayer = window.L.layerGroup().addTo(leafletMap);

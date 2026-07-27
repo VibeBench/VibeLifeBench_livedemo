@@ -4033,6 +4033,168 @@ select {
   line-height: 1;
 }
 
+.hotel-mark-wrap {
+  background: transparent !important;
+  border: none !important;
+}
+
+.hotel-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  pointer-events: auto;
+}
+
+.hotel-mark-face {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(165deg, #fff 0%, #fff7ed 100%);
+  border: 2px solid #f97316;
+  box-shadow:
+    0 2px 8px rgba(194, 65, 12, 0.22),
+    0 0 0 3px rgba(251, 146, 60, 0.18);
+}
+
+.hotel-mark-h {
+  font-size: 13px;
+  font-weight: 800;
+  color: #dc2626;
+  line-height: 1;
+  font-family: "DM Sans", "Noto Sans SC", system-ui, sans-serif;
+}
+
+.hotel-mark-ring,
+.hotel-mark-burst {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.hotel-mark.is-flash .hotel-mark-ring,
+.hotel-mark.is-flash-cancel .hotel-mark-ring {
+  opacity: 1;
+  border: 2px solid rgba(249, 115, 22, 0.55);
+  animation: hotelMarkRing calc(0.9s / var(--demo-speed, 1)) ease-out infinite;
+}
+
+.hotel-mark.is-flash .hotel-mark-burst,
+.hotel-mark.is-flash-cancel .hotel-mark-burst {
+  opacity: 1;
+  background: rgba(251, 146, 60, 0.3);
+  animation: hotelMarkBurst calc(0.65s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hotel-mark.is-flash .hotel-mark-face {
+  animation: hotelMarkPop calc(0.55s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hotel-mark.is-flash-cancel .hotel-mark-face,
+.hotel-mark.is-cancel .hotel-mark-face {
+  border-color: #ef4444;
+  background: linear-gradient(165deg, #fff 0%, #fef2f2 100%);
+  box-shadow:
+    0 2px 8px rgba(185, 28, 28, 0.28),
+    0 0 0 3px rgba(248, 113, 113, 0.22);
+  animation: hotelMarkShake calc(0.55s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hotel-mark.is-flash-cancel .hotel-mark-h,
+.hotel-mark.is-cancel .hotel-mark-h {
+  color: #b91c1c;
+}
+
+.hotel-mark.is-flash-cancel .hotel-mark-ring {
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.hotel-mark.is-flash-cancel .hotel-mark-burst {
+  background: rgba(248, 113, 113, 0.35);
+}
+
+.hotel-mark.is-remove .hotel-mark-face {
+  animation: hotelMarkRemove 0.32s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.hotel-mark.is-remove .hotel-mark-ring,
+.hotel-mark.is-remove .hotel-mark-burst {
+  opacity: 0;
+}
+
+@keyframes hotelMarkPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes hotelMarkShake {
+  0% {
+    opacity: 0.6;
+    transform: scale(0.85);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.12) rotate(-7deg);
+  }
+  70% {
+    transform: scale(1.04) rotate(5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes hotelMarkRing {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
+@keyframes hotelMarkBurst {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+@keyframes hotelMarkRemove {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+
+/* Legacy hotel FX card styles kept for older cached bundles; unused by current pin. */
 .hotel-badge {
   background: transparent !important;
   border: none !important;
