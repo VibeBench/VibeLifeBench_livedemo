@@ -652,6 +652,14 @@ select {
 }
 
 /* One compact status strip — no separate cards that can collide */
+.float-status-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+}
+
 .float-status {
   position: static;
   display: flex;
@@ -666,6 +674,72 @@ select {
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.4);
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+/* Trip-node / routine line — same glass pill language as the status strip above */
+.float-routine {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.float-routine[hidden] {
+  display: none !important;
+}
+
+.float-routine .routine-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  padding: 8px 12px;
+}
+
+.float-routine .routine-chip-ico {
+  flex: 0 0 auto;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.float-routine .routine-chip-main {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.float-routine .routine-chip-title {
+  font-size: 12px;
+  font-weight: 650;
+  color: #0f172a;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.float-routine .routine-chip-detail {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.float-routine.is-flash .routine-chip {
+  animation: status-chip-land calc(1s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .float-status .status-chip {

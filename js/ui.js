@@ -22,10 +22,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260727-rstream";
-import { groupLedgerByDate } from "./ledger.js?v=20260727-rstream";
-import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-rstream";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-rstream";
+} from "./map.js?v=20260727-routstrip";
+import { groupLedgerByDate } from "./ledger.js?v=20260727-routstrip";
+import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-routstrip";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-routstrip";
 
 function kindMeta(kind) {
   const base = {
@@ -88,6 +88,7 @@ export class UI {
       toast: $("#toast"),
       phoneNav: $("#phoneNav"),
       phoneToast: $("#phoneToast"),
+      routineStrip: $("#routineStrip"),
       tripLedger: $("#tripLedger"),
       notionLedger: $("#notionLedger"),
       notionTitle: $("#notionTitle"),
@@ -108,6 +109,8 @@ export class UI {
     this._phoneToastTimer = null;
     this._phoneToastQueue = [];
     this._phoneToastShowing = false;
+    this._routineFlashTimer = null;
+    this._routinePayload = null;
     this._onTabChange = null;
     /** Only auto-scroll chat when user is already near the bottom (or just sent). */
     this._chatStickToBottom = true;
@@ -660,8 +663,8 @@ export class UI {
       time: event.time || null,
       kind: event.kind,
       from: toast.from || toast.app,
-      // SMS goes into chat via appendSmsChat — skip generic state card.
-      chat: !(event.kind === "world" || event.kind === "app_notification"),
+      // SMS / routine go into chat via appendSmsChat / appendChat — skip generic state card.
+      chat: !(event.kind === "world" || event.kind === "app_notification" || event.kind === "routine"),
       silent: silentToast,
     });
 
@@ -692,6 +695,23 @@ export class UI {
       return;
     }
 
+    // Trip nodes (routine): show under the status strip — same glass pill language.
+    if (event.kind === "routine") {
+      const action = event.user_state?.demo_action || toast.text || t("toast.routine");
+      const loc = event.user_state?.location || "";
+      const detail =
+        body && body !== action
+          ? body
+          : [loc, toast.text].filter(Boolean).join(" · ");
+      this.showRoutineStrip({
+        icon: toast.icon || "🚗",
+        title: action,
+        detail,
+        flash: !silentToast,
+      });
+      return;
+    }
+
     // Other location-related env messages: place bubble on the map.
     if (silentToast) return;
     const blob = `${title} ${body} ${event.user_state?.location || ""}`;
@@ -710,6 +730,75 @@ export class UI {
         roadId: roadIds[0] || null,
       });
     }
+  }
+
+  /**
+   * Trip-node line under the status strip (aligned with float-status glass chips).
+   */
+  showRoutineStrip({ icon = "🚗", title = "", detail = "", flash = true } = {}) {
+    const el = this.els.routineStrip || $("#routineStrip");
+    if (!el) return;
+    this.els.routineStrip = el;
+    const head = String(title || "").trim();
+    const sub = String(detail || "").trim();
+    if (!head && !sub) {
+      this.hideRoutineStrip();
+      return;
+    }
+    this._routinePayload = { icon, title: head, detail: sub };
+    el.hidden = false;
+    el.removeAttribute("hidden");
+    el.innerHTML = `
+      <div class="routine-chip" title="${escapeHtml([head, sub].filter(Boolean).join(" · "))}">
+        <span class="routine-chip-ico" aria-hidden="true">${icon}</span>
+        <div class="routine-chip-main">
+          ${head ? `<span class="routine-chip-title">${escapeHtml(head)}</span>` : ""}
+          ${sub && sub !== head ? `<span class="routine-chip-detail">${escapeHtml(sub)}</span>` : ""}
+        </div>
+      </div>`;
+    if (flash) {
+      el.classList.remove("is-flash");
+      void el.offsetWidth;
+      el.classList.add("is-flash");
+      clearTimeout(this._routineFlashTimer);
+      this._routineFlashTimer = setTimeout(() => {
+        el.classList.remove("is-flash");
+      }, cardDisplayMs(1200));
+    }
+  }
+
+  hideRoutineStrip() {
+    const el = this.els.routineStrip || $("#routineStrip");
+    if (!el) return;
+    clearTimeout(this._routineFlashTimer);
+    this._routineFlashTimer = null;
+    this._routinePayload = null;
+    el.classList.remove("is-flash");
+    el.hidden = true;
+    el.setAttribute("hidden", "");
+    el.replaceChildren();
+  }
+
+  /** Keep strip in sync from current user_state when no dedicated routine body. */
+  syncRoutineStripFromState(state) {
+    if (this._routinePayload?.detail) return; // keep last routine narrative until next routine
+    const action = String(state?.demo_action || "").trim();
+    const node = String(state?.trip_node || "").trim();
+    const loc = String(state?.location || "").trim();
+    if (!action && !node) return;
+    const prep = getLocale() === "en" ? "Pre-trip prep" : "行前准备";
+    if (!action || action === "行程中" || action === "On the trip" || action === prep) {
+      if (node && node !== prep) {
+        this.showRoutineStrip({ icon: "🧭", title: node, detail: loc, flash: false });
+      }
+      return;
+    }
+    this.showRoutineStrip({
+      icon: /自驾|驾驶|drive/i.test(action) ? "🚗" : "🧭",
+      title: action,
+      detail: [node && node !== action ? node : null, loc].filter(Boolean).join(" · "),
+      flash: false,
+    });
   }
 
   /** Archive a banner/notification into the mail inbox (deduped by key). */
@@ -855,6 +944,7 @@ export class UI {
     this.clearActivityFeed();
     this._paintBadges();
     this.hidePhoneBanner();
+    this.hideRoutineStrip();
     this.renderMailInbox();
   }
 
@@ -1103,6 +1193,7 @@ export class UI {
       ).catch(() => {});
     }
     this._statusSnap = nextSnap;
+    this.syncRoutineStripFromState(state);
   }
 
   /** Queue status-bar landing on the global cinematic queue (after tool overlays). */
