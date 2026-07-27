@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-tasken";
-import { playbackMs } from "./playback.js?v=20260727-tasken";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-tasken";
+} from "./routing.js?v=20260727-audit1";
+import { playbackMs } from "./playback.js?v=20260727-audit1";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-audit1";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -2466,12 +2466,17 @@ async function repaintAgentPlan({ fit = false, announce = false } = {}) {
     const tip = [
       s.label,
       nightDays.length >= 2
-        ? `行程第${nightDays[0]}–${nightDays[nightDays.length - 1]}天 · ${nightDays.length}晚`
+        ? L(
+            `行程第${nightDays[0]}–${nightDays[nightDays.length - 1]}天 · ${nightDays.length}晚`,
+            `Days ${nightDays[0]}–${nightDays[nightDays.length - 1]} · ${nightDays.length} nights`
+          )
         : s.day != null
-          ? `行程第${s.day}天`
+          ? L(`行程第${s.day}天`, `Day ${s.day}`)
           : null,
       s.date ? String(s.date).slice(0, 10) : null,
-      s.dateEnd && s.dateEnd !== s.date ? `至 ${String(s.dateEnd).slice(0, 10)}` : null,
+      s.dateEnd && s.dateEnd !== s.date
+        ? `${L("至", "to")} ${String(s.dateEnd).slice(0, 10)}`
+        : null,
     ]
       .filter(Boolean)
       .join(" · ");
@@ -2527,7 +2532,7 @@ export function focusGeoKey(geoKey, { label } = {}) {
     return focusPlanning({
       placeIds: [id],
       mode: "consider",
-      label: label || `关注 · ${geoKey}`,
+      label: label || `${L("关注", "Focus")} · ${geoKey}`,
       force: true,
     });
   }
@@ -2593,7 +2598,7 @@ export async function focusTrafficResult(result, args = {}) {
     mode: "checking",
     analysisText,
     label: uniqRoads.length
-      ? `工具：核查 ${uniqRoads.length} 条路段…`
+      ? `${L("工具：核查", "Tool: checking")} ${uniqRoads.length} ${L("条路段…", "roads…")}`
       : L("工具：核查路况…", "Tool: checking roads…"),
     force: true,
     forceFit: true,
@@ -2619,7 +2624,7 @@ export async function focusTrafficResult(result, args = {}) {
       mode: "blocked",
       analysisText,
       label: topNote
-        ? `确认受阻 · ${truncateMapNote(topNote, 36)}`
+        ? `${L("确认受阻", "Blocked")} · ${truncateMapNote(topNote, 36)}`
         : L("确认：路段受阻", "Confirmed: road blocked"),
       force: true,
       forceFit: true,
@@ -2640,7 +2645,7 @@ export async function focusTrafficResult(result, args = {}) {
     mode: "clear",
     analysisText,
     label: uniqRoads.length
-      ? `路况正常 · 已核查 ${uniqRoads.length} 条`
+      ? `${L("路况正常 · 已核查", "Roads clear · checked")} ${uniqRoads.length}`
       : L("工具：路况正常", "Tool: roads clear"),
     force: true,
     forceFit: true,
@@ -2675,7 +2680,7 @@ function buildTrafficRoadMarks({
         roadId,
         status: "checking",
         title,
-        note: sanitizeCheckPillNote(rawNote, roadId) || "正在核对通行状态",
+        note: sanitizeCheckPillNote(rawNote, roadId) || L("正在核对通行状态", "Verifying access"),
         geom: top?.geom || null,
       };
     }
@@ -2686,7 +2691,7 @@ function buildTrafficRoadMarks({
           roadId,
           status: "blocked",
           title,
-          note: blocked.note || "路段封闭 / 受阻",
+          note: blocked.note || L("路段封闭 / 受阻", "Road closed / blocked"),
           geom: blocked.geom || null,
         };
       }
@@ -2695,7 +2700,7 @@ function buildTrafficRoadMarks({
         roadId,
         status: "clear",
         title,
-        note: "本路段通行正常",
+        note: L("本路段通行正常", "This road is clear"),
         geom: top?.geom || null,
       };
     }
@@ -2705,7 +2710,7 @@ function buildTrafficRoadMarks({
         roadId,
         status: "warn",
         title,
-        note: top?.note || "有路况事件（未确认封路）",
+        note: top?.note || L("有路况事件（未确认封路）", "Road event (closure unconfirmed)"),
         geom: top?.geom || null,
       };
     }
@@ -2714,7 +2719,9 @@ function buildTrafficRoadMarks({
       roadId,
       status: "clear",
       title,
-      note: hist?.note ? `无生效封路（历史：${hist.note}）` : "未发现生效封路 · 可通行",
+      note: hist?.note
+          ? L(`无生效封路（历史：${hist.note}）`, `No active closure (history: ${hist.note})`)
+          : L("未发现生效封路 · 可通行", "No active closure · clear"),
       geom: hist?.geom || null,
     };
   });
@@ -3360,7 +3367,7 @@ function updateLegend(panel, ctx) {
   const flights = catalogBookedFlights(ctx);
   if (!flights.length) {
     flightLeg.hidden = true;
-    flightLeg.innerHTML = `<i class="lg-flight"></i>航线 · 已飞/未飞`;
+    flightLeg.innerHTML = `<i class="lg-flight"></i>${t("map.leg.flight")}`;
     return;
   }
   flightLeg.hidden = false;
@@ -3897,7 +3904,7 @@ async function paintLeafletRoutes(ctx) {
         className: "route-planned-line",
       })
         .addTo(routeLayer)
-        .bindTooltip("原计划·库克山支线（SH80 落石封闭·暂缓/等开放）");
+        .bindTooltip(L("原计划·库克山支线（SH80 落石封闭·暂缓/等开放）", "Original plan · Mt Cook spur (SH80 closed — deferred)"));
       continue;
     }
 

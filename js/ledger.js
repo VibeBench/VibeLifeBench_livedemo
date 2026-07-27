@@ -3,7 +3,7 @@
  * Shape aligns with future MCP writes so UI can stay stable.
  */
 
-import { L, getLocale } from "./i18n.js?v=20260727-tasken";
+import { L, getLocale } from "./i18n.js?v=20260727-audit1";
 
 export function emptyLedger() {
   return {
@@ -190,7 +190,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
         kind: "hotel",
         tab: "trip",
         icon: "🏨",
-        text: `Lakeview 涨至 NZ$${surgePrice}`,
+        text: L(`Lakeview 涨至 NZ$${surgePrice}`, `Lakeview surged to NZ$${surgePrice}`),
       });
     } else {
       ledger.hotels.push({

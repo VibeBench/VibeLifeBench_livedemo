@@ -22,10 +22,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260727-tasken";
-import { groupLedgerByDate } from "./ledger.js?v=20260727-tasken";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260727-tasken";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-tasken";
+} from "./map.js?v=20260727-audit1";
+import { groupLedgerByDate } from "./ledger.js?v=20260727-audit1";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260727-audit1";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-audit1";
 
 function kindMeta(kind) {
   const base = {
@@ -1840,7 +1840,13 @@ export class UI {
   renderMap(engine) {
     const result = renderLeafletMap(engine);
     if (!result.ok) {
-      this.els.mapPanel.innerHTML = `<div class="map-canvas map-fallback">地图加载失败：${escapeHtml(result.reason || "unknown")}<br/><small>请检查网络是否可访问 OpenStreetMap / Leaflet CDN</small></div>`;
+      this.els.mapPanel.innerHTML = `<div class="map-canvas map-fallback">${L(
+        "地图加载失败：",
+        "Map failed to load: "
+      )}${escapeHtml(result.reason || "unknown")}<br/><small>${L(
+        "请检查网络是否可访问 OpenStreetMap / Leaflet CDN",
+        "Check that OpenStreetMap / Leaflet CDN is reachable"
+      )}</small></div>`;
     }
   }
 
@@ -2251,7 +2257,7 @@ export class UI {
           : b.remaining_cny != null
             ? Number(b.remaining_cny)
             : null;
-      const total = totalN != null ? `¥${fmt(totalN)}` : "待确定";
+      const total = totalN != null ? `¥${fmt(totalN)}` : L("待确定", "TBD");
       const spent = spentN != null ? `¥${fmt(spentN)}` : "—";
       const remain = remainN != null ? `¥${fmt(remainN)}` : "—";
       const loc = result?.location || args.location || "";
@@ -2763,7 +2769,7 @@ export class UI {
       ? `${details.slice(0, 3).join("; ")}; …${details.length} total`
       : `${details.slice(0, 3).join("； ")}；…共 ${details.length} 条`;
     }
-    return details.join("； ");
+    return details.join(getLocale() === "en" ? "; " : "； ");
   }
 
   _paintToolRow(row, name, wrap = null) {
@@ -3284,8 +3290,8 @@ function humanizeToolName(name) {
   if (/notion|page|journal/i.test(n)) return L("更新游记", "Update journal");
   if (/weather/i.test(n)) return L("获取天气", "Get weather");
   if (/traffic|road/i.test(n)) return L("查询路况", "Check roads");
-  if (/budget/i.test(n)) return "读取预算";
-  if (/alert/i.test(n)) return "查询告警";
+  if (/budget/i.test(n)) return L("读取预算", "Read budget");
+  if (/alert/i.test(n)) return L("查询告警", "List alerts");
   return n
     .replace(/^API-/i, "")
     .replace(/[-_]+/g, " ")
@@ -4002,8 +4008,8 @@ function buildToolPulse(name, args = {}, result = null) {
       const n = roads.length + transit.length + flights.length;
       title = n ? L(`列出生效告警 · ${n} 条`, `Active alerts · ${n}`) : L("列出生效告警 · 暂无", "Active alerts · none");
       const bits = [];
-      for (const e of roads.slice(0, 2)) bits.push(e.note || `道路 ${roadLabel(e.road_id)}`);
-      for (const e of transit.slice(0, 1)) bits.push(e.note || "渡轮服务异常");
+      for (const e of roads.slice(0, 2)) bits.push(e.note || `${L("道路", "Road")} ${roadLabel(e.road_id)}`);
+      for (const e of transit.slice(0, 1)) bits.push(e.note || L("渡轮服务异常", "Ferry disruption"));
       for (const [fn, fv] of flights.slice(0, 1)) {
         bits.push(`${fn} ${flightStatusLabel(fv?.status)}`);
       }
@@ -4015,10 +4021,10 @@ function buildToolPulse(name, args = {}, result = null) {
       const b = result?.budget;
       if (b) {
         const bits = [];
-        if (b.spent_cny != null) bits.push(`已花 ¥${fmt(b.spent_cny)}`);
-        if (b.total_cny != null) bits.push(`总额 ¥${fmt(b.total_cny)}`);
+        if (b.spent_cny != null) bits.push(`${L("已花", "Spent")} ¥${fmt(b.spent_cny)}`);
+        if (b.total_cny != null) bits.push(`${L("总额", "Total")} ¥${fmt(b.total_cny)}`);
         if (b.total_cny != null && b.spent_cny != null) {
-          bits.push(`剩余 ¥${fmt(Number(b.total_cny) - Number(b.spent_cny))}`);
+          bits.push(`${L("剩余", "Left")} ¥${fmt(Number(b.total_cny) - Number(b.spent_cny))}`);
         }
         if (result.location) bits.push(`${L("当前位置", "Location")} ${result.location}`);
         detail = bits.join(" · ");
@@ -4115,19 +4121,19 @@ function collectLedgerAlerts(ledger) {
   const out = [];
   if (!ledger) return out;
   for (const f of ledger.flights || []) {
-    const no = f.flight_no || "航班";
+    const no = f.flight_no || L("航班", "Flight");
     const st = flightStatusLabel(f.status);
     const title =
       f.status === "delayed"
-        ? `航班延误 · ${no}`
+        ? `${L("航班延误", "Flight delayed")} · ${no}`
         : f.status === "cancelled" || f.status === "canceled"
-          ? `机票取消 · ${no}`
-          : `预订机票 · ${no}`;
+          ? `${L("机票取消", "Flight cancelled")} · ${no}`
+          : `${L("预订机票", "Flight booked")} · ${no}`;
     const body = [
       f.route || f.legs,
       st,
-      f.delay_min ? `延误 ${f.delay_min} 分钟` : null,
-      f.gate ? `登机口 ${f.gate}` : null,
+      f.delay_min ? `${L("延误", "Delayed")} ${f.delay_min} ${L("分钟", "min")}` : null,
+      f.gate ? `${L("登机口", "Gate")} ${f.gate}` : null,
       f.note,
     ]
       .filter(Boolean)
@@ -4136,7 +4142,7 @@ function collectLedgerAlerts(ledger) {
       key: `flight:${f.id}:${f.status}:${f.delay_min || 0}`,
       tab: "trip",
       app: L("行程账本", "Trip ledger"),
-      from: "机票预订",
+      from: L("机票预订", "Flight booking"),
       icon: "✈️",
       text: title,
       title,
@@ -4148,13 +4154,13 @@ function collectLedgerAlerts(ledger) {
     const hotel = hotelLabel(h.name || h.hotel_id);
     const title =
       h.status === "cancelled"
-        ? `取消酒店 · ${hotel}`
-        : h.note?.includes("换订") || h.note?.includes("可退")
-          ? `确认酒店 · ${hotel}`
-          : `预订酒店 · ${hotel}`;
+        ? `${L("取消酒店", "Hotel cancelled")} · ${hotel}`
+        : h.note?.includes("换订") || h.note?.includes("可退") || /rebook|refundable/i.test(h.note || "")
+          ? `${L("确认酒店", "Hotel confirmed")} · ${hotel}`
+          : `${L("预订酒店", "Hotel booked")} · ${hotel}`;
     const body = [
       h.name && h.name !== hotel ? h.name : null,
-      h.date || h.check_in ? `入住 ${h.date || h.check_in}` : null,
+      h.date || h.check_in ? `${L("入住", "Check-in")} ${h.date || h.check_in}` : null,
       h.price_nzd != null ? `NZD ${h.price_nzd}` : null,
       h.status === "cancelled" ? L("已取消", "Cancelled") : h.status === "confirmed" ? L("已确认", "Confirmed") : h.status,
       h.note,
@@ -4165,7 +4171,7 @@ function collectLedgerAlerts(ledger) {
       key: `hotel:${h.id}:${h.status}:${h.price_nzd ?? ""}`,
       tab: "trip",
       app: L("行程账本", "Trip ledger"),
-      from: "酒店预订",
+      from: L("酒店预订", "Hotel booking"),
       icon: "🏨",
       text: title,
       title,
@@ -4176,26 +4182,29 @@ function collectLedgerAlerts(ledger) {
   for (const r of ledger.rentals || []) {
     const title =
       r.status === "returned"
-        ? "房车已还车"
+        ? L("房车已还车", "Campervan returned")
         : r.status === "active"
-          ? "房车已取车"
-          : "房车已预订";
+          ? L("房车已取车", "Campervan picked up")
+          : L("房车已预订", "Campervan booked");
     out.push({
       key: `rental:${r.id}:${r.status}:${r.incident?.case_ref || ""}`,
       tab: "trip",
       app: L("行程账本", "Trip ledger"),
-      from: "房车租赁",
+      from: L("房车租赁", "Campervan rental"),
       icon: "🚐",
       text: title,
       title,
-      body: [r.vehicle_name, r.insurance, r.bond_nzd != null ? `押金 NZ$${r.bond_nzd}` : null, r.note]
+      body: [r.vehicle_name, r.insurance, r.bond_nzd != null ? `${L("押金", "Bond")} NZ$${r.bond_nzd}` : null, r.note]
         .filter(Boolean)
         .join(" · "),
       kind: "ledger",
     });
   }
   for (const v of ledger.visas || []) {
-    const title = v.status === "approved" ? `NZeTA 已批准 · ${v.traveler}` : `NZeTA 已提交 · ${v.traveler}`;
+    const title =
+      v.status === "approved"
+        ? `${L("NZeTA 已批准", "NZeTA approved")} · ${v.traveler}`
+        : `${L("NZeTA 已提交", "NZeTA submitted")} · ${v.traveler}`;
     out.push({
       key: `visa:${v.id}:${v.status}`,
       tab: "trip",
@@ -4209,13 +4218,13 @@ function collectLedgerAlerts(ledger) {
     });
   }
   for (const o of ledger.orders || []) {
-    const title = o.status === "delivered" ? "装备已送达" : "装备已下单";
+    const title = o.status === "delivered" ? L("装备已送达", "Gear delivered") : L("装备已下单", "Gear ordered");
     const items = Array.isArray(o.items) ? o.items.join(" / ") : String(o.items || "");
     out.push({
       key: `order:${o.id}:${o.status}`,
       tab: "trip",
       app: L("行程账本", "Trip ledger"),
-      from: "电商订单",
+      from: L("电商订单", "Shop order"),
       icon: "📦",
       text: title,
       title,
@@ -4226,8 +4235,8 @@ function collectLedgerAlerts(ledger) {
   const notion = ledger.notion?.sections || {};
   for (const [sec, label] of [
     ["journal", L("更新游记", "Journal update")],
-    ["expense", "更新费用记录"],
-    ["safety", "更新安全备注"],
+    ["expense", L("更新费用记录", "Expense update")],
+    ["safety", L("更新安全备注", "Safety note update")],
   ]) {
     const text = String(notion[sec] || "").trim();
     if (!text) continue;
@@ -4248,11 +4257,11 @@ function collectLedgerAlerts(ledger) {
 }
 
 function shortHotel(name) {
-  const s = String(name || "住宿");
+  const s = String(name || L("住宿", "Stay"));
   if (/Alpine/i.test(s)) return "Alpine";
   if (/Lakeview/i.test(s)) return "Lakeview";
-  if (/Tekapo/i.test(s)) return "蒂卡波营地";
-  if (/Rotorua/i.test(s)) return "罗托鲁阿";
+  if (/Tekapo/i.test(s)) return L("蒂卡波营地", "Tekapo campground");
+  if (/Rotorua/i.test(s)) return L("罗托鲁阿", "Rotorua");
   return s.length > 14 ? s.slice(0, 12) + "…" : s;
 }
 
@@ -4260,11 +4269,11 @@ function shortHotel(name) {
 function guessSmsSender(body) {
   const s = String(body || "");
   if (/移民局|NZeTA|签证|入境|Immigration/i.test(s)) return L("新西兰移民局", "NZ Immigration");
-  if (/NZTA|路况|公路|封闭|封路/i.test(s)) return "NZTA 路况";
-  if (/Interislander|渡轮|Bluebridge/i.test(s)) return "渡轮通知";
-  if (/MetService|天气|风力|降雨/i.test(s)) return "天气提醒";
+  if (/NZTA|路况|公路|封闭|封路|road\s*closure/i.test(s)) return L("NZTA 路况", "NZTA roads");
+  if (/Interislander|渡轮|Bluebridge|ferry/i.test(s)) return L("渡轮通知", "Ferry notice");
+  if (/MetService|天气|风力|降雨|weather/i.test(s)) return L("天气提醒", "Weather alert");
   if (/航空|航班|Airport|MU\d+/i.test(s)) return L("航班通知", "Flight notice");
-  if (/酒店|营地|Holiday\s*Park|住宿/i.test(s)) return "住宿通知";
+  if (/酒店|营地|Holiday\s*Park|住宿|hotel|camp/i.test(s)) return L("住宿通知", "Stay notice");
   const m = s.match(/^([^：:]{2,12})[：:]/);
   if (m) return m[1].trim();
   return "";
@@ -4390,7 +4399,9 @@ function formatEnvStreamRow(ev, { labels = {}, speakers = {} } = {}) {
     };
   }
   if (kind === "app_notification" || kind === "world") {
-    const src = channelAppLabel(ev.channel || ev.source) || (kind === "world" ? "外部资讯" : "APP / 短信");
+    const src =
+      channelAppLabel(ev.channel || ev.source) ||
+      (kind === "world" ? L("外部资讯", "External info") : L("APP / 短信", "App / SMS"));
     return {
       icon: km.icon,
       cls: km.cls,
@@ -4409,14 +4420,14 @@ function formatEnvStreamRow(ev, { labels = {}, speakers = {} } = {}) {
 function channelAppLabel(src) {
   const s = String(src || "").toLowerCase();
   if (!s) return "";
-  if (s.includes("flight")) return "航司";
-  if (s.includes("hotel")) return "酒店";
-  if (s.includes("weather")) return "天气";
-  if (s.includes("maps") || s.includes("nzta")) return "路况";
+  if (s.includes("flight")) return L("航司", "Airline");
+  if (s.includes("hotel")) return L("酒店", "Hotel");
+  if (s.includes("weather")) return L("天气", "Weather");
+  if (s.includes("maps") || s.includes("nzta")) return L("路况", "Roads");
   if (s.includes("visa")) return L("签证", "Visa");
-  if (s.includes("ecommerce") || s.includes("britz")) return "租车";
-  if (s.includes("notification")) return "通知";
-  if (s.includes("email")) return "邮件";
+  if (s.includes("ecommerce") || s.includes("britz")) return L("租车", "Rental");
+  if (s.includes("notification")) return L("通知", "Notice");
+  if (s.includes("email")) return L("邮件", "Mail");
   return "";
 }
 
@@ -4737,14 +4748,19 @@ function scrubBrokenTableRows(root) {
 }
 
 function fmt(n) {
-  return Number(n || 0).toLocaleString("zh-CN");
+  return Number(n || 0).toLocaleString(getLocale() === "en" ? "en-US" : "zh-CN");
 }
 
-/** Compact CNY for status chips, e.g. 13900 → 1.4万 */
+/** Compact CNY for status chips: zh 1.4万 / en 14k or 50k */
 function fmtCompactCny(n) {
   const v = Number(n || 0);
   if (!Number.isFinite(v)) return "—";
+  const en = getLocale() === "en";
   if (Math.abs(v) >= 10000) {
+    if (en) {
+      const k = Math.round(v / 1000);
+      return `${k}k`;
+    }
     const w = v / 10000;
     const rounded = Math.round(w * 10) / 10;
     const s =
@@ -4753,7 +4769,14 @@ function fmtCompactCny(n) {
         : String(rounded);
     return `${s}万`;
   }
-  if (Math.abs(v) >= 1000) return String(Math.round(v));
+  if (Math.abs(v) >= 1000) {
+    if (en) {
+      const k = Math.round((v / 1000) * 10) / 10;
+      const s = Number.isInteger(k) ? String(Math.round(k)) : String(k);
+      return `${s}k`;
+    }
+    return String(Math.round(v));
+  }
   return String(Math.round(v));
 }
 
@@ -4785,17 +4808,26 @@ function shortWeather(w) {
 }
 
 function weatherSub(state) {
-  if (!state?.weather) return "指定日期天气节点更新后显示";
-  if (state.weather_impact === "disruptive") return `⚠ 影响行程 · ${state.weather}`;
+  if (!state?.weather) return L("指定日期天气节点更新后显示", "Updates after the weather event for that day");
+  if (state.weather_impact === "disruptive") {
+    return `${L("⚠ 影响行程", "⚠ May affect trip")} · ${state.weather}`;
+  }
   return state.weather;
 }
 
 function mutationSummary(ev) {
   const applies = ev.apply || [];
-  if (!applies.length) return "后台静默写入了一条环境变更（需主动查工具才会发现）";
+  if (!applies.length) {
+    return L(
+      "后台静默写入了一条环境变更（需主动查工具才会发现）",
+      "A silent env change was written (call tools to discover it)"
+    );
+  }
 
   const parts = applies.map((a) => describeMutationApply(a));
-  return `${parts.join("； ")}（静默生效，需查工具才可见）`;
+  const join = getLocale() === "en" ? "; " : "； ";
+  const tail = L("（静默生效，需查工具才可见）", " (silent — check with tools)");
+  return `${parts.join(join)}${tail}`;
 }
 
 function describeMutationApply(a) {
@@ -4812,19 +4844,19 @@ function describeMutationApply(a) {
     if (values.nightly_price != null || a.set?.nightly_price != null) {
       const price = values.nightly_price ?? a.set?.nightly_price;
       const inv = values.inventory_remaining ?? a.set?.inventory_remaining;
-      return `酒店房价变更 · ${hotel}${date ? ` · ${date}` : ""} · NZD ${price}${
-        inv != null ? ` · 剩余 ${inv} 间` : ""
+      return `${L("酒店房价变更", "Hotel rate change")} · ${hotel}${date ? ` · ${date}` : ""} · NZD ${price}${
+        inv != null ? ` · ${L("剩余", "Left")} ${inv}` : ""
       }`;
     }
-    return `酒店库存/房价更新 · ${hotel}`;
+    return `${L("酒店库存/房价更新", "Hotel inventory / rate update")} · ${hotel}`;
   }
 
   if (server === "flight_booking" || /flight/i.test(server)) {
-    const no = values.flight_no || where.flight_no || args.flight_no || "航班";
+    const no = values.flight_no || where.flight_no || args.flight_no || L("航班", "Flight");
     const st = flightStatusLabel(values.status);
-    const delay = values.delay_min ? `延误 ${values.delay_min} 分钟` : null;
-    const gate = values.gate ? `登机口 ${values.gate}` : null;
-    return [`航班状态更新 · ${no}`, st, delay, gate].filter(Boolean).join(" · ");
+    const delay = values.delay_min ? `${L("延误", "Delayed")} ${values.delay_min} ${L("分钟", "min")}` : null;
+    const gate = values.gate ? `${L("登机口", "Gate")} ${values.gate}` : null;
+    return [`${L("航班状态更新", "Flight status update")} · ${no}`, st, delay, gate].filter(Boolean).join(" · ");
   }
 
   if (server === "maps" && /road/i.test(table)) {
@@ -4832,22 +4864,24 @@ function describeMutationApply(a) {
     const road = roadLabel(id);
     const active = values.active ?? a.set?.active;
     const note = values.note || a.set?.note || "";
-    if (active === 1 || active === "1") return `道路封闭生效 · ${road}${note ? ` · ${note}` : ""}`;
-    if (active === 0 || active === "0") return `道路恢复通行 · ${road}`;
-    return `路况变更 · ${road}${note ? ` · ${note}` : ""}`;
+    if (active === 1 || active === "1") {
+      return `${L("道路封闭生效", "Road closure active")} · ${road}${note ? ` · ${note}` : ""}`;
+    }
+    if (active === 0 || active === "0") return `${L("道路恢复通行", "Road reopened")} · ${road}`;
+    return `${L("路况变更", "Road update")} · ${road}${note ? ` · ${note}` : ""}`;
   }
 
   if (server === "maps" && /transit/i.test(table)) {
     const id = where.event_id || values.event_id || "";
     const name = roadLabel(id);
     const active = values.active ?? a.set?.active;
-    if (active === 1 || active === "1") return `渡轮服务中断 · ${name}`;
-    if (active === 0 || active === "0") return `渡轮服务恢复 · ${name}`;
-    return `渡轮动态变更 · ${name}`;
+    if (active === 1 || active === "1") return `${L("渡轮服务中断", "Ferry disrupted")} · ${name}`;
+    if (active === 0 || active === "0") return `${L("渡轮服务恢复", "Ferry restored")} · ${name}`;
+    return `${L("渡轮动态变更", "Ferry update")} · ${name}`;
   }
 
   if (server === "weather" && /alert/i.test(table)) {
-    const desc = values.description || a.set?.description || values.kind || "天气告警";
+    const desc = values.description || a.set?.description || values.kind || L("天气告警", "Weather alert");
     const areas = (() => {
       try {
         const raw = values.areas_json;
@@ -4860,34 +4894,40 @@ function describeMutationApply(a) {
     })();
     const active = values.active ?? a.set?.active;
     if (op === "insert" || active === 1 || active === "1") {
-      return `天气告警生效 · ${truncate(desc, 60)}${areas ? ` · 影响 ${areas}` : ""}`;
+      return `${L("天气告警生效", "Weather alert active")} · ${truncate(desc, 60)}${
+        areas ? ` · ${L("影响", "Affects")} ${areas}` : ""
+      }`;
     }
-    if (active === 0 || active === "0") return `天气告警解除 · ${where.alert_id || values.alert_id || ""}`;
-    return `天气告警更新 · ${truncate(desc, 60)}`;
+    if (active === 0 || active === "0") {
+      return `${L("天气告警解除", "Weather alert cleared")} · ${where.alert_id || values.alert_id || ""}`;
+    }
+    return `${L("天气告警更新", "Weather alert update")} · ${truncate(desc, 60)}`;
   }
 
   if (server === "email" || /mail/i.test(table)) {
-    const sub = values.subject || args.subject || "无主题";
+    const sub = values.subject || args.subject || L("无主题", "No subject");
     const from = values.from_addr || args.from || "";
-    return `收件箱新增邮件 · ${truncate(sub, 48)}${from ? ` · 来自 ${from}` : ""}`;
+    return `${L("收件箱新增邮件", "New inbox mail")} · ${truncate(sub, 48)}${
+      from ? ` · ${L("来自", "from")} ${from}` : ""
+    }`;
   }
 
   if (server === "notion" || /page|notion/i.test(table)) {
     const title =
       args?.properties?.title?.[0]?.text?.content ||
       values.title ||
-      "游记页面";
-    return `Notion 写入 · ${truncate(title, 48)}`;
+      L("游记页面", "Journal page");
+    return `${L("Notion 写入", "Notion write")} · ${truncate(title, 48)}`;
   }
 
   const serverLabel =
     {
-      maps: "地图服务",
-      weather: "天气服务",
-      hotel_booking: "酒店预订",
-      flight_booking: "机票预订",
-      email: "邮件",
+      maps: L("地图服务", "Maps"),
+      weather: L("天气服务", "Weather"),
+      hotel_booking: L("酒店预订", "Hotel booking"),
+      flight_booking: L("机票预订", "Flight booking"),
+      email: L("邮件", "Mail"),
       notion: "Notion",
-    }[server] || server || "后台";
-  return `${serverLabel}变更 · ${table || "未知表"} · ${op || "update"}`;
+    }[server] || server || L("后台", "Backend");
+  return `${serverLabel}${L("变更", " change")} · ${table || L("未知表", "unknown")} · ${op || "update"}`;
 }
