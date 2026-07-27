@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-i18n2";
-import { playbackMs } from "./playback.js?v=20260727-i18n2";
-import { t, L, getLocale } from "./i18n.js?v=20260727-i18n2";
+} from "./routing.js?v=20260727-i18n3";
+import { playbackMs } from "./playback.js?v=20260727-i18n3";
+import { t, L, getLocale } from "./i18n.js?v=20260727-i18n3";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -2812,7 +2812,7 @@ export function playMapAction({
           </div>
           <div class="map-action-notion-foot" id="mapActionFoot" hidden>
             <span class="map-action-notion-check">✓</span>
-            <span>已提交 · 记入游记</span>
+            <span>${L("已提交 · 记入游记", "Submitted · journaled")}</span>
           </div>
         </div>`;
     } else if (kind === "calendar") {
@@ -2829,12 +2829,12 @@ export function playMapAction({
           <div class="map-action-cal-event" id="mapActionBody"></div>
           <div class="map-action-cal-foot" id="mapActionFoot" hidden>
             <span class="map-action-notion-check">✓</span>
-            <span>已写入行程账本</span>
+            <span>${L("已写入行程账本", "Saved to trip ledger")}</span>
           </div>
         </div>`;
     } else if (kind === "budget") {
       const pct = Math.max(0, Math.min(100, Number(query) || 0));
-      const remainRow = rows.find((r) => /剩余/.test(String(r.label || "")));
+      const remainRow = rows.find((r) => /剩余|Left|Remaining/i.test(String(r.label || "")));
       const hero = remainRow?.value || rows[0]?.value || "—";
       stage.innerHTML = `
         <div class="map-action-card map-action-budget">
@@ -2851,20 +2851,20 @@ export function playMapAction({
             <div class="map-action-budget-meter" aria-hidden="true">
               <span class="map-action-budget-meter-fill" id="mapActionBudgetMeter" style="width:0%"></span>
             </div>
-            <div class="map-action-budget-meter-cap">${pct ? `已用 ${pct}%` : "费用核对"}</div>
+            <div class="map-action-budget-meter-cap">${pct ? `${L("已用", "Spent")} ${pct}%` : L("费用核对", "Checking costs")}</div>
           </div>
           <div class="map-action-budget-rows" id="mapActionBody"></div>
           <div class="map-action-budget-foot" id="mapActionFoot" hidden>
             <span class="map-action-notion-check">✓</span>
-            <span>已同步到状态栏</span>
+            <span>${L("已同步到状态栏", "Synced to status bar")}</span>
           </div>
         </div>`;
       // Stash pct for meter anim
       stage._budgetPct = pct;
     } else if (kind === "flight") {
-      const statusText = String(query || rows.find((r) => /状态/.test(String(r.label || "")))?.value || "查询中");
-      const flightNo = String(title || rows.find((r) => /航班/.test(String(r.label || "")))?.value || "航班");
-      const route = rows.find((r) => /航线/.test(String(r.label || "")))?.value || "";
+      const statusText = String(query || rows.find((r) => /状态|Status/i.test(String(r.label || "")))?.value || L("查询中", "Checking"));
+      const flightNo = String(title || rows.find((r) => /航班|Flight/i.test(String(r.label || "")))?.value || L("航班", "Flight"));
+      const route = rows.find((r) => /航线|Route/i.test(String(r.label || "")))?.value || "";
       stage.innerHTML = `
         <div class="map-action-card map-action-flight">
           <div class="map-action-flight-rail" aria-hidden="true"></div>
@@ -2878,16 +2878,16 @@ export function playMapAction({
           ${
             route
               ? `<div class="map-action-flight-route" id="mapActionFlightRoute">
-                   <span>${escapeHtml(String(route).split(/→|->|—/)[0] || "").trim() || "出发"}</span>
+                   <span>${escapeHtml(String(route).split(/→|->|—/)[0] || "").trim() || L("出发", "Depart")}</span>
                    <span class="map-action-flight-plane" aria-hidden="true">✈</span>
-                   <span>${escapeHtml(String(route).split(/→|->|—/).slice(-1)[0] || "").trim() || "到达"}</span>
+                   <span>${escapeHtml(String(route).split(/→|->|—/).slice(-1)[0] || "").trim() || L("到达", "Arrive")}</span>
                  </div>`
               : `<div class="map-action-flight-route is-empty" id="mapActionFlightRoute"></div>`
           }
           <div class="map-action-flight-rows" id="mapActionBody"></div>
           <div class="map-action-flight-foot" id="mapActionFoot" hidden>
             <span class="map-action-notion-check">✓</span>
-            <span>已同步到状态栏</span>
+            <span>${L("已同步到状态栏", "Synced to status bar")}</span>
           </div>
         </div>`;
     } else if (kind === "weather") {
@@ -2897,15 +2897,15 @@ export function playMapAction({
           <div class="map-action-weather-head">
             <span class="map-action-weather-ico">${escapeHtml(wIcon)}</span>
             <div>
-              <div class="map-action-weather-app">天气服务</div>
-              <div class="map-action-weather-title">${escapeHtml(title || "当日天气")}</div>
+              <div class="map-action-weather-app">${L("天气服务", "Weather")}</div>
+              <div class="map-action-weather-title">${escapeHtml(title || L("当日天气", "Today's weather"))}</div>
             </div>
-            <span class="map-action-status" id="mapActionStatus">查询中</span>
+            <span class="map-action-status" id="mapActionStatus">${L("查询中", "Checking")}</span>
           </div>
           <div class="map-action-weather-rows" id="mapActionBody"></div>
           <div class="map-action-weather-foot" id="mapActionFoot" hidden>
             <span class="map-action-notion-check">✓</span>
-            <span>已同步到状态栏</span>
+            <span>${L("已同步到状态栏", "Synced to status bar")}</span>
           </div>
         </div>`;
     } else if (kind === "write") {
@@ -2915,15 +2915,15 @@ export function playMapAction({
           <div class="map-action-write-head">
             <span class="map-action-write-ico">${escapeHtml(wIcon)}</span>
             <div>
-              <div class="map-action-write-app">状态写入</div>
-              <div class="map-action-write-title">${escapeHtml(title || "更新行程状态")}</div>
+              <div class="map-action-write-app">${L("状态写入", "State write")}</div>
+              <div class="map-action-write-title">${escapeHtml(title || L("更新行程状态", "Update trip status"))}</div>
             </div>
-            <span class="map-action-status" id="mapActionStatus">写入中</span>
+            <span class="map-action-status" id="mapActionStatus">${L("写入中", "Writing")}</span>
           </div>
           <div class="map-action-write-rows" id="mapActionBody"></div>
           <div class="map-action-write-foot" id="mapActionFoot" hidden>
             <span class="map-action-notion-check">✓</span>
-            <span>已同步到状态栏</span>
+            <span>${L("已同步到状态栏", "Synced to status bar")}</span>
           </div>
         </div>`;
     } else {
@@ -2959,12 +2959,12 @@ export function playMapAction({
       if (st) {
         st.textContent =
           kind === "search"
-            ? "完成"
+            ? L("完成", "Done")
             : kind === "notion"
-              ? "已提交"
+              ? L("已提交", "Submitted")
               : kind === "budget" || kind === "weather" || kind === "flight" || kind === "write"
-                ? "已同步"
-                : "已写入";
+                ? L("已同步", "Synced")
+                : L("已写入", "Saved");
       }
       const caret = stage.querySelector(".map-action-caret, #mapActionCaret");
       if (caret) caret.hidden = true;
@@ -3022,12 +3022,12 @@ export function playMapAction({
         if (qEl) qEl.textContent = q.slice(0, i);
         if (i >= q.length) {
           clearInterval(typeTimer);
-          if (meta) meta.textContent = `约 ${Math.max(rows.length, 1)} 条结果`;
+          if (meta) meta.textContent = L(`约 ${Math.max(rows.length, 1)} 条结果`, `~${Math.max(rows.length, 1)} results`);
           if (!rows.length) {
             if (resEl) {
               const row = document.createElement("div");
               row.className = "map-action-search-row";
-              row.innerHTML = `<div class="map-action-search-row-title">${escapeHtml(q || "相关结果")}</div>`;
+              row.innerHTML = `<div class="map-action-search-row-title">${escapeHtml(q || L("相关结果", "Related"))}</div>`;
               resEl.appendChild(row);
             }
             finish();
@@ -3067,7 +3067,7 @@ export function playMapAction({
         .filter(Boolean)
         .slice(0, 6)
         .join("\n");
-      const streamText = (raw || "正在整理行程要点…").slice(0, 320);
+      const streamText = (raw || L("正在整理行程要点…", "Summarizing trip notes…")).slice(0, 320);
       let i = 0;
       const chunk = () => {
         if (!alive() || finished || !streamEl) return finish(false);
@@ -3077,11 +3077,11 @@ export function playMapAction({
         streamEl.textContent = streamText.slice(0, i);
         const bodyWrap = stage.querySelector("#mapActionBody");
         if (bodyWrap) bodyWrap.scrollTop = bodyWrap.scrollHeight;
-        if (i > streamText.length * 0.55 && statusEl && statusEl.textContent === "生成中") {
-          statusEl.textContent = "写入中";
+        if (i > streamText.length * 0.55 && statusEl && statusEl.textContent === L("生成中", "Generating")) {
+          statusEl.textContent = L("写入中", "Writing");
         }
         if (i >= streamText.length) {
-          if (statusEl) statusEl.textContent = "提交中";
+          if (statusEl) statusEl.textContent = L("提交中", "Submitting");
           wait(() => finish(), 480);
           return;
         }
@@ -3098,10 +3098,10 @@ export function playMapAction({
       const meter = stage.querySelector("#mapActionBudgetMeter");
       const pct = Number(stage._budgetPct) || 0;
       const budgetRows = rows.length
-        ? rows.filter((r) => !/剩余/.test(String(r.label || "")))
+        ? rows.filter((r) => !/剩余|Left|Remaining/i.test(String(r.label || "")))
         : [
-            { label: "已用", value: "—" },
-            { label: "总额", value: "核对中…" },
+            { label: L("已用", "Spent"), value: "—" },
+            { label: L("总额", "Total"), value: L("核对中…", "Checking…") },
           ];
       requestAnimationFrame(() => {
         if (meter) meter.style.width = `${pct}%`;
@@ -3110,7 +3110,7 @@ export function playMapAction({
       const addBudgetRow = () => {
         if (!alive() || !bodyEl || finished) return finish(false);
         if (bi >= budgetRows.length) {
-          if (statusEl) statusEl.textContent = "已同步";
+          if (statusEl) statusEl.textContent = L("已同步", "Synced");
           return finish();
         }
         const item = budgetRows[bi];
@@ -3123,7 +3123,7 @@ export function playMapAction({
         bi += 1;
         if (bi < budgetRows.length) wait(addBudgetRow, 260);
         else {
-          if (statusEl) statusEl.textContent = "已同步";
+          if (statusEl) statusEl.textContent = L("已同步", "Synced");
           wait(() => finish(), 280);
         }
       };
@@ -3136,13 +3136,13 @@ export function playMapAction({
       const bodyEl = stage.querySelector("#mapActionBody");
       const statusEl = stage.querySelector("#mapActionStatus");
       const flightRows = rows.length
-        ? rows.filter((r) => !/航班|状态|航线/.test(String(r.label || "")))
-        : [{ label: "动态", value: "查询中…" }];
+        ? rows.filter((r) => !/航班|状态|航线|Flight|Status|Route/i.test(String(r.label || "")))
+        : [{ label: L("动态", "Status"), value: L("查询中…", "Checking…") }];
       let fi = 0;
       const addFlightRow = () => {
         if (!alive() || !bodyEl || finished) return finish(false);
         if (fi >= flightRows.length) {
-          if (statusEl) statusEl.textContent = statusEl.textContent || "已同步";
+          if (statusEl) statusEl.textContent = statusEl.textContent || L("已同步", "Synced");
           return finish();
         }
         const item = flightRows[fi];
@@ -3174,7 +3174,7 @@ export function playMapAction({
       const addWeatherRow = () => {
         if (!alive() || !bodyEl || finished) return finish(false);
         if (wi >= weatherRows.length) {
-          if (statusEl) statusEl.textContent = "写入状态栏";
+          if (statusEl) statusEl.textContent = L("写入状态栏", "Writing to status");
           return finish();
         }
         const item = weatherRows[wi];
@@ -3188,7 +3188,7 @@ export function playMapAction({
         wi += 1;
         if (wi < weatherRows.length) wait(addWeatherRow, 400);
         else {
-          if (statusEl) statusEl.textContent = "写入状态栏";
+          if (statusEl) statusEl.textContent = L("写入状态栏", "Writing to status");
           wait(() => finish(), 380);
         }
       };
@@ -3202,12 +3202,12 @@ export function playMapAction({
       const statusEl = stage.querySelector("#mapActionStatus");
       const writeRows = rows.length
         ? rows
-        : [{ label: "状态", value: text || "写入中…" }];
+        : [{ label: L("状态", "Status"), value: text || L("写入中…", "Writing…") }];
       let wi = 0;
       const addWriteRow = () => {
         if (!alive() || !bodyEl || finished) return finish(false);
         if (wi >= writeRows.length) {
-          if (statusEl) statusEl.textContent = "已同步";
+          if (statusEl) statusEl.textContent = L("已同步", "Synced");
           return finish();
         }
         const item = writeRows[wi];
@@ -3220,7 +3220,7 @@ export function playMapAction({
         wi += 1;
         if (wi < writeRows.length) wait(addWriteRow, 220);
         else {
-          if (statusEl) statusEl.textContent = "已同步";
+          if (statusEl) statusEl.textContent = L("已同步", "Synced");
           wait(() => finish(), 260);
         }
       };
@@ -3241,15 +3241,15 @@ export function playMapAction({
               .filter(Boolean)
               .slice(0, 4)
               .map((line, i) => ({
-                label: i === 0 ? "日程" : "详情",
+                label: i === 0 ? L("日程", "Event") : L("详情", "Detail"),
                 value: line,
               }))
-          : [{ label: "日程", value: title || "已加入今日行程" }];
+          : [{ label: L("日程", "Event"), value: title || L("已加入今日行程", "Added to today's plan") }];
       let ci = 0;
       const addCalRow = () => {
         if (!alive() || !bodyEl || finished) return finish(false);
         if (ci >= calRows.length) {
-          if (statusEl) statusEl.textContent = "已加入";
+          if (statusEl) statusEl.textContent = L("已加入", "Added");
           return finish();
         }
         const item = calRows[ci];
@@ -3264,10 +3264,10 @@ export function playMapAction({
           : `<span class="map-action-cal-value">${escapeHtml(value)}</span>`;
         bodyEl.appendChild(row);
         ci += 1;
-        if (statusEl && ci === 1) statusEl.textContent = "写入中";
+        if (statusEl && ci === 1) statusEl.textContent = L("写入中", "Writing");
         if (ci < calRows.length) wait(addCalRow, 420);
         else {
-          if (statusEl) statusEl.textContent = "已加入";
+          if (statusEl) statusEl.textContent = L("已加入", "Added");
           wait(() => finish(), 420);
         }
       };
@@ -3316,8 +3316,8 @@ export function renderLeafletMap(engine) {
   lastCtx = ctx;
 
   if (typeof window.L === "undefined") {
-    host.innerHTML = `<div class="map-fallback">地图库未加载，请检查网络后刷新</div>`;
-    return { ok: false, reason: "Leaflet 未加载" };
+    host.innerHTML = `<div class="map-fallback">${L("地图库未加载，请检查网络后刷新", "Map library failed to load — check network and refresh")}</div>`;
+    return { ok: false, reason: L("Leaflet 未加载", "Leaflet not loaded") };
   }
 
   try {
@@ -3344,7 +3344,7 @@ export function renderLeafletMap(engine) {
     });
   } catch (err) {
     console.warn(err);
-    host.innerHTML = `<div class="map-fallback">地图渲染失败：${escapeHtml(err.message || String(err))}</div>`;
+    host.innerHTML = `<div class="map-fallback">${L("地图渲染失败：", "Map render failed: ")}${escapeHtml(err.message || String(err))}</div>`;
     return { ok: false, reason: err.message };
   }
 
@@ -3366,7 +3366,7 @@ function updateLegend(panel, ctx) {
   flightLeg.hidden = false;
   // Prefer next unflown leg for legend copy (status bar also owns this).
   const focus = flights.find((f) => !f.flown) || flights[flights.length - 1];
-  const mark = focus.flown ? "已飞" : "未飞";
+  const mark = focus.flown ? L("已飞", "Flown") : L("未飞", "Not flown");
   flightLeg.innerHTML = `<i class="lg-flight"></i>${mark} · ${escapeHtml(focus.flight_no)} · ${escapeHtml(
     focus.route
   )}`;
@@ -3509,7 +3509,7 @@ function hotelsByPlace(hotels) {
 function resolveHome(env) {
   const row = (env?.weather?.locations || []).find((l) => l.geo_key === "shanghai_home");
   if (row?.lat != null) {
-    return { lat: row.lat, lng: row.lng, name: "上海·家中", geo_key: "shanghai_home" };
+    return { lat: row.lat, lng: row.lng, name: L("上海·家中", "Shanghai · home"), geo_key: "shanghai_home" };
   }
   return { ...SHANGHAI_HOME };
 }
@@ -3678,7 +3678,7 @@ function paintLeafletBase(ctx) {
     const road = ctx.roadById[ev.road_id];
     const latlngs = parseRoadGeom(road?.geom || road?.geom_json);
     if (latlngs.length < 2) continue;
-    const shortName = shortRoadName(road?.name || ev.road_id || "路段");
+    const shortName = shortRoadName(road?.name || ev.road_id || L("路段", "Road"));
     const here = placeLatLng(ctx);
     // Pick a point along the closed road farthest from the live "现在" marker,
     // so the pink pill never sits on top of the camping/drive orb + caption.
@@ -3687,7 +3687,7 @@ function paintLeafletBase(ctx) {
     window.L.marker(anchor, {
       icon: window.L.divIcon({
         className: `map-emoji-icon closure-tag closure-tag-${side}`,
-        html: `<span class="closure-pill">封闭 · ${escapeHtml(shortName)}</span>`,
+        html: `<span class="closure-pill">${L("封闭", "Closed")} · ${escapeHtml(shortName)}</span>`,
         iconSize: [128, 28],
         // Float above the road; shift left/right away from "here".
         iconAnchor: side === "left" ? [118, 34] : [10, 34],
@@ -3698,7 +3698,7 @@ function paintLeafletBase(ctx) {
     })
       .addTo(leafletLayer)
       .bindPopup(
-        `<strong>${escapeHtml(road?.name || "路况中断")}</strong><br/>${escapeHtml(ev.note || "")}`
+        `<strong>${escapeHtml(road?.name || L("路况中断", "Road disruption"))}</strong><br/>${escapeHtml(ev.note || "")}`
       );
   }
 
@@ -3721,12 +3721,12 @@ function paintLeafletBase(ctx) {
       .addTo(leafletLayer)
       .bindTooltip(
         suspended
-          ? "渡轮中断"
+          ? L("渡轮中断", "Ferry disrupted")
           : onFerry
-            ? "渡轮航行中"
+            ? L("渡轮航行中", "Ferry sailing")
             : ferryDone
-              ? "库克海峡渡轮（已走）"
-              : "规划·库克海峡渡轮（未走）"
+              ? L("库克海峡渡轮（已走）", "Cook Strait ferry (done)")
+              : L("规划·库克海峡渡轮（未走）", "Planned · Cook Strait ferry")
       );
   }
 
@@ -3756,7 +3756,7 @@ function paintLeafletBase(ctx) {
 
     const stays = ctx.hotelsByPlace?.[p.place_id];
     if (stays?.length && !(isHere && liveHere)) {
-      const tip = stays.map((h) => `${h.name}${h.refundable ? " ·可退" : ""}`).join(" / ");
+      const tip = stays.map((h) => `${h.name}${h.refundable ? ` ·${L("可退", "refundable")}` : ""}`).join(" / ");
       window.L.marker([p.lat, p.lng], {
         icon: window.L.divIcon({
           className: "map-emoji-icon hotel-badge",
@@ -3790,7 +3790,7 @@ function paintHomeBase(ctx) {
     fillOpacity: 1,
   })
     .addTo(leafletLayer)
-    .bindTooltip(atAirport ? "✈️ 上海·浦东机场" : "🏠 " + home.name, {
+    .bindTooltip(atAirport ? L("✈️ 上海·浦东机场", "✈️ Shanghai PVG") : "🏠 " + home.name, {
       permanent: false,
       direction: "top",
       offset: [0, -10],
@@ -3807,7 +3807,7 @@ function paintHomeBase(ctx) {
       fillOpacity: 0.9,
     })
       .addTo(leafletLayer)
-      .bindTooltip(`✈️ 计划抵达 · 基督城${fno}`, { permanent: false, direction: "bottom", offset: [0, 10] });
+      .bindTooltip(`✈️ ${L("计划抵达 · 基督城", "Planned arrival · Christchurch")}${fno}`, { permanent: false, direction: "bottom", offset: [0, 10] });
   }
 
   window.L.marker([home.lat, home.lng], {
@@ -3816,14 +3816,14 @@ function paintHomeBase(ctx) {
   })
     .addTo(leafletLayer)
     .bindPopup(
-      `<strong>${atAirport ? "上海·机场出发" : "上海·家中"}</strong><br/>${escapeHtml(
-        ctx.activity?.label || (atAirport ? "机场候机中" : "行前准备")
+      `<strong>${atAirport ? L("上海·机场出发", "Shanghai · departing airport") : L("上海·家中", "Shanghai · home")}</strong><br/>${escapeHtml(
+        ctx.activity?.label || (atAirport ? L("机场候机中", "Waiting at airport") : L("行前准备", "Pre-trip prep"))
       )}<br/><span style="color:#64748b">${
         flags.showPlannedArrival
           ? flags.showOutboundFlightArc
-            ? "已确认到机场，航班航线已显示"
-            : "机票已订，抵达机场后显示航线"
-          : "机票确认前仅显示家中位置"
+            ? L("已确认到机场，航班航线已显示", "At airport — flight path shown")
+            : L("机票已订，抵达机场后显示航线", "Ticketed — path shows after airport arrival")
+          : L("机票确认前仅显示家中位置", "Home only until flight is confirmed")
       }</span>`
     );
 }
@@ -3936,20 +3936,7 @@ function driveLegKind(ids) {
 }
 
 function driveLegLabel(date, ids) {
-  const names = {
-    pl_chc_airport: "基督城",
-    pl_tekapo: "蒂卡波",
-    pl_mt_cook: "库克山",
-    pl_wanaka: "瓦纳卡",
-    pl_queenstown: "皇后镇",
-    pl_milford: "峡湾",
-    pl_picton: "皮克顿",
-    pl_wellington: "惠灵顿",
-    pl_taupo: "陶波",
-    pl_rotorua: "罗托鲁阿",
-    pl_akl_airport: "奥克兰",
-  };
-  const route = ids.map((id) => names[id] || id).join("→");
+  const route = ids.map((id) => placeLabel(id) || id).join("→");
   return `${date.slice(5)} ${route}`;
 }
 
@@ -3962,26 +3949,28 @@ function legDateForPlace(placeId) {
 
 function styleForDriveLeg(leg, traveled, sh80Closed) {
   const baseTip = leg.label || "";
+  const done = L("已走", "Driven");
+  const planned = L("规划未走", "Planned");
   if (leg.kind === "mt_cook" && sh80Closed && !traveled) {
     return {
       color: "#e11d48",
       weight: 5,
       opacity: 0.9,
       dashArray: "10 8",
-      tooltip: "原计划·库克山支线（SH80 封闭）",
+      tooltip: L("原计划·库克山支线（SH80 封闭）", "Original plan · Mt Cook spur (SH80 closed)"),
     };
   }
   if (traveled) {
     if (leg.kind === "mt_cook") {
-      return { color: "#0f766e", weight: 4, opacity: 0.9, dashArray: null, tooltip: `已走 · ${baseTip}` };
+      return { color: "#0f766e", weight: 4, opacity: 0.9, dashArray: null, tooltip: `${done} · ${baseTip}` };
     }
     if (leg.kind === "wanaka") {
-      return { color: "#6d28d9", weight: 4, opacity: 0.88, dashArray: null, tooltip: `已走 · ${baseTip}` };
+      return { color: "#6d28d9", weight: 4, opacity: 0.88, dashArray: null, tooltip: `${done} · ${baseTip}` };
     }
     if (leg.kind === "transfer") {
-      return { color: "#334155", weight: 4, opacity: 0.88, dashArray: null, tooltip: `已走 · ${baseTip}` };
+      return { color: "#334155", weight: 4, opacity: 0.88, dashArray: null, tooltip: `${done} · ${baseTip}` };
     }
-    return { color: "#1e3a8a", weight: 5, opacity: 0.9, dashArray: null, tooltip: `已走 · ${baseTip}` };
+    return { color: "#1e3a8a", weight: 5, opacity: 0.9, dashArray: null, tooltip: `${done} · ${baseTip}` };
   }
   // Planned but not yet driven — dashed
   if (leg.kind === "mt_cook") {
@@ -3990,7 +3979,7 @@ function styleForDriveLeg(leg, traveled, sh80Closed) {
       weight: 3.5,
       opacity: 0.65,
       dashArray: "9 10",
-      tooltip: `规划未走 · ${baseTip}`,
+      tooltip: `${planned} · ${baseTip}`,
     };
   }
   if (leg.kind === "wanaka") {
@@ -3999,7 +3988,7 @@ function styleForDriveLeg(leg, traveled, sh80Closed) {
       weight: 3.5,
       opacity: 0.6,
       dashArray: "9 10",
-      tooltip: `规划未走 · ${baseTip}`,
+      tooltip: `${planned} · ${baseTip}`,
     };
   }
   if (leg.kind === "transfer") {
@@ -4008,7 +3997,7 @@ function styleForDriveLeg(leg, traveled, sh80Closed) {
       weight: 3.5,
       opacity: 0.6,
       dashArray: "9 10",
-      tooltip: `规划未走 · ${baseTip}`,
+      tooltip: `${planned} · ${baseTip}`,
     };
   }
   return {
@@ -4016,7 +4005,7 @@ function styleForDriveLeg(leg, traveled, sh80Closed) {
     weight: 4,
     opacity: 0.55,
     dashArray: "9 11",
-    tooltip: `规划未走 · ${baseTip}`,
+    tooltip: `${planned} · ${baseTip}`,
   };
 }
 
@@ -4169,7 +4158,7 @@ function paintPersistentFlightArcs(ctx) {
     const locked = lockedArcForFlight(f);
     if (!locked) continue;
     const arc = locked.arc;
-    const label = `${f.flown ? "已飞" : "未飞"} · ${f.flight_no} · ${f.route}`;
+    const label = `${f.flown ? L("已飞", "Flown") : L("未飞", "Not flown")} · ${f.flight_no} · ${f.route}`;
     // Soft muted arcs — lighter so they don't dominate the map.
     const line = window.L.polyline(arc, {
       color: f.flown ? "#94a3b8" : "#a5b4fc",
@@ -4351,7 +4340,7 @@ export function playDriveHop({
     driveHopLayer.clearLayers();
     driveHopActive = true;
 
-    const tip = label || `转场中 · ${fromGeo || "?"} → ${toGeo || "?"}`;
+    const tip = label || `${L("转场中", "Transferring")} · ${fromGeo || "?"} → ${toGeo || "?"}`;
     setPlanningBadge(`🚗 ${tip}`, "adjust");
 
     window.L.polyline(path, {
@@ -4497,8 +4486,8 @@ export function playFlightCrossing({
     const routeLabel =
       label ||
       (outbound
-        ? `飞行中 · ${flightNo || "MU779"} · PVG → CHC`
-        : `飞行中 · ${flightNo || "MU780"} · AKL → PVG`);
+        ? `${L("飞行中", "In flight")} · ${flightNo || "MU779"} · PVG → CHC`
+        : `${L("飞行中", "In flight")} · ${flightNo || "MU780"} · AKL → PVG`);
     setPlanningBadge(routeLabel, "consider");
 
     const arc = greatCircle(a, b, 72);
@@ -4529,7 +4518,7 @@ export function playFlightCrossing({
       fillOpacity: 1,
     })
       .addTo(flightLayer)
-      .bindTooltip(outbound ? "上海浦东 PVG" : "奥克兰 AKL", { direction: "top" });
+      .bindTooltip(outbound ? L("上海浦东 PVG", "Shanghai PVG") : L("奥克兰 AKL", "Auckland AKL"), { direction: "top" });
     window.L.circleMarker(b, {
       radius: 6,
       color: "#fff",
@@ -4538,7 +4527,7 @@ export function playFlightCrossing({
       fillOpacity: 1,
     })
       .addTo(flightLayer)
-      .bindTooltip(outbound ? "基督城 CHC" : "上海浦东 PVG", { direction: "top" });
+      .bindTooltip(outbound ? L("基督城 CHC", "Christchurch CHC") : L("上海浦东 PVG", "Shanghai PVG"), { direction: "top" });
 
     const initialBrg = bearingDeg(a, b);
     const plane = window.L.marker(a, {
@@ -4585,7 +4574,7 @@ export function playFlightCrossing({
           resolve(false);
           return;
         }
-        setPlanningBadge(outbound ? "已落地 · 基督城" : "已落地 · 上海", "consider");
+        setPlanningBadge(outbound ? L("已落地 · 基督城", "Landed · Christchurch") : L("已落地 · 上海", "Landed · Shanghai"), "consider");
         setTimeout(() => {
           if (!isMapSession(session)) {
             resolve(false);
@@ -4612,7 +4601,7 @@ function paintHomeActivity(ctx) {
   if (!activityLayer) return;
   const home = ctx.home;
   const emoji = ctx.activity?.emoji || "🏠";
-  const label = ctx.activity?.label || "行前准备";
+  const label = ctx.activity?.label || L("行前准备", "Pre-trip prep");
   window.L.marker([home.lat, home.lng], {
     icon: hereMarkerIcon(emoji, label),
     zIndexOffset: 1200,
@@ -4997,15 +4986,15 @@ function shortAlertText(ctx) {
   const parts = [];
   for (const e of ctx.activeRoads || []) {
     if (e.road_id === MT_COOK_SPUR.road_id || /sh80|mt.?cook|quake/i.test(`${e.event_id} ${e.note}`)) {
-      parts.push("SH80 库克山公路落石封闭·支线暂缓");
+      parts.push(L("SH80 库克山公路落石封闭·支线暂缓", "SH80 Mt Cook Hwy closed (rockfall) · spur deferred"));
     } else if (/milford|sh94/i.test(`${e.event_id} ${e.road_id} ${e.note}`)) {
-      parts.push("SH94 米尔福德公路封闭");
+      parts.push(L("SH94 米尔福德公路封闭", "SH94 Milford Road closed"));
     } else {
-      parts.push(e.note || e.event_id || "路况中断");
+      parts.push(e.note || e.event_id || L("路况中断", "Road disruption"));
     }
   }
   for (const e of ctx.activeTransit || []) {
-    parts.push(e.note || e.event_id || "渡轮中断");
+    parts.push(e.note || e.event_id || L("渡轮中断", "Ferry disruption"));
   }
   return parts.join(" · ");
 }
@@ -5047,7 +5036,7 @@ function updateBanner(panel, ctx) {
   banner.className = "map-banner";
   banner.innerHTML = `
     <span class="map-banner-text">⚠ ${escapeHtml(text)}</span>
-    <button type="button" class="map-banner-dismiss" aria-label="关闭提示">×</button>`;
+    <button type="button" class="map-banner-dismiss" aria-label="${L("关闭提示", "Dismiss")}">×</button>`;
 
   const dismiss = () => {
     dismissedAlertKey = key;
@@ -5093,7 +5082,7 @@ function hereMarkerIcon(emoji, label = "") {
           <span class="map-here-core">
             <span class="map-here-emoji">${emoji || "📍"}</span>
           </span>
-          <span class="map-here-tag">现在</span>
+          <span class="map-here-tag">${L("现在", "Now")}</span>
         </div>
         ${short ? `<div class="map-here-caption">${short}</div>` : ""}
       </div>`,
@@ -5245,5 +5234,5 @@ function shortRoadName(name) {
   if (/SH94|Milford|米尔福德/i.test(s)) return "SH94";
   const m = s.match(/SH\s?\d+/i);
   if (m) return m[0].replace(/\s+/g, "");
-  return s.length > 12 ? s.slice(0, 10) + "…" : s || "路段";
+  return s.length > 12 ? s.slice(0, 10) + "…" : s || L("路段", "Road");
 }

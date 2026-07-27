@@ -3,7 +3,7 @@
  * Shape aligns with future MCP writes so UI can stay stable.
  */
 
-import { L, getLocale } from "./i18n.js?v=20260727-i18n2";
+import { L, getLocale } from "./i18n.js?v=20260727-i18n3";
 
 export function emptyLedger() {
   return {

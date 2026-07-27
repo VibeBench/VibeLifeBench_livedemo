@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-i18n2";
-import { DemoEngine } from "./engine.js?v=20260727-i18n2";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-i18n3";
+import { DemoEngine } from "./engine.js?v=20260727-i18n3";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260727-i18n2";
-import { Trajectory } from "./trajectory.js?v=20260727-i18n2";
-import { UI } from "./ui.js?v=20260727-i18n2";
+} from "./agent.js?v=20260727-i18n3";
+import { Trajectory } from "./trajectory.js?v=20260727-i18n3";
+import { UI } from "./ui.js?v=20260727-i18n3";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,14 +18,14 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260727-i18n2";
+} from "./map.js?v=20260727-i18n3";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
   playbackMs,
   sleepPlayback,
   playbackSpeedLabel,
-} from "./playback.js?v=20260727-i18n2";
+} from "./playback.js?v=20260727-i18n3";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -39,7 +39,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260727-i18n2";
+} from "./i18n.js?v=20260727-i18n3";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -179,6 +179,8 @@ function rerenderForLocale() {
   syncConsoleOnboard();
   syncAutoplayButtonLabel();
   syncReplayButton();
+  // Welcome card is hard-rendered HTML — rebuild so EN/ZH buttons & tips update.
+  if (document.querySelector(".welcome-guide")) showEntryGuide();
   ui.toast(i18nT(getLocale() === "en" ? "lang.toast.en" : "lang.toast.zh"));
 }
 

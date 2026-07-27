@@ -22,10 +22,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260727-i18n2";
-import { groupLedgerByDate } from "./ledger.js?v=20260727-i18n2";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260727-i18n2";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-i18n2";
+} from "./map.js?v=20260727-i18n3";
+import { groupLedgerByDate } from "./ledger.js?v=20260727-i18n3";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260727-i18n3";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-i18n3";
 
 function kindMeta(kind) {
   const base = {
@@ -1076,10 +1076,10 @@ export class UI {
       this.enqueueStatusLanding({
         kind: "weather",
         icon: weatherEmojiFromText(state?.weather) || "🌦️",
-        title: "天气已更新",
+        title: L("天气已更新", "Weather updated"),
         fromText: prev.weather,
         toText: nextSnap.weather,
-        detail: weatherSub(state) || "状态栏已同步",
+        detail: weatherSub(state) || L("状态栏已同步", "Status bar synced"),
       });
     }
     if (visaChanged) {
@@ -1202,12 +1202,12 @@ export class UI {
       pop.setAttribute("role", "status");
       const barPct = Math.max(0, Math.min(100, Number(pct) || 0));
       const remainTone =
-        remain !== "—" && total !== "待确定" ? "is-ok" : "";
+        remain !== "—" && total !== L("待确定", "TBD") && total !== "待确定" && total !== "TBD" ? "is-ok" : "";
       pop.innerHTML = `
         <div class="status-budget-pop-caret" aria-hidden="true"></div>
         <div class="status-budget-pop-inner">
           <div class="status-budget-pop-head">
-            <span class="status-budget-pop-kicker">预算更新</span>
+            <span class="status-budget-pop-kicker">${L("预算更新", "Budget update")}</span>
             ${
               location
                 ? `<span class="status-budget-pop-loc">${escapeHtml(location)}</span>`
@@ -1215,24 +1215,24 @@ export class UI {
             }
           </div>
           <div class="status-budget-pop-hero ${remainTone}">
-            <span class="status-budget-pop-hero-label">剩余可用</span>
+            <span class="status-budget-pop-hero-label">${L("剩余可用", "Remaining")}</span>
             <span class="status-budget-pop-hero-val">${escapeHtml(remain)}</span>
           </div>
           <div class="status-budget-pop-meter" aria-hidden="true">
             <span class="status-budget-pop-meter-fill" style="width:0%"></span>
           </div>
-          <div class="status-budget-pop-cap">已用 ${barPct}%</div>
+          <div class="status-budget-pop-cap">${L("已用", "Spent")} ${barPct}%</div>
           <div class="status-budget-pop-row">
             <div class="status-budget-pop-cell">
-              <span class="status-budget-pop-cell-k">已用</span>
+              <span class="status-budget-pop-cell-k">${L("已用", "Spent")}</span>
               <span class="status-budget-pop-cell-v">${escapeHtml(spent)}</span>
             </div>
             <div class="status-budget-pop-cell">
-              <span class="status-budget-pop-cell-k">总额</span>
+              <span class="status-budget-pop-cell-k">${L("总额", "Total")}</span>
               <span class="status-budget-pop-cell-v">${escapeHtml(total)}</span>
             </div>
             <div class="status-budget-pop-cell is-accent">
-              <span class="status-budget-pop-cell-k">剩余</span>
+              <span class="status-budget-pop-cell-k">${L("剩余", "Left")}</span>
               <span class="status-budget-pop-cell-v">${escapeHtml(remain)}</span>
             </div>
           </div>
@@ -1279,7 +1279,7 @@ export class UI {
       if (valEl && toText) {
         this.setStatusChipValue(valEl, String(toText));
       }
-      if (detail) chip.title = `预算状态 · ${detail}`;
+      if (detail) chip.title = `${L("预算状态", "Budget")} · ${detail}`;
 
       clearTimeout(chip._landTimer);
       chip._landTimer = setTimeout(() => {
@@ -1465,7 +1465,7 @@ export class UI {
   playStatusChipUpdate({
     kind = "activity",
     icon = "✨",
-    title = "状态更新",
+    title = L("状态更新", "Status update"),
     toText = "",
     detail = "",
     items = [],
@@ -1659,22 +1659,22 @@ export class UI {
               h.name
             )}</span><span class="lr-meta">${cancelled ? "cancelled" : "confirmed"}${
               h.price_nzd != null ? ` · NZ$${h.price_nzd}` : ""
-            }${h.refundable ? " · 可退" : ""}${h.note ? ` · ${escapeHtml(h.note)}` : ""}</span></div>`
+            }${h.refundable ? ` · ${L("可退", "refundable")}` : ""}${h.note ? ` · ${escapeHtml(h.note)}` : ""}</span></div>`
           );
         }
         for (const r of g.rentals || []) {
           rows.push(
             `<div class="ledger-row rental ${escapeHtml(r.status || "held")}"><span class="lr-ico">🚐</span><span class="lr-main">${escapeHtml(
-              r.vehicle_name || "房车"
+              r.vehicle_name || L("房车", "Campervan")
             )}</span><span class="lr-meta">${escapeHtml(r.status || "")}${
               r.insurance ? ` · ${escapeHtml(r.insurance)}` : ""
-            }${r.bond_nzd != null ? ` · 押金 NZ$${r.bond_nzd}` : ""}${
+            }${r.bond_nzd != null ? ` · ${L("押金", "Bond")} NZ$${r.bond_nzd}` : ""}${
               r.note ? ` · ${escapeHtml(r.note)}` : ""
             }</span></div>`
           );
           if (r.incident) {
             rows.push(
-              `<div class="ledger-row rental incident"><span class="lr-ico">🩹</span><span class="lr-main">划痕上报 · ${escapeHtml(
+              `<div class="ledger-row rental incident"><span class="lr-ico">🩹</span><span class="lr-main">${L("划痕上报", "Scratch report")} · ${escapeHtml(
                 r.incident.case_ref || ""
               )}</span><span class="lr-meta">${escapeHtml(
                 r.incident.description || ""
@@ -1692,7 +1692,7 @@ export class UI {
           );
         }
         for (const o of g.orders || []) {
-          const items = Array.isArray(o.items) ? o.items.join(" / ") : String(o.items || "装备");
+          const items = Array.isArray(o.items) ? o.items.join(" / ") : String(o.items || L("装备", "Gear"));
           rows.push(
             `<div class="ledger-row order ${escapeHtml(o.status || "paid")}"><span class="lr-ico">📦</span><span class="lr-main">${escapeHtml(
               items
@@ -1702,7 +1702,7 @@ export class UI {
           );
         }
         return `<section class="ledger-day">
-          <div class="ledger-day-head"><span class="ld-date">${md}</span><span class="ld-count">${rows.length} 项</span></div>
+          <div class="ledger-day-head"><span class="ld-date">${md}</span><span class="ld-count">${rows.length} ${L("项", "items")}</span></div>
           <div class="ledger-day-body">${rows.join("") || '<div class="ledger-empty">—</div>'}</div>
         </section>`;
       })
@@ -1730,7 +1730,7 @@ export class UI {
               .filter(Boolean)
               .map((line) => `<li>${escapeHtml(line)}</li>`)
               .join("")
-          : `<li class="muted">尚无内容</li>`;
+          : `<li class="muted">${L("尚无内容", "Nothing yet")}</li>`;
         return `<details class="notion-section" ${text ? "open" : ""}>
           <summary>${s.icon} ${s.label}</summary>
           <ul>${lines}</ul>
@@ -1855,25 +1855,25 @@ export class UI {
     const day = engine.currentTripDay();
     const budget = engine.currentState?.budget;
     const spent =
-      budget?.total_cny != null && Number(budget.spent_cny) > 0 ? `¥${fmt(budget.spent_cny)}` : "待定";
+      budget?.total_cny != null && Number(budget.spent_cny) > 0 ? `¥${fmt(budget.spent_cny)}` : L("待定", "TBD");
     const next = engine.currentState?.location || day?.place || "—";
     const liveDate = engine.latestDate();
     const prep = (engine.meta.prep_days || []).find((d) => d.date === liveDate);
     const dayLabel = engine.isPreTrip()
       ? prep
-        ? `行前 ${prep.md}`
+        ? `${L("行前", "Prep")} ${prep.md}`
         : liveDate
-          ? `行前 ${formatSimStamp(liveDate).split(" ")[0]}`
-          : "行前"
+          ? `${L("行前", "Prep")} ${formatSimStamp(liveDate).split(" ")[0]}`
+          : L("行前", "Prep")
       : day?.day != null
         ? `Day ${day.day}`
         : "—";
     if (this.els.footerStats) {
       this.els.footerStats.innerHTML = `
       <span>${dayLabel}/15</span>
-      <span>预算已用 ${spent}</span>
-      <span>下一站 ${escapeHtml(next)}</span>
-      <span>事件 ${engine.progress.cursor + 1}/${engine.progress.total}</span>`;
+      <span>${L("预算已用", "Budget spent")} ${spent}</span>
+      <span>${L("下一站", "Next")} ${escapeHtml(next)}</span>
+      <span>${L("事件", "Events")} ${engine.progress.cursor + 1}/${engine.progress.total}</span>`;
     }
     this.els.progressLabel.textContent = `${engine.progress.cursor + 1} / ${engine.progress.total}`;
   }
@@ -1896,35 +1896,35 @@ export class UI {
     const wrap = document.createElement("div");
     wrap.className = "bubble welcome-guide";
     const statusLine = configured
-      ? `<div class="welcome-status ok">已连接 · ${escapeHtml(providerLabel || "LLM")} · ${escapeHtml(
+      ? `<div class="welcome-status ok">${L("已连接", "Connected")} · ${escapeHtml(providerLabel || "LLM")} · ${escapeHtml(
           model || ""
         )}</div>`
-      : `<div class="welcome-status warn">尚未配置 API Key — Agent 还不能回复</div>`;
+      : `<div class="welcome-status warn">${L("尚未配置 API Key — Agent 还不能回复", "API Key not set — Agent cannot reply yet")}</div>`;
 
     wrap.innerHTML = `
-      <div class="welcome-title">开始 VibeLifeBench 演示</div>
+      <div class="welcome-title">${L("开始 VibeLifeBench 演示", "Start the VibeLifeBench demo")}</div>
       <ol class="welcome-steps">
         <li class="${configured ? "done" : "active"}">
           <span class="ws-num">1</span>
-          <span>填写模型信息（提供商 + API Key）</span>
+          <span>${L("填写模型信息（提供商 + API Key）", "Enter model info (provider + API Key)")}</span>
         </li>
         <li class="${configured ? "active" : ""}">
           <span class="ws-num">2</span>
-          <span>开启自动播放，Agent 随行程事件互动</span>
+          <span>${L("开启自动播放，Agent 随行程事件互动", "Start autoplay — Agent reacts to trip events")}</span>
         </li>
       </ol>
       ${statusLine}
       <div class="welcome-actions">
         <button type="button" class="welcome-btn ${configured ? "ghost" : "primary"}" data-welcome="configure">
-          ${configured ? "更改模型" : "配置模型"}
+          ${configured ? L("更改模型", "Change model") : L("配置模型", "Configure model")}
         </button>
         <button type="button" class="welcome-btn ${configured ? "primary" : "ghost"}" data-welcome="start" ${
           configured ? "" : "disabled"
         }>
-          开始自动演示
+          ${L("开始自动演示", "Start auto demo")}
         </button>
       </div>
-      <div class="welcome-foot">也可点顶部「演示控制台 / 自动播放」；手机底栏 ⚙️ 打开设置页</div>`;
+      <div class="welcome-foot">${L("也可点顶部「演示控制台 / 自动播放」；手机底栏 ⚙️ 打开设置页", "Or use the top Demo console / Autoplay; phone tab ⚙️ opens settings")}</div>`;
 
     wrap.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-welcome]");
@@ -2274,7 +2274,7 @@ export class UI {
             total,
             pct,
             location: loc,
-            detail: remain !== "—" ? `剩余 ${remain}` : meta.detail || "",
+            detail: remain !== "—" ? `${L("剩余", "Left")} ${remain}` : meta.detail || "",
           }),
         { fingerprint: `budget-chip:${total}:${spent}` }
       );
@@ -2339,19 +2339,19 @@ export class UI {
       const detail =
         meta.detail ||
         formatObservedWeatherText(name, args, result) ||
-        "天气查询完成";
+        L("天气查询完成", "Weather lookup done");
       // Queue: pan to place, then bubble (2s hold) — never stack over other overlays.
       return this.enqueueCinematic(
         async () => {
           if (geo) {
             await Promise.resolve(
-              focusGeoKey(geo, { label: `工具：天气 · ${place || geo}` })
+              focusGeoKey(geo, { label: `${L("工具：天气", "Tool · weather")} · ${place || geo}` })
             );
             await new Promise((r) => setTimeout(r, 320));
           }
           return pulseMapEvent({
             icon: wIcon,
-            title: place ? `${place}天气` : name === "get_forecast_daily" ? "多日预报" : "当日天气",
+            title: place ? `${place}${L("天气", " weather")}` : name === "get_forecast_daily" ? L("多日预报", "Multi-day forecast") : L("当日天气", "Today's weather"),
             detail,
             kind: "weather",
             durationMs: 3400,
@@ -2367,15 +2367,15 @@ export class UI {
     } else if (name === "get_flight_status") {
       // Query-only: map pulse — do NOT rewrite the top flight booking chip.
       const no = args.flight_no || result?.flight_no || "";
-      const st = flightStatusLabel(result?.status) || result?.status || "查询中";
+      const st = flightStatusLabel(result?.status) || result?.status || L("查询中", "Checking");
       const delay =
         result?.delay_min != null && Number(result.delay_min) > 0
-          ? `延误 ${result.delay_min} 分`
+          ? `${L("延误", "Delayed")} ${result.delay_min} ${L("分", "min")}`
           : "";
       focusPlanning({
         placeIds: ["pl_chc_airport"],
         mode: "consider",
-        label: no ? `工具：航班 ${no}` : "工具：航班动态",
+        label: no ? `${L("工具：航班", "Tool · flight")} ${no}` : L("工具：航班动态", "Tool · flight status"),
         force: true,
       }).catch(() => {});
       return this.pulseMapFeedback({
@@ -2424,12 +2424,12 @@ export class UI {
                   extractRoadIdsFromText(`${r.title || ""} ${r.snippet || ""}`).includes(roadId)
                 ) ||
                 items.find((r) => /路况|封|SH\s*\d+|公路|落石|雪崩|通行/i.test(`${r.title || ""} ${r.snippet || ""}`));
-              const snip = String(hit?.snippet || hit?.title || "正在核对通行状态")
+              const snip = String(hit?.snippet || hit?.title || L("正在核对通行状态", "Verifying access"))
                 .replace(/\s+/g, " ")
                 .trim();
               const note =
                 (snip.match(/→|->/g) || []).length >= 2
-                  ? "正在核对通行状态"
+                  ? L("正在核对通行状态", "Verifying access")
                   : truncate(snip, 28);
               return {
                 roadId,
@@ -2446,7 +2446,7 @@ export class UI {
               roadMarks: roadMarks.length ? roadMarks : undefined,
               force: true,
               forceFit: true,
-              label: `检索：核查 ${focusRoads.length} 条路段`,
+              label: `${L("检索：核查", "Search · check")} ${focusRoads.length} ${L("条路段", "roads")}`,
             });
           },
           { fingerprint: `search-roads:${roadIds.slice(0, 2).join(",")}:${q.slice(0, 40)}` }
@@ -2469,20 +2469,20 @@ export class UI {
       );
     } else if (name === "add_calendar_event" || /calendar|schedule/i.test(name)) {
       const ev = result?.event || {};
-      const calTitle = args.title || ev.title || "日程";
+      const calTitle = args.title || ev.title || L("日程", "Calendar");
       const calDate = args.date || ev.date || "";
       const calNote = args.note || ev.note || "";
       const items = [
-        calDate ? { label: "日期", value: String(calDate).slice(0, 10) } : null,
-        { label: "标题", value: calTitle },
-        calNote ? { label: "备注", value: truncate(calNote, 48) } : null,
+        calDate ? { label: L("日期", "Date"), value: String(calDate).slice(0, 10) } : null,
+        { label: L("标题", "Title"), value: calTitle },
+        calNote ? { label: L("备注", "Note"), value: truncate(calNote, 48) } : null,
       ].filter(Boolean);
       return this.enqueueCinematic(
         () =>
           this.playStatusChipUpdate({
             kind: "activity",
             icon: "📅",
-            title: "日程已同步",
+            title: L("日程已同步", "Calendar synced"),
             toText: truncate(calTitle, 28),
             detail: calDate ? String(calDate).slice(0, 10) : "",
             items,
@@ -2514,7 +2514,7 @@ export class UI {
           hotel.name ||
           hotel.hotel_name ||
           args.hotel_id ||
-          "住宿";
+          L("住宿", "Stay");
         const checkIn = String(args.check_in || hotel.check_in || "").slice(0, 10);
         const placeId =
           hotel.place_id ||
@@ -2657,7 +2657,7 @@ export class UI {
           <div class="tool-step-title">${escapeHtml(title)}</div>
           <div class="tool-step-sub">${escapeHtml(sub)}</div>
         </div>
-        <span class="tool-step-status pending" aria-label="进行中"><span class="tool-spin"></span></span>`;
+        <span class="tool-step-status pending" aria-label="${L("进行中", "In progress")}"><span class="tool-spin"></span></span>`;
       this._refreshRailCollapse(wrap);
       this._scrollChatToBottom();
       return row;
@@ -2682,14 +2682,14 @@ export class UI {
     const n = row._calls.length;
     const baseLabel =
       (TOOL_META[name] && TOOL_META[name].label) || humanizeToolName(name);
-    const title = n > 1 ? `${baseLabel} · ${n} 次` : meta.title;
+    const title = n > 1 ? `${baseLabel} · ${n}${L(" 次", "×")}` : meta.title;
     const detail = this._mergedToolDetail(row);
 
     this.appendActivityFeed({
       id: `tool:${wrap._simTime || wrap._startedAt || "t"}:${name}`,
       kind: "agent_tool",
       icon: meta.icon,
-      who: "Agent 工具",
+      who: L("Agent 工具", "Agent tools"),
       body: title,
       detail,
       time: wrap._simTime || null,
@@ -2738,14 +2738,14 @@ export class UI {
     const value =
       b.total_cny != null
         ? Number(b.spent_cny) > 0
-          ? `已用 ${spent} / ${total} · 剩余 ${remain}`
-          : `预算 ${total}`
-        : "预算核对中…";
+          ? `${L("已用", "Spent")} ${spent} / ${total} · ${L("剩余", "Left")} ${remain}`
+          : `${L("预算", "Budget")} ${total}`
+        : L("预算核对中…", "Checking budget…");
     bar.hidden = false;
     bar.removeAttribute("hidden");
     bar.innerHTML = `
       <span class="turn-header-ico" aria-hidden="true">${toolEmojiIcon("get_budget_snapshot")}</span>
-      <span class="turn-header-label">行程预算</span>
+      <span class="turn-header-label">${L("行程预算", "Trip budget")}</span>
       <span class="turn-header-value">${escapeHtml(value)}</span>`;
   }
 
@@ -2759,7 +2759,9 @@ export class UI {
       details.push(bit);
     }
     if (details.length > 3) {
-      return `${details.slice(0, 3).join("； ")}；…共 ${details.length} 条`;
+      return getLocale() === "en"
+      ? `${details.slice(0, 3).join("; ")}; …${details.length} total`
+      : `${details.slice(0, 3).join("； ")}；…共 ${details.length} 条`;
     }
     return details.join("； ");
   }
@@ -2800,15 +2802,15 @@ export class UI {
                 String(c.meta?.detail || "").trim() ||
                 firstArgPreview(c.args) ||
                 `#${i + 1}`;
-              const err = c.meta?.error ? " · 失败" : "";
+              const err = c.meta?.error ? ` · ${L("失败", "failed")}` : "";
               return `<div class="tool-step-child">${escapeHtml(truncate(bit, 56))}${err}</div>`;
             })
             .join("")}</div>`
         : "";
 
     const statusHtml = anyError
-      ? `<span class="tool-step-status err" aria-label="失败">!</span>`
-      : `<span class="tool-step-status ok" aria-label="完成">✓</span>`;
+      ? `<span class="tool-step-status err" aria-label="${L("失败", "Failed")}">!</span>`
+      : `<span class="tool-step-status ok" aria-label="${L("完成", "Done")}">✓</span>`;
 
     const titleHtml = `${escapeHtml(title)}${n > 1 ? ` <span class="tool-step-count">×${n}</span>` : ""}`;
     const subHtml = escapeHtml(truncate(sub, 48));
@@ -2945,7 +2947,7 @@ export class UI {
 
     if (phase === "thinking") {
       thinkBlock?.classList.add("thinking");
-      if (summaryEl && !summaryEl.textContent) summaryEl.textContent = "梳理行程约束…";
+      if (summaryEl && !summaryEl.textContent) summaryEl.textContent = L("梳理行程约束…", "Reviewing trip constraints…");
     } else if (phase === "tool") {
       thinkBlock?.classList.add("thinking");
       if (toolHint) {
@@ -3018,7 +3020,7 @@ export class UI {
       if (st) {
         st.className = "tool-step-status ok";
         st.innerHTML = "✓";
-        st.setAttribute("aria-label", "完成");
+        st.setAttribute("aria-label", L("完成", "Done"));
       }
     });
     this._refreshRailCollapse(wrap);
@@ -3076,7 +3078,7 @@ export class UI {
         kind: "agent_reply",
         icon: "💬",
         who: "Agent",
-        body: truncate(plain || "已回复", 140),
+        body: truncate(plain || L("已回复", "Replied"), 140),
         time: wrap._simTime || null,
       });
     }
@@ -3354,15 +3356,21 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
       booking.status ||
       (/return/i.test(n) ? "returned" : /pickup/i.test(n) ? "active" : /scratch/i.test(n) ? "active" : "held");
     const statusLabel =
-      status === "returned" ? "已还车" : status === "active" ? "使用中" : status === "held" ? "已预订" : status;
+      status === "returned"
+        ? L("已还车", "Returned")
+        : status === "active"
+          ? L("使用中", "In use")
+          : status === "held"
+            ? L("已预订", "Held")
+            : status;
     const chip = describeRentalStatusChip({
       vehicle_name: booking.vehicle_name || args.vehicle_name || "Britz Venturer 2-Berth",
       status,
       booking_ref: booking.booking_ref || args.booking_ref,
       insurance:
         booking.insurance_plan_id === "ins_zero_excess" || !booking.insurance_plan_id
-          ? "零自付额"
-          : "基础险",
+          ? L("零自付额", "Zero excess")
+          : L("基础险", "Basic cover"),
       bond_nzd: booking.bond_nzd,
       daily_price: booking.daily_price,
       pickup_date: booking.pickup_date || "2026-10-11",
@@ -3370,25 +3378,25 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
       note: booking.note,
     });
     const items = [
-      { label: "车型", value: booking.vehicle_name || args.vehicle_name || "Britz Venturer" },
-      { label: "状态", value: statusLabel },
+      { label: L("车型", "Vehicle"), value: booking.vehicle_name || args.vehicle_name || "Britz Venturer" },
+      { label: L("状态", "Status"), value: statusLabel },
     ];
     if (booking.booking_ref || args.booking_ref) {
-      items.push({ label: "订单", value: booking.booking_ref || args.booking_ref });
+      items.push({ label: L("订单", "Booking"), value: booking.booking_ref || args.booking_ref });
     }
     if (result?.incident?.case_ref) {
-      items.push({ label: "案件", value: result.incident.case_ref });
+      items.push({ label: L("案件", "Case"), value: result.incident.case_ref });
     }
-    if (booking.bond_nzd != null) items.push({ label: "押金", value: `NZ$${booking.bond_nzd}` });
-    if (booking.daily_price != null) items.push({ label: "日租", value: `NZ$${booking.daily_price}` });
-    if (chip.sub) items.push({ label: "行程", value: chip.sub });
+    if (booking.bond_nzd != null) items.push({ label: L("押金", "Bond"), value: `NZ$${booking.bond_nzd}` });
+    if (booking.daily_price != null) items.push({ label: L("日租", "Daily"), value: `NZ$${booking.daily_price}` });
+    if (chip.sub) items.push({ label: L("行程", "Dates"), value: chip.sub });
     return {
       actionKind: "write",
       statusKind: "rental",
       icon: /scratch/i.test(n) ? "🩹" : "🚐",
       cardTitle: label,
       cardQuery: /scratch/i.test(n) ? "🩹" : "🚐",
-      statusTitle: "房车状态已同步",
+      statusTitle: L("房车状态已同步", "Campervan status synced"),
       toText: chip.value,
       detail: summary || chip.sub || booking.vehicle_name || "",
       items,
@@ -3404,17 +3412,17 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
       icon: "✈️",
       cardTitle: no || label,
       cardQuery: st,
-      statusTitle: /cancel/i.test(n) ? "机票已取消" : "机票已预订",
+      statusTitle: /cancel/i.test(n) ? L("机票已取消", "Flight cancelled") : L("机票已预订", "Flight booked"),
       toText: no ? `${no} · ${st}` : st,
       detail: summary || args.route || result?.flight?.note || "",
       items: [
-        no ? { label: "航班", value: no } : null,
-        { label: "状态", value: st },
+        no ? { label: L("航班", "Flight"), value: no } : null,
+        { label: L("状态", "Status"), value: st },
         args.route || result?.flight?.route
-          ? { label: "航线", value: args.route || result.flight.route }
+          ? { label: L("航线", "Route"), value: args.route || result.flight.route }
           : null,
         args.date || result?.flight?.date
-          ? { label: "日期", value: String(args.date || result.flight.date).slice(0, 10) }
+          ? { label: L("日期", "Date"), value: String(args.date || result.flight.date).slice(0, 10) }
           : null,
       ].filter(Boolean),
       fingerprint: `write:flight:${no}:${st}`,
@@ -3427,22 +3435,22 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
       statusKind: "activity",
       icon: "✈️",
       cardTitle: no || label,
-      cardQuery: "已值机",
-      statusTitle: "值机已完成",
-      toText: no ? `${no} · 已值机` : "已值机",
+      cardQuery: L("已值机", "Checked in"),
+      statusTitle: L("值机已完成", "Check-in complete"),
+      toText: no ? `${no} · ${L("已值机", "Checked in")}` : L("已值机", "Checked in"),
       detail: summary || args.seat || result?.flight?.seat || "",
       items: [
-        no ? { label: "航班", value: no } : null,
-        { label: "状态", value: "已值机" },
+        no ? { label: L("航班", "Flight"), value: no } : null,
+        { label: L("状态", "Status"), value: L("已值机", "Checked in") },
         args.seat || result?.flight?.seat
-          ? { label: "座位", value: args.seat || result.flight.seat }
+          ? { label: L("座位", "Seat"), value: args.seat || result.flight.seat }
           : null,
       ].filter(Boolean),
       fingerprint: `write:checkin:${no}`,
     };
   }
   if (/book_hotel|cancel_hotel/i.test(n)) {
-    const hotel = args.hotel_name || args.name || result?.hotel?.name || args.hotel_id || "住宿";
+    const hotel = args.hotel_name || args.name || result?.hotel?.name || args.hotel_id || L("住宿", "Stay");
     const st = /cancel/i.test(n) ? L("已取消", "Cancelled") : L("已确认", "Confirmed");
     return {
       actionKind: "write",
@@ -3450,17 +3458,17 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
       icon: "🏨",
       cardTitle: label,
       cardQuery: "🏨",
-      statusTitle: "住宿已同步",
+      statusTitle: L("住宿已同步", "Stay synced"),
       toText: truncate(String(hotel), 22),
       detail: summary || st,
       items: [
-        { label: "酒店", value: String(hotel) },
-        { label: "状态", value: st },
+        { label: L("酒店", "Hotel"), value: String(hotel) },
+        { label: L("状态", "Status"), value: st },
         args.check_in || result?.hotel?.check_in
-          ? { label: "入住", value: String(args.check_in || result.hotel.check_in).slice(0, 10) }
+          ? { label: L("入住", "Check-in"), value: String(args.check_in || result.hotel.check_in).slice(0, 10) }
           : null,
         args.price_nzd != null || result?.hotel?.price_nzd != null
-          ? { label: "房价", value: `NZ$${args.price_nzd ?? result.hotel.price_nzd}` }
+          ? { label: L("房价", "Rate"), value: `NZ$${args.price_nzd ?? result.hotel.price_nzd}` }
           : null,
       ].filter(Boolean),
       fingerprint: `write:hotel:${hotel}:${st}`,
@@ -3472,21 +3480,21 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
       ? order.items
       : Array.isArray(args.items)
         ? args.items
-        : ["护膝", "喷雾", "插头"];
-    const st = order.status === "delivered" ? "已送达" : "已支付";
+        : [L("护膝", "Knee brace"), L("喷雾", "Spray"), L("插头", "Adapter")];
+    const st = order.status === "delivered" ? L("已送达", "Delivered") : L("已支付", "Paid");
     return {
       actionKind: "write",
       statusKind: "activity",
       icon: "📦",
       cardTitle: label,
       cardQuery: "📦",
-      statusTitle: "装备订单已同步",
+      statusTitle: L("装备订单已同步", "Gear order synced"),
       toText: st,
       detail: summary || itemsList.slice(0, 3).join(" / "),
       items: [
-        { label: "订单", value: order.order_id || "gear" },
-        { label: "状态", value: st },
-        { label: "物品", value: itemsList.slice(0, 3).join(" / ") },
+        { label: L("订单", "Order"), value: order.order_id || "gear" },
+        { label: L("状态", "Status"), value: st },
+        { label: L("物品", "Items"), value: itemsList.slice(0, 3).join(" / ") },
       ],
       fingerprint: `write:gear:${order.order_id || st}`,
     };
@@ -3497,10 +3505,10 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
     icon,
     cardTitle: label,
     cardQuery: icon,
-    statusTitle: "状态已同步",
+    statusTitle: L("状态已同步", "Status synced"),
     toText: truncate(summary || label, 28),
     detail: summary,
-    items: [{ label: "结果", value: summary || "已写入" }],
+    items: [{ label: L("结果", "Result"), value: summary || L("已写入", "Saved") }],
     fingerprint: `write:${n}:${summary.slice(0, 40)}`,
   };
 }
@@ -3611,11 +3619,11 @@ function roadLabel(idOrName) {
 
 function hotelLabel(idOrName) {
   const s = String(idOrName || "");
-  if (/tekapo/i.test(s)) return "蒂卡波营地";
-  if (/lakeview|qtown/i.test(s)) return "皇后镇 Lakeview";
-  if (/alpine/i.test(s)) return "Alpine 酒店";
-  if (/rotorua/i.test(s)) return "罗托鲁阿住宿";
-  return shortHotel(s) || "酒店";
+  if (/tekapo/i.test(s)) return L("蒂卡波营地", "Tekapo campground");
+  if (/lakeview|qtown/i.test(s)) return L("皇后镇 Lakeview", "Queenstown Lakeview");
+  if (/alpine/i.test(s)) return L("Alpine 酒店", "Alpine Hotel");
+  if (/rotorua/i.test(s)) return L("罗托鲁阿住宿", "Rotorua stay");
+  return shortHotel(s) || L("酒店", "Hotel");
 }
 
 /** Compact campervan name for the top status chip (no hard ellipsis — chip marquee scrolls). */
@@ -3627,7 +3635,7 @@ function shortVehicleChipName(name) {
     .replace(/\s*6-Berth\s*/i, " 6B")
     .replace(/\s+/g, " ")
     .trim();
-  if (!t) return "房车";
+  if (!t) return L("房车", "Campervan");
   return t;
 }
 
@@ -3842,8 +3850,8 @@ function formatObservedWeatherText(name, args = {}, result = null) {
       weatherConditionLabel(result.condition) || result.condition,
       `${result.tmin ?? "?"}~${result.tmax ?? "?"}℃`,
     ];
-    if (result.wind_kmh != null) bits.push(`风 ${result.wind_kmh} km/h`);
-    if (result.precip_mm != null && Number(result.precip_mm) > 0) bits.push(`降水 ${result.precip_mm} mm`);
+    if (result.wind_kmh != null) bits.push(`${L("风", "Wind")} ${result.wind_kmh} km/h`);
+    if (result.precip_mm != null && Number(result.precip_mm) > 0) bits.push(`${L("降水", "Precip")} ${result.precip_mm} mm`);
     return bits.join(" · ");
   }
   if (result.weather) return String(result.weather).slice(0, 80);
@@ -3858,12 +3866,12 @@ function buildWeatherActionRows(name, args = {}, result = null) {
     const rows = result?.forecast || [];
     if (!rows.length) {
       return [
-        { label: "地点", value: place || "—" },
+        { label: L("地点", "Place"), value: place || "—" },
         { label: L("预报", "Forecast"), value: L("暂无数据", "No data") },
       ];
     }
     return rows.slice(0, 4).map((r) => {
-      const d = String(r.date || "").slice(5) || "日期";
+      const d = String(r.date || "").slice(5) || L("日期", "Date");
       const cond = weatherConditionLabel(r.condition) || r.condition || "—";
       return {
         label: d,
@@ -3872,30 +3880,30 @@ function buildWeatherActionRows(name, args = {}, result = null) {
     });
   }
   const rows = [];
-  if (place) rows.push({ label: "地点", value: place });
-  if (date) rows.push({ label: "日期", value: String(date).slice(0, 10) });
+  if (place) rows.push({ label: L("地点", "Place"), value: place });
+  if (date) rows.push({ label: L("日期", "Date"), value: String(date).slice(0, 10) });
   if (result?.condition != null) {
     rows.push({
-      label: "天气",
+      label: L("天气", "Weather"),
       value: weatherConditionLabel(result.condition) || String(result.condition),
     });
   } else if (result?.weather) {
-    rows.push({ label: "天气", value: String(result.weather).slice(0, 40) });
+    rows.push({ label: L("天气", "Weather"), value: String(result.weather).slice(0, 40) });
   } else if (result?.summary) {
     rows.push({
-      label: "概况",
+      label: L("概况", "Summary"),
       value: String(result.summary)
         .replace(/^([A-Za-z ]+)/, (_, w) => weatherConditionLabel(w.trim()) || w)
         .slice(0, 48),
     });
   }
   if (result?.tmin != null || result?.tmax != null) {
-    rows.push({ label: "气温", value: `${result.tmin ?? "?"}~${result.tmax ?? "?"}℃` });
+    rows.push({ label: L("气温", "Temp"), value: `${result.tmin ?? "?"}~${result.tmax ?? "?"}℃` });
   }
-  if (result?.wind_kmh != null) rows.push({ label: "风力", value: `${result.wind_kmh} km/h` });
-  if (result?.precip_mm != null) rows.push({ label: "降水", value: `${result.precip_mm} mm` });
-  if (result?.precip_prob != null) rows.push({ label: "降水概率", value: `${result.precip_prob}%` });
-  if (!rows.length) rows.push({ label: "结果", value: result?.note || "查询完成" });
+  if (result?.wind_kmh != null) rows.push({ label: L("风力", "Wind"), value: `${result.wind_kmh} km/h` });
+  if (result?.precip_mm != null) rows.push({ label: L("降水", "Precip"), value: `${result.precip_mm} mm` });
+  if (result?.precip_prob != null) rows.push({ label: L("降水概率", "Rain chance"), value: `${result.precip_prob}%` });
+  if (!rows.length) rows.push({ label: L("结果", "Result"), value: result?.note || L("查询完成", "Done") });
   return rows.slice(0, 5);
 }
 
@@ -3904,7 +3912,7 @@ function buildToolPulse(name, args = {}, result = null) {
   const base = TOOL_META[name] || {
     icon: isWriteToolName(name) ? "🔧" : "🛠️",
     label: humanizeToolName(name),
-    focus: "查看调用结果",
+    focus: L("查看调用结果", "View result"),
   };
   const error = result && result.ok === false;
   let title = base.label;
@@ -3914,7 +3922,7 @@ function buildToolPulse(name, args = {}, result = null) {
     case "get_current_weather": {
       const place = geoLabel(args.geo_key || result?.geo_key);
       const date = args.date || result?.date || "";
-      title = place ? `获取天气 · ${place}` : "获取当日天气";
+      title = place ? `${L("获取天气", "Weather")} · ${place}` : L("获取当日天气", "Current weather");
       if (date) title += ` · ${String(date).slice(5)}`;
       if (result?.summary) {
         detail = String(result.summary)
@@ -3924,18 +3932,18 @@ function buildToolPulse(name, args = {}, result = null) {
           weatherConditionLabel(result.condition),
           `${result.tmin ?? "?"}~${result.tmax ?? "?"}℃`,
         ];
-        if (result.wind_kmh != null) bits.push(`风力 ${result.wind_kmh} km/h`);
-        if (result.precip_mm != null) bits.push(`降水 ${result.precip_mm} mm`);
-        if (result.precip_prob != null) bits.push(`降水概率 ${result.precip_prob}%`);
+        if (result.wind_kmh != null) bits.push(`${L("风力", "Wind")} ${result.wind_kmh} km/h`);
+        if (result.precip_mm != null) bits.push(`${L("降水", "Precip")} ${result.precip_mm} mm`);
+        if (result.precip_prob != null) bits.push(`${L("降水概率", "Rain chance")} ${result.precip_prob}%`);
         detail = bits.join(" · ");
       } else if (result?.weather) detail = String(result.weather).slice(0, 80);
-      else detail = error ? result?.note || "天气数据不可用" : `待返回：${base.focus}`;
+      else detail = error ? result?.note || L("天气数据不可用", "Weather unavailable") : `${L("待返回：", "Pending: ")}${base.focus}`;
       break;
     }
     case "get_forecast_daily": {
       const place = geoLabel(args.geo_key || result?.geo_key);
       const days = args.days || result?.forecast?.length || 3;
-      title = place ? `获取预报 · ${place}（${days}天）` : `获取多日预报（${days}天）`;
+      title = place ? `${L("获取预报", "Forecast")} · ${place} (${days}${L("天", "d")})` : `${L("获取多日预报", "Multi-day forecast")} (${days}${L("天", "d")})`;
       const rows = result?.forecast || [];
       if (rows.length) {
         detail = rows
@@ -3945,41 +3953,41 @@ function buildToolPulse(name, args = {}, result = null) {
             return `${d} ${weatherConditionLabel(r.condition) || "?"} ${r.tmin ?? "?"}~${r.tmax ?? "?"}℃`;
           })
           .join("； ");
-      } else detail = error ? result?.note || "预报不可用" : `将返回未来 ${days} 天趋势`;
+      } else detail = error ? result?.note || L("预报不可用", "Forecast unavailable") : L(`将返回未来 ${days} 天趋势`, `Returns ${days}-day trend`);
       break;
     }
     case "get_traffic_estimate": {
       const road = roadLabel(args.road_id || args.query || result?.matched?.[0]?.road_id);
-      title = `查询路况 · ${road}`;
+      title = `${L("查询路况", "Road check")} · ${road}`;
       const matched = result?.matched || [];
       const status = String(result?.status || "").toLowerCase();
-      if (error) detail = result?.error || result?.note || "路况查询失败";
+      if (error) detail = result?.error || result?.note || L("路况查询失败", "Road check failed");
       else if (status === "clear" || !matched.length) {
-        detail = "未发现生效封路 · 路段可通行";
+        detail = L("未发现生效封路 · 路段可通行", "No active closures · road clear");
       } else {
         const top = matched[0];
         const closed =
           Number(top.active) === 1 &&
           (top.severity === "closed" ||
             /封|关闭|closed|avalanche|debris|落石|雪崩/i.test(`${top.note || ""}`));
-        const label = closed ? "⚠ 已确认封闭" : "⚠ 有生效事件";
+        const label = closed ? L("⚠ 已确认封闭", "⚠ Confirmed closed") : L("⚠ 有生效事件", "⚠ Active event");
         detail = [label, top.note || top.road_name || roadLabel(top.road_id)]
           .filter(Boolean)
           .join(" · ")
           .slice(0, 100);
-        if (matched.length > 1) detail += `；另有 ${matched.length - 1} 条相关事件`;
+        if (matched.length > 1) detail += L(`；另有 ${matched.length - 1} 条相关事件`, `; +${matched.length - 1} more`);
       }
       break;
     }
     case "get_flight_status": {
       const no = args.flight_no || result?.flight_no || "";
-      title = no ? `查询航班 · ${no}` : "查询航班动态";
-      if (error) detail = result?.note || "未找到该航班";
+      title = no ? `${L("查询航班", "Flight")} · ${no}` : L("查询航班动态", "Flight status");
+      if (error) detail = result?.note || L("未找到该航班", "Flight not found");
       else {
         const bits = [flightStatusLabel(result?.status)];
-        if (result?.delay_min) bits.push(`延误 ${result.delay_min} 分钟`);
-        if (result?.gate) bits.push(`登机口 ${result.gate}`);
-        if (result?.terminal) bits.push(`航站楼 ${result.terminal}`);
+        if (result?.delay_min) bits.push(`${L("延误", "Delayed")} ${result.delay_min} ${L("分钟", "min")}`);
+        if (result?.gate) bits.push(`${L("登机口", "Gate")} ${result.gate}`);
+        if (result?.terminal) bits.push(`${L("航站楼", "Terminal")} ${result.terminal}`);
         if (result?.route || result?.legs) bits.push(result.route || result.legs);
         if (args.date || result?.date) bits.push(String(args.date || result.date).slice(0, 10));
         if (result?.note) bits.push(result.note);
@@ -4003,7 +4011,7 @@ function buildToolPulse(name, args = {}, result = null) {
       break;
     }
     case "get_budget_snapshot": {
-      title = "预算 · 行程费用";
+      title = L("预算 · 行程费用", "Budget · trip costs");
       const b = result?.budget;
       if (b) {
         const bits = [];
@@ -4014,20 +4022,20 @@ function buildToolPulse(name, args = {}, result = null) {
         }
         if (result.location) bits.push(`${L("当前位置", "Location")} ${result.location}`);
         detail = bits.join(" · ");
-      } else detail = result?.location ? `位置 ${result.location} · 预算尚未确定` : "预算尚未写入";
+      } else detail = result?.location ? `${L("位置", "At")} ${result.location} · ${L("预算尚未确定", "budget TBD")}` : L("预算尚未写入", "Budget not set yet");
       break;
     }
     case "search_web": {
       const q = args.query || result?.query || "";
       title = q ? L(`搜索 · ${truncate(q, 28)}`, `Search · ${truncate(q, 28)}`) : L("网页搜索", "Web search");
       const rows = result?.results || [];
-      if (error) detail = result?.error || "搜索失败";
+      if (error) detail = result?.error || L("搜索失败", "Search failed");
       else if (rows.length) {
         detail = rows
           .slice(0, 2)
           .map((r) => r.title)
           .join("； ");
-        if (rows.length > 2) detail += ` 等 ${rows.length} 条`;
+        if (rows.length > 2) detail += L(` 等 ${rows.length} 条`, ` · ${rows.length} hits`);
       } else detail = error ? L("无结果", "No results") : L("检索中…", "Searching…");
       break;
     }
@@ -4039,8 +4047,8 @@ function buildToolPulse(name, args = {}, result = null) {
     }
     case "add_calendar_event": {
       const ev = result?.event || {};
-      title = args.title || ev.title ? `加入日程 · ${args.title || ev.title}` : "加入日程";
-      detail = [args.date || ev.date, args.note || ev.note].filter(Boolean).join(" · ") || "已写入行程日历";
+      title = args.title || ev.title ? `${L("加入日程", "Calendar")} · ${args.title || ev.title}` : L("加入日程", "Add to calendar");
+      detail = [args.date || ev.date, args.note || ev.note].filter(Boolean).join(" · ") || L("已写入行程日历", "Saved to calendar");
       break;
     }
     default: {
@@ -4076,7 +4084,7 @@ function buildToolPulse(name, args = {}, result = null) {
     }
   }
 
-  if (error && !detail) detail = result?.error || result?.note || "调用失败";
+  if (error && !detail) detail = result?.error || result?.note || L("调用失败", "Call failed");
 
   return {
     icon: base.icon,
@@ -4283,7 +4291,7 @@ function envEventToast(ev) {
           ? t("toast.newMail")
           : getLocale() === "en"
             ? `New message from ${appName || "SMS"}`
-            : `${appName || "短信"}发来一条消息`),
+            : L(`${appName || "短信"}发来一条消息`, `Message from ${appName || "SMS"}`)),
     };
   }
   if (kind === "world") {
@@ -4341,7 +4349,7 @@ function formatEnvStreamRow(ev, { labels = {}, speakers = {} } = {}) {
     return {
       icon: km.icon,
       cls: km.cls,
-      who: speakers[ev.from]?.name || ev.from || "用户",
+      who: speakers[ev.from]?.name || ev.from || L("用户", "User"),
       body: truncate(raw || t("chat.empty"), 160),
     };
   }
@@ -4349,17 +4357,17 @@ function formatEnvStreamRow(ev, { labels = {}, speakers = {} } = {}) {
     return {
       icon: km.icon,
       cls: km.cls,
-      who: "环境静默变更",
+      who: L("环境静默变更", "Silent env change"),
       body: truncate(mutationSummary(ev), 180),
     };
   }
   if (kind === "weather") {
     const w = ev.user_state?.weather || raw;
-    const impact = ev.user_state?.weather_impact === "disruptive" ? "⚠ 可能影响行程" : null;
+    const impact = ev.user_state?.weather_impact === "disruptive" ? L("⚠ 可能影响行程", "⚠ May affect itinerary") : null;
     return {
       icon: km.icon,
       cls: km.cls,
-      who: "天气更新",
+      who: L("天气更新", "Weather update"),
       body: truncate([w, impact].filter(Boolean).join(" · "), 160),
     };
   }
@@ -4369,16 +4377,16 @@ function formatEnvStreamRow(ev, { labels = {}, speakers = {} } = {}) {
     return {
       icon: km.icon,
       cls: km.cls,
-      who: "行程节点",
-      body: truncate([action, loc, raw && raw !== action ? raw : null].filter(Boolean).join(" · ") || "行程推进", 160),
+      who: L("行程节点", "Trip node"),
+      body: truncate([action, loc, raw && raw !== action ? raw : null].filter(Boolean).join(" · ") || L("行程推进", "Trip advanced"), 160),
     };
   }
   if (kind === "notification") {
     return {
       icon: km.icon,
       cls: km.cls,
-      who: "系统心跳",
-      body: truncate(raw || "巡检当前行程状态", 160),
+      who: L("系统心跳", "Heartbeat"),
+      body: truncate(raw || L("巡检当前行程状态", "Checking trip status"), 160),
     };
   }
   if (kind === "app_notification" || kind === "world") {
@@ -4387,7 +4395,7 @@ function formatEnvStreamRow(ev, { labels = {}, speakers = {} } = {}) {
       icon: km.icon,
       cls: km.cls,
       who: src,
-      body: truncate(raw || "收到一条通知", 160),
+      body: truncate(raw || L("收到一条通知", "Notification received"), 160),
     };
   }
   return {

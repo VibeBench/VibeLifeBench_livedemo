@@ -991,6 +991,17 @@
         "place": "Shanghai Pudong Airport T",
         "weekday": "Fri"
       }
+    },
+    "speakers": {
+      "wang_li": {
+        "name": "Wang Li"
+      },
+      "zhao_mei": {
+        "name": "Zhao Mei"
+      },
+      "friend_lin": {
+        "name": "Lin Jianguo"
+      }
     }
   },
   "phrases": {

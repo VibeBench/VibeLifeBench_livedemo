@@ -472,6 +472,12 @@ export function localizeMeta(meta) {
       return patch ? { ...d, ...patch } : d;
     });
   }
+  if (meta.speakers && m.speakers) {
+    out.speakers = { ...meta.speakers };
+    for (const [id, sp] of Object.entries(m.speakers)) {
+      out.speakers[id] = { ...(out.speakers[id] || {}), ...sp };
+    }
+  }
   return out;
 }
 
