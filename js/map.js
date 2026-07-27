@@ -3167,8 +3167,8 @@ export function playMapAction({
       const weatherRows = rows.length
         ? rows
         : [
-            { label: "概况", value: "查询中…" },
-            { label: "气温", value: "—" },
+            { label: L("概况", "Summary"), value: L("查询中…", "Checking…") },
+            { label: L("气温", "Temp"), value: "—" },
           ];
       let wi = 0;
       const addWeatherRow = () => {
@@ -3557,8 +3557,8 @@ function classifyActivity(action, { isHome = false } = {}) {
   const a = String(action || "").trim();
   // Before any playback / no action yet — never claim "行程中"
   if (!a) {
-    if (isHome) return { kind: "home", emoji: "🏠", label: "行前准备" };
-    return { kind: "idle", emoji: "📍", label: "待更新" };
+    if (isHome) return { kind: "home", emoji: "🏠", label: L("行前准备", "Pre-trip prep") };
+    return { kind: "idle", emoji: "📍", label: L("待更新", "Pending") };
   }
   if (/授权提交|授权预订|授权购买|授权上报|授权去程|授权处理/.test(a)) {
     return { kind: "authorize", emoji: "📝", label: a };
@@ -3590,10 +3590,10 @@ function classifyActivity(action, { isHome = false } = {}) {
     return { kind: "home", emoji: "🏠", label: a };
   }
   // Explicit junk defaults some models/UI used before
-  if (a === "行程中") {
+  if (a === "行程中" || a === "On the trip") {
     return isHome
-      ? { kind: "home", emoji: "🏠", label: "行前准备" }
-      : { kind: "idle", emoji: "📍", label: "待更新" };
+      ? { kind: "home", emoji: "🏠", label: L("行前准备", "Pre-trip prep") }
+      : { kind: "idle", emoji: "📍", label: L("待更新", "Pending") };
   }
   return { kind: "other", emoji: "📍", label: a };
 }
