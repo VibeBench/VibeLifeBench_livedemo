@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-zhdef";
-import { DemoEngine } from "./engine.js?v=20260727-zhdef";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-traj1";
+import { DemoEngine } from "./engine.js?v=20260727-traj1";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260727-zhdef";
-import { Trajectory } from "./trajectory.js?v=20260727-zhdef";
-import { UI } from "./ui.js?v=20260727-zhdef";
+} from "./agent.js?v=20260727-traj1";
+import { Trajectory, isValidRecording } from "./trajectory.js?v=20260727-traj1";
+import { UI } from "./ui.js?v=20260727-traj1";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,14 +18,14 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260727-zhdef";
+} from "./map.js?v=20260727-traj1";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
   playbackMs,
   sleepPlayback,
   playbackSpeedLabel,
-} from "./playback.js?v=20260727-zhdef";
+} from "./playback.js?v=20260727-traj1";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -39,7 +39,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260727-zhdef";
+} from "./i18n.js?v=20260727-traj1";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -144,8 +144,12 @@ let flightPlayed = new Set();
 let drivePlayed = new Set();
 /** Snapshot of last completed (or partial) trajectory for offline加速回放. */
 let lastRecording = null;
+/** Pre-baked trajectory from data/trajectories/default.json (or import). */
+let bakedRecording = null;
 /** True while replaying cached agent turns (no LLM). */
 let replaying = false;
+/** True when current replay pass came from baked/import (use faster defaults). */
+let replayingFromBaked = false;
 /** event_id → agent_turn for the current replay pass. */
 let replayAgentByEvent = new Map();
 /** Raw case events revealed so far (for locale re-render of task history). */
@@ -198,6 +202,9 @@ async function main() {
   try {
     caseData = await loadDefaultCase("./data");
     bootCase(caseData);
+    await tryLoadBakedTrajectory();
+    showEntryGuide();
+    syncReplayButton();
     ui.toast(i18nL("已加载 newzealand_drive_30d_v3", "Loaded newzealand_drive_30d_v3"));
     maybeAutoOpenConsole();
   } catch (e) {
@@ -329,11 +336,13 @@ function showEntryGuide() {
   const provider = settings.provider || DEFAULT_PROVIDER;
   // Don't construct agent just to probe — key presence is enough for the CTA state.
   const configured = hasApiKeyConfigured();
+  const hasBaked = isValidRecording(bakedRecording, caseData?.meta?.case_id);
   ui.showWelcomeGuide(
     {
       configured,
       providerLabel: providerLabel(provider) || provider,
       model: settings.model || DEFAULT_MODEL,
+      hasBaked,
     },
     {
       onConfigure: () => {
@@ -350,6 +359,10 @@ function showEntryGuide() {
         startAutoplay();
         pulseAutoplayButton();
         ui.toast(i18nL("自动演示已开始", "Auto demo started"));
+      },
+      onReplay: () => {
+        ui.setPhoneTab("chat");
+        startAcceleratedReplay();
       },
     }
   );
@@ -917,8 +930,52 @@ function snapshotRecording({ quiet = false } = {}) {
   if (!quiet) syncReplayButton();
 }
 
+/** Active recording for replay: prefer this-session, else baked/imported. */
+function effectiveRecording() {
+  const caseId = caseData?.meta?.case_id;
+  if (isValidRecording(lastRecording, caseId)) return { rec: lastRecording, fromBaked: false };
+  if (isValidRecording(bakedRecording, caseId)) return { rec: bakedRecording, fromBaked: true };
+  return { rec: null, fromBaked: false };
+}
+
+function loadRecording(raw, { asBaked = false, toast = true } = {}) {
+  const caseId = caseData?.meta?.case_id;
+  if (!isValidRecording(raw)) {
+    if (toast) ui.toast(i18nL("Trajectory 无效：需要 case_id 与至少一轮 agent_turn", "Invalid trajectory: need case_id and ≥1 agent_turn"));
+    return false;
+  }
+  if (caseId && raw.case_id !== caseId) {
+    if (toast) ui.toast(i18nL("回放记录与当前 case 不匹配", "Replay recording does not match this case"));
+    return false;
+  }
+  if (asBaked) bakedRecording = raw;
+  else lastRecording = raw;
+  syncReplayButton();
+  if (toast) {
+    const n = raw.stats?.agent_turns ?? raw.steps.filter((s) => s.type === "agent_turn").length;
+    ui.toast(
+      i18nL(`已加载 Trajectory · ${n} 轮模型回复`, `Trajectory loaded · ${n} model turns`)
+    );
+  }
+  return true;
+}
+
+async function tryLoadBakedTrajectory() {
+  try {
+    const res = await fetch("./data/trajectories/default.json", { cache: "no-cache" });
+    if (!res.ok) return;
+    const raw = await res.json();
+    if (loadRecording(raw, { asBaked: true, toast: false })) {
+      syncReplayButton();
+    }
+  } catch {
+    /* no baked file yet — ok */
+  }
+}
+
 function stopReplay() {
   replaying = false;
+  replayingFromBaked = false;
   replayAgentByEvent = new Map();
   const btn = document.querySelector("#btnReplay");
   if (btn) {
@@ -931,12 +988,16 @@ function stopReplay() {
 function syncReplayButton() {
   const btn = document.querySelector("#btnReplay");
   if (!btn) return;
-  const can =
-    Boolean(lastRecording?.steps?.length) &&
-    lastRecording.case_id === caseData?.meta?.case_id &&
-    !busy &&
-    !autoplay;
+  const { rec } = effectiveRecording();
+  const can = Boolean(rec) && !busy && !autoplay;
   btn.disabled = !can && !replaying;
+  const hasBaked = isValidRecording(bakedRecording, caseData?.meta?.case_id);
+  const hasSession = isValidRecording(lastRecording, caseData?.meta?.case_id);
+  if (hasBaked && !hasSession) {
+    btn.setAttribute("title", i18nT("top.replayTitleBaked"));
+  } else {
+    btn.setAttribute("title", i18nT("top.replayTitle"));
+  }
   if (replaying) {
     btn.classList.add("active");
     btn.textContent = i18nL(`回放中 ${playbackSpeedLabel()}`, `Replaying ${playbackSpeedLabel()}`);
@@ -966,35 +1027,56 @@ async function startAcceleratedReplay() {
   if (!lastRecording?.steps?.length) {
     if (trajectory?.steps?.length) snapshotRecording({ quiet: true });
   }
-  if (!lastRecording?.steps?.length) {
-    ui.toast(i18nL("请先跑完一局（或至少产生模型回合），再加速回放", "Finish a run (or at least one model turn) before fast replay"));
+  const { rec, fromBaked } = effectiveRecording();
+  if (!rec) {
+    ui.toast(
+      i18nL(
+        "请先跑完一局，或导入 / 预置 Trajectory 后再加速回放",
+        "Finish a run, or import / bake a trajectory before fast replay"
+      )
+    );
     return;
   }
-  if (lastRecording.case_id !== caseData?.meta?.case_id) {
+  if (rec.case_id !== caseData?.meta?.case_id) {
     ui.toast(i18nL("回放记录与当前 case 不匹配", "Replay recording does not match this case"));
     return;
   }
 
+  // Prefer session snapshot when both exist; baked uses a faster default.
+  if (!fromBaked) lastRecording = rec;
+
   let speedSel = Number(document.querySelector("#playbackSpeed")?.value) || settings.playbackSpeed || 1;
-  // 「加速回放」：若仍为 1×，自动提到 4×
-  if (speedSel <= 1) speedSel = 4;
+  if (fromBaked) {
+    if (speedSel < 8) speedSel = 8;
+  } else if (speedSel <= 1) {
+    speedSel = 4;
+  }
   setPlaybackSpeed(speedSel);
   settings.playbackSpeed = speedSel;
   syncSpeedUi();
+
+  const gapMs = fromBaked
+    ? Math.min(Number(settings.autoplayMs) || 1200, 400)
+    : Number(settings.autoplayMs) || 1200;
 
   clearAndRewind({ confirm: false, skipGuide: true });
   ui.setPhoneTab("chat");
 
   replayAgentByEvent = new Map();
-  for (const s of lastRecording.steps) {
+  for (const s of rec.steps) {
     if (s.type === "agent_turn" && s.event_id) {
       replayAgentByEvent.set(s.event_id, s);
     }
   }
 
   replaying = true;
+  replayingFromBaked = fromBaked;
   syncReplayButton();
-  ui.toast(i18nL(`加速回放 ${playbackSpeedLabel()} · 不重跑模型`, `Fast replay ${playbackSpeedLabel()} · no new LLM calls`));
+  ui.toast(
+    fromBaked
+      ? i18nL(`快速 Replay ${playbackSpeedLabel()} · 预录轨迹`, `Fast replay ${playbackSpeedLabel()} · baked trajectory`)
+      : i18nL(`加速回放 ${playbackSpeedLabel()} · 不重跑模型`, `Fast replay ${playbackSpeedLabel()} · no new LLM calls`)
+  );
 
   const epoch = playbackEpoch;
   try {
@@ -1002,7 +1084,7 @@ async function startAcceleratedReplay() {
       await stepOnce({ useCache: true });
       if (!replaying || epoch !== playbackEpoch) break;
       if (engine.progress.done) break;
-      await sleepPlayback(Number(settings.autoplayMs) || 1200, { min: 40 });
+      await sleepPlayback(gapMs, { min: fromBaked ? 20 : 40 });
     }
     if (epoch === playbackEpoch && engine?.progress?.done) {
       ui.toast(i18nL("加速回放完成", "Fast replay finished"));
@@ -1072,6 +1154,17 @@ function bindChrome() {
     trajectory.download();
     ui.toast(i18nL("Trajectory 已导出", "Trajectory exported"));
   });
+  document.querySelector("#trajFile")?.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const raw = JSON.parse(await file.text());
+      loadRecording(raw, { asBaked: true, toast: true });
+    } catch (err) {
+      ui.toast(i18nL("导入失败：", "Import failed: ") + (err.message || err));
+    }
+    e.target.value = "";
+  });
   document.querySelector("#btnRewind").addEventListener("click", () => clearAndRewind());
   document.querySelector("#btnReset").addEventListener("click", () => clearAndRewind());
   document.querySelector("#caseFile").addEventListener("change", async (e) => {
@@ -1088,6 +1181,7 @@ function bindChrome() {
       }
       data.flat = data.flat; // already normalized
       lastRecording = null;
+      bakedRecording = null;
       bootCase(data);
       syncReplayButton();
       ui.toast(i18nL("已加载：", "Loaded: ") + file.name);

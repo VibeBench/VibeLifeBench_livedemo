@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./css/styles.css?v=20260727-zhdef" />
+    <link rel="stylesheet" href="./css/styles.css?v=20260727-traj1" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
@@ -229,6 +229,10 @@
                     <span data-i18n="console.caseFile">加载同格式 case 文件</span>
                     <input id="caseFile" type="file" accept=".yaml,.yml,.json" />
                   </label>
+                  <label class="field">
+                    <span data-i18n="console.trajFile">导入 Trajectory（快速 Replay）</span>
+                    <input id="trajFile" type="file" accept="application/json,.json" />
+                  </label>
                   <div class="console-actions">
                     <button class="btn primary" type="button" id="btnSaveSettings" data-i18n="console.save">保存并连接</button>
                     <button class="btn" type="button" id="btnClearKey" data-i18n="console.clearKey" data-i18n-title="console.clearKeyTitle" title="清除本机保存的 API Key">清除 Key</button>
@@ -272,6 +276,6 @@
 
     <div class="toast" id="toast" hidden></div>
 
-    <script type="module" src="./js/app.js?v=20260727-zhdef"></script>
+    <script type="module" src="./js/app.js?v=20260727-traj1"></script>
   </body>
 </html>

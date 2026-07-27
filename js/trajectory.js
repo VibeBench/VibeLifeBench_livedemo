@@ -1,6 +1,6 @@
 /**
  * Live trajectory recorder — every env event + agent turn is appended.
- * Exportable as JSON for offline analysis.
+ * Exportable as JSON for offline analysis / fast replay.
  */
 export class Trajectory {
   constructor(caseId) {
@@ -79,4 +79,24 @@ export class Trajectory {
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  /** Rebuild from exported / baked JSON (mutates this instance). */
+  static fromJSON(raw) {
+    if (!isValidRecording(raw)) {
+      throw new Error("Invalid trajectory: need case_id and steps with at least one agent_turn");
+    }
+    const t = new Trajectory(raw.case_id);
+    t.startedAt = raw.started_at || t.startedAt;
+    t.meta = { ...(raw.meta || {}), schema_version: raw.meta?.schema_version || 1 };
+    t.steps = Array.isArray(raw.steps) ? raw.steps.slice() : [];
+    return t;
+  }
+}
+
+/** True when a recording can drive加速回放 (case + ≥1 agent turn). */
+export function isValidRecording(raw, expectedCaseId = null) {
+  if (!raw || typeof raw !== "object") return false;
+  if (!raw.case_id || !Array.isArray(raw.steps) || !raw.steps.length) return false;
+  if (expectedCaseId != null && raw.case_id !== expectedCaseId) return false;
+  return raw.steps.some((s) => s && s.type === "agent_turn");
 }

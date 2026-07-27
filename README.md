@@ -23,7 +23,21 @@ Enable Pages once (repo admin):
 Demo console supports **OpenAI-compatible** providers (DeepSeek / OpenAI / OpenRouter / SiliconFlow / Ollama / custom).  
 Browser CORS: pick provider **本地 CORS 代理**, Base `http://127.0.0.1:8787`, set upstream (e.g. DeepSeek).
 
-Use the top-bar **中 / EN** toggle to switch the full UI and task copy between Chinese and English (Agent replies follow the selected language going forward).
+Use the top-bar **ZH / EN** toggle to switch the full UI and task copy between Chinese and English (Agent replies follow the selected language going forward).
+
+### Fast replay (no LLM)
+
+If `data/trajectories/default.json` is present, the demo loads it on boot and enables **加速回放 / Fast replay** without running the model. You can also import a trajectory JSON from the demo console.
+
+```bash
+# Offline bake (headless DemoEngine + TravelAgent → JSON)
+cd demo
+node --import ./scripts/esm-strip-query.mjs ./scripts/bake_trajectory.mjs
+# smoke: --max-events 5
+# env: VIBE_API_KEY / VIBE_API_BASE / VIBE_MODEL
+```
+
+Output defaults to `data/trajectories/default.json`. Replay uses cached agent turns + re-executes tools for map/ledger animations.
 
 ## Rebuild data
 

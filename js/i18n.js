@@ -30,6 +30,7 @@ const DICT = {
     "top.autoplayStart": "开始自动演示",
     "top.replay": "加速回放",
     "top.replayTitle": "跑完后可加速回放本局全部动画与模型结果（不重调 LLM）",
+    "top.replayTitleBaked": "快速 Replay 预录轨迹（不重调 LLM）",
     "top.rewind": "清空回溯",
     "top.rewindTitle": "清空对话与轨迹，回退到行程起点",
     "top.console": "演示控制台",
@@ -81,6 +82,7 @@ const DICT = {
     "console.thinking": "启用 Thinking / Reasoning（DeepSeek / 部分 OpenAI·OpenRouter 模型）",
     "console.autoplayMs": "自动播放间隔 (ms)",
     "console.caseFile": "加载同格式 case 文件",
+    "console.trajFile": "导入 Trajectory（快速 Replay）",
     "console.save": "保存并连接",
     "console.clearKey": "清除 Key",
     "console.clearKeyTitle": "清除本机保存的 API Key",
@@ -176,6 +178,7 @@ const DICT = {
     "top.autoplayStart": "Start auto demo",
     "top.replay": "Fast replay",
     "top.replayTitle": "After a run, replay all animations & cached model results (no new LLM calls)",
+    "top.replayTitleBaked": "Fast-replay the baked trajectory (no new LLM calls)",
     "top.rewind": "Clear & rewind",
     "top.rewindTitle": "Clear chat, trajectory, and rewind to trip start",
     "top.console": "Demo console",
@@ -227,6 +230,7 @@ const DICT = {
     "console.thinking": "Enable Thinking / Reasoning (DeepSeek / some OpenAI·OpenRouter models)",
     "console.autoplayMs": "Autoplay interval (ms)",
     "console.caseFile": "Load a matching case file",
+    "console.trajFile": "Import trajectory (fast replay)",
     "console.save": "Save & connect",
     "console.clearKey": "Clear key",
     "console.clearKeyTitle": "Clear the API key saved on this device",
@@ -349,33 +353,35 @@ function notify() {
   }
 }
 
-export function applyDomI18n(root = document) {
+export function applyDomI18n(root) {
+  if (typeof document === "undefined") return;
+  const scope = root || document;
   document.documentElement.lang = locale === "en" ? "en" : "zh-CN";
-  root.querySelectorAll("[data-i18n]").forEach((el) => {
+  scope.querySelectorAll("[data-i18n]").forEach((el) => {
     const key = el.getAttribute("data-i18n");
     if (!key) return;
     const val = t(key);
     if (el.hasAttribute("data-i18n-html")) el.innerHTML = val;
     else el.textContent = val;
   });
-  root.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+  scope.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
     const key = el.getAttribute("data-i18n-placeholder");
     if (key) el.setAttribute("placeholder", t(key));
   });
-  root.querySelectorAll("[data-i18n-title]").forEach((el) => {
+  scope.querySelectorAll("[data-i18n-title]").forEach((el) => {
     const key = el.getAttribute("data-i18n-title");
     if (key) el.setAttribute("title", t(key));
   });
-  root.querySelectorAll("[data-i18n-aria]").forEach((el) => {
+  scope.querySelectorAll("[data-i18n-aria]").forEach((el) => {
     const key = el.getAttribute("data-i18n-aria");
     if (key) el.setAttribute("aria-label", t(key));
   });
-  const labelEl = root.querySelector("#langSwitchLabel");
+  const labelEl = scope.querySelector("#langSwitchLabel");
   if (labelEl) labelEl.textContent = t("lang.label");
-  const group = root.querySelector(".lang-switch");
+  const group = scope.querySelector(".lang-switch");
   if (group) group.setAttribute("aria-label", t("lang.label"));
-  const zhBtn = root.querySelector("#btnLangZh");
-  const enBtn = root.querySelector("#btnLangEn");
+  const zhBtn = scope.querySelector("#btnLangZh");
+  const enBtn = scope.querySelector("#btnLangEn");
   if (zhBtn && enBtn) {
     const isEn = locale === "en";
     zhBtn.classList.toggle("is-active", !isEn);

@@ -22,10 +22,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260727-zhdef";
-import { groupLedgerByDate } from "./ledger.js?v=20260727-zhdef";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260727-zhdef";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-zhdef";
+} from "./map.js?v=20260727-traj1";
+import { groupLedgerByDate } from "./ledger.js?v=20260727-traj1";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260727-traj1";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-traj1";
 
 function kindMeta(kind) {
   const base = {
@@ -1891,10 +1891,13 @@ export class UI {
   }
 
   /**
-   * First-entry guide in the phone chat: configure model → start auto-demo.
-   * handlers: { onConfigure, onStartDemo, onDismiss }
+   * First-entry guide in the phone chat: configure model → start auto-demo / fast replay.
+   * handlers: { onConfigure, onStartDemo, onReplay, onDismiss }
    */
-  showWelcomeGuide({ configured = false, providerLabel = "", model = "" } = {}, handlers = {}) {
+  showWelcomeGuide(
+    { configured = false, providerLabel = "", model = "", hasBaked = false } = {},
+    handlers = {}
+  ) {
     const host = this.els.chatMessages;
     if (!host) return null;
     host.querySelector(".welcome-guide")?.remove();
@@ -1906,6 +1909,9 @@ export class UI {
           model || ""
         )}</div>`
       : `<div class="welcome-status warn">${L("尚未配置 API Key — Agent 还不能回复", "API Key not set — Agent cannot reply yet")}</div>`;
+    const bakedLine = hasBaked
+      ? `<div class="welcome-status ok">${L("已加载预录 Trajectory · 可直接快速 Replay（不调 LLM）", "Baked trajectory ready · fast replay without LLM")}</div>`
+      : "";
 
     wrap.innerHTML = `
       <div class="welcome-title">${L("开始 VibeLifeBench 演示", "Start the VibeLifeBench demo")}</div>
@@ -1916,21 +1922,27 @@ export class UI {
         </li>
         <li class="${configured ? "active" : ""}">
           <span class="ws-num">2</span>
-          <span>${L("开启自动播放，Agent 随行程事件互动", "Start autoplay — Agent reacts to trip events")}</span>
+          <span>${L("开启自动播放，或快速 Replay 预录轨迹", "Start autoplay, or fast-replay the baked trajectory")}</span>
         </li>
       </ol>
       ${statusLine}
+      ${bakedLine}
       <div class="welcome-actions">
-        <button type="button" class="welcome-btn ${configured ? "ghost" : "primary"}" data-welcome="configure">
+        <button type="button" class="welcome-btn ${configured || hasBaked ? "ghost" : "primary"}" data-welcome="configure">
           ${configured ? L("更改模型", "Change model") : L("配置模型", "Configure model")}
         </button>
-        <button type="button" class="welcome-btn ${configured ? "primary" : "ghost"}" data-welcome="start" ${
+        <button type="button" class="welcome-btn ${configured && !hasBaked ? "primary" : "ghost"}" data-welcome="start" ${
           configured ? "" : "disabled"
         }>
           ${L("开始自动演示", "Start auto demo")}
         </button>
+        ${
+          hasBaked
+            ? `<button type="button" class="welcome-btn primary" data-welcome="replay">${L("快速 Replay", "Fast replay")}</button>`
+            : ""
+        }
       </div>
-      <div class="welcome-foot">${L("也可点顶部「演示控制台 / 自动播放」；手机底栏 ⚙️ 打开设置页", "Or use the top Demo console / Autoplay; phone tab ⚙️ opens settings")}</div>`;
+      <div class="welcome-foot">${L("也可点顶部「演示控制台 / 自动播放 / 加速回放」；手机底栏 ⚙️ 打开设置页", "Or use the top Demo console / Autoplay / Fast replay; phone tab ⚙️ opens settings")}</div>`;
 
     wrap.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-welcome]");
@@ -1938,6 +1950,7 @@ export class UI {
       const act = btn.dataset.welcome;
       if (act === "configure") handlers.onConfigure?.();
       if (act === "start") handlers.onStartDemo?.();
+      if (act === "replay") handlers.onReplay?.();
     });
 
     host.appendChild(wrap);
