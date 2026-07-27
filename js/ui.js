@@ -22,10 +22,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260727-card1sb";
-import { groupLedgerByDate } from "./ledger.js?v=20260727-card1sb";
-import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs } from "./playback.js?v=20260727-card1sb";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-card1sb";
+} from "./map.js?v=20260727-hotelfocus";
+import { groupLedgerByDate } from "./ledger.js?v=20260727-hotelfocus";
+import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs } from "./playback.js?v=20260727-hotelfocus";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-hotelfocus";
 
 function kindMeta(kind) {
   const base = {
@@ -2539,7 +2539,7 @@ export class UI {
           hotel.place_id ||
           args.place_id ||
           extractPlaceIdsFromText(
-            `${hotelName} ${args.hotel_id || ""} ${args.location || ""} ${hotel.hotel_id || ""}`
+            `${hotelName} ${args.hotel_id || ""} ${args.location || ""} ${hotel.hotel_id || ""} ${args.geo_key || hotel.geo_key || ""}`
           )[0] ||
           null;
         const mode = /cancel/i.test(name) ? "cancel" : "book";
@@ -2550,6 +2550,8 @@ export class UI {
               placeId,
               geoKey: args.geo_key || hotel.geo_key || null,
               hotelName: String(hotelName),
+              hotelId: args.hotel_id || hotel.hotel_id || "",
+              location: args.location || hotel.location || "",
               checkIn,
               priceNzd: args.price_nzd ?? hotel.price_nzd ?? hotel.nightly_price ?? null,
               detail: result?.summary || fb.detail || "",
@@ -2563,7 +2565,9 @@ export class UI {
               items: fb.items || [],
             });
           },
-          { fingerprint: `hotel-pin:${mode}:${placeId || hotelName}:${checkIn}` }
+          {
+            fingerprint: `hotel-pin:${mode}:${placeId || args.geo_key || hotel.geo_key || hotelName}:${checkIn}`,
+          }
         );
       }
       return this.enqueueCinematic(

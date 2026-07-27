@@ -6,7 +6,7 @@
  *   onStream({ thinking, content, phase, toolHint })
  *   phase: 'thinking' | 'answering' | 'tool' | 'done'
  */
-import { L, getLocale, localizeUserState } from "./i18n.js?v=20260727-card1sb";
+import { L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelfocus";
 
 const DEFAULT_BASE = "https://api.deepseek.com";
 const DEFAULT_MODEL = "deepseek-v4-pro";
@@ -974,6 +974,8 @@ export class TravelAgent {
           hotel_name: args.hotel_name,
           name: args.hotel_name,
           place_id: place_id || env.hotels[key]?.place_id || null,
+          geo_key: args.geo_key || env.hotels[key]?.geo_key || null,
+          location: args.location || env.hotels[key]?.location || null,
           check_in,
           check_out: args.check_out || null,
           nightly_price: args.price_nzd ?? null,
@@ -1185,7 +1187,7 @@ function resolvePlaceIdFromText(text) {
   const s = String(text || "");
   if (!s.trim()) return null;
   const rules = [
-    [/库克山|Mt\.?\s*Cook|Aoraki/i, "pl_mt_cook"],
+    [/库克山|Mt\.?\s*Cook|Aoraki|Glentanner/i, "pl_mt_cook"],
     [/蒂卡波|Tekapo/i, "pl_tekapo"],
     [/皇后镇|Queenstown/i, "pl_queenstown"],
     [/瓦纳卡|Wanaka/i, "pl_wanaka"],

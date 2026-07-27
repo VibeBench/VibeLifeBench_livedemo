@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-card1sb";
-import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-card1sb";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-card1sb";
+} from "./routing.js?v=20260727-hotelfocus";
+import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-hotelfocus";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelfocus";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -96,6 +96,10 @@ let driveHopActive = false;
 /** Transient hotel book/cancel pin + info card. */
 let hotelFxLayer = null;
 let hotelFxTimers = [];
+/** Hold camera on a tool cinematic (hotel pin etc.) so async fitLeaflet can't steal it. */
+let cameraLockUntil = 0;
+let cameraLockLatLng = null;
+let cameraLockZoom = 9;
 /** Bumped on rewind/reset — async overlays must check before painting. */
 let mapSession = 1;
 let mapActionToken = 0;
@@ -297,15 +301,15 @@ function resolveHotelPlaceId({
   location = "",
   geoKey = null,
 } = {}) {
-  if (placeId && lastCtx?.placeById?.[placeId]) return placeId;
+  if (placeId) return placeId;
   const blob = `${hotelName} ${hotelId} ${location} ${geoKey || ""}`;
   const fromText = extractPlaceIdsFromText(blob)[0];
   if (fromText) return fromText;
   const s = blob;
   const rules = [
-    [/库克山|Mt\.?\s*Cook|Aoraki/i, "pl_mt_cook"],
+    [/库克山|Mt\.?\s*Cook|Aoraki|Glentanner/i, "pl_mt_cook"],
     [/蒂卡波|Tekapo/i, "pl_tekapo"],
-    [/皇后镇|Queenstown/i, "pl_queenstown"],
+    [/皇后镇|Queenstown|Alpine\s*Holiday|Lakeview\s*Holiday\s*Park\s*Queenstown/i, "pl_queenstown"],
     [/瓦纳卡|Wanaka/i, "pl_wanaka"],
     [/米尔福德|马纳普里|蒂阿瑙|Milford|Manapouri|Te\s*Anau/i, "pl_milford"],
     [/皮克顿|Picton/i, "pl_picton"],
@@ -320,7 +324,45 @@ function resolveHotelPlaceId({
   }
   const geo = String(geoKey || "").toLowerCase();
   if (geo && GEO_TO_PLACE[geo]) return GEO_TO_PLACE[geo];
-  return placeId || null;
+  return null;
+}
+
+function resolveHotelGeoKey({ geoKey = null, hotelName = "", hotelId = "", location = "" } = {}) {
+  const g = String(geoKey || "").toLowerCase().trim();
+  if (g) return g;
+  const blob = `${hotelName} ${hotelId} ${location}`;
+  for (const [re, geo] of HOTEL_GEO_RULES) {
+    if (re.test(blob)) return geo;
+  }
+  const placeId = resolveHotelPlaceId({ hotelName, hotelId, location, geoKey });
+  if (placeId && DEFAULT_PLACE_GEO[placeId]) return DEFAULT_PLACE_GEO[placeId];
+  return null;
+}
+
+function lockCamera(latlng, { zoom = 9, holdMs = 2800 } = {}) {
+  if (!latlng) return;
+  cameraLockLatLng = window.L ? window.L.latLng(latlng) : latlng;
+  cameraLockZoom = zoom;
+  cameraLockUntil = Date.now() + Math.max(800, Number(holdMs) || 2800);
+  try {
+    setViewInSafeArea(cameraLockLatLng, zoom);
+  } catch {
+    /* ignore */
+  }
+}
+
+function isCameraLocked() {
+  return Boolean(cameraLockLatLng) && Date.now() < cameraLockUntil;
+}
+
+function applyCameraLockIfNeeded() {
+  if (!isCameraLocked() || !leafletMap) return false;
+  try {
+    setViewInSafeArea(cameraLockLatLng, cameraLockZoom);
+  } catch {
+    /* ignore */
+  }
+  return true;
 }
 
 /**
@@ -331,6 +373,8 @@ export function playHotelPinCinematic({
   placeId = null,
   geoKey = null,
   hotelName = "",
+  hotelId = "",
+  location = "",
   checkIn = "",
   priceNzd = null,
   detail = "",
@@ -341,13 +385,25 @@ export function playHotelPinCinematic({
       resolve(false);
       return;
     }
+    const resolvedGeo = resolveHotelGeoKey({
+      geoKey,
+      hotelName,
+      hotelId,
+      location: `${location} ${detail}`,
+    });
     const resolvedId = resolveHotelPlaceId({
       placeId,
       hotelName,
-      location: detail,
-      geoKey,
+      hotelId,
+      location: `${location} ${detail}`,
+      geoKey: resolvedGeo || geoKey,
     });
-    const at = resolvePulseLatLng({ placeId: resolvedId, geoKey });
+    let at = resolvePulseLatLng({ placeId: resolvedId, geoKey: resolvedGeo || geoKey });
+    // Last resort: traveler / home pin so the booking still gets a camera move.
+    if (!at) {
+      const here = lastCtx ? placeLatLng(lastCtx) : null;
+      if (here) at = window.L.latLng(here[0] ?? here.lat, here[1] ?? here.lng);
+    }
     if (!at) {
       resolve(false);
       return;
@@ -366,14 +422,12 @@ export function playHotelPinCinematic({
       priceNzd != null && Number.isFinite(Number(priceNzd))
         ? `NZ$${Number(priceNzd)}`
         : "";
-    const metaBits = [date, price, detail].filter(Boolean);
+    const metaBits = [date, price, location || detail].filter(Boolean);
     const meta = metaBits.join(" · ").slice(0, 48);
 
-    try {
-      setViewInSafeArea(at, Math.max(leafletMap.getZoom() || 7, 8));
-    } catch {
-      /* ignore */
-    }
+    // Lock camera so refreshDashboard → fitLeaflet can't yank the view away mid-cinematic.
+    const holdMs = isReplayMode() ? cardDisplayMs(1600) : 2800;
+    lockCamera(at, { zoom: Math.max(leafletMap.getZoom() || 7, 9), holdMs });
 
     const marker = window.L.marker(at, {
       icon: window.L.divIcon({
@@ -462,6 +516,8 @@ function resolvePulseLatLng({ placeId = null, geoKey = null, roadId = null, latl
     if (lastCtx?.home && geo === "shanghai_home") {
       return window.L.latLng(lastCtx.home.lat, lastCtx.home.lng);
     }
+    const fb = GEO_FALLBACK_COORDS[geo];
+    if (fb) return window.L.latLng(fb[0], fb[1]);
   }
 
   if (roadId && lastCtx?.roadById?.[roadId]) {
@@ -785,6 +841,43 @@ const ROAD_MENTION_PATTERNS = [
 const GEO_TO_PLACE = Object.fromEntries(
   Object.entries(DEFAULT_PLACE_GEO).map(([placeId, geo]) => [geo, placeId])
 );
+
+/** Fallback lat/lng for geo_keys not in weather.locations / place catalog. */
+const GEO_FALLBACK_COORDS = {
+  shanghai_home: [31.2304, 121.4737],
+  christchurch: [-43.5321, 172.6362],
+  tekapo: [-44.0045, 170.4825],
+  mt_cook: [-43.595, 170.1418],
+  queenstown: [-45.0312, 168.6626],
+  te_anau: [-45.4144, 167.718],
+  manapouri: [-45.57, 167.61],
+  milford: [-44.6714, 167.9259],
+  wanaka: [-44.688, 169.132],
+  picton: [-41.2833, 174.0017],
+  wellington: [-41.2865, 174.7762],
+  taupo: [-38.6857, 176.0702],
+  rotorua: [-38.1368, 176.2497],
+  auckland: [-36.8509, 174.7645],
+  geraldine: [-44.0906, 171.2433],
+  kaikoura: [-42.401, 173.6819],
+  twizel: [-44.2585, 170.1002],
+  dunedin: [-45.8788, 170.5028],
+  nelson: [-41.2706, 173.284],
+  hanmer: [-42.5217, 172.8286],
+  frankton: [-45.018, 168.74],
+};
+
+/** Extra place-name → geo for hotels outside the core case spine. */
+const HOTEL_GEO_RULES = [
+  [/Geraldine/i, "geraldine"],
+  [/凯库拉|Kaikoura|Kaikōura/i, "kaikoura"],
+  [/Twizel/i, "twizel"],
+  [/Dunedin|达尼丁/i, "dunedin"],
+  [/Nelson|纳尔逊/i, "nelson"],
+  [/Hanmer/i, "hanmer"],
+  [/Frankton/i, "frankton"],
+  [/Te\s*Anau|蒂阿瑙/i, "te_anau"],
+];
 
 /** Ordered unique place ids mentioned in free text (thinking / replies). */
 export function extractPlaceIdsFromText(text) {
@@ -2384,6 +2477,7 @@ export async function showAgentPlan(plan, { fit = true } = {}) {
 
 function fitAgentPlanBounds() {
   if (!leafletMap || !window.L || !lastAgentPlan || !lastCtx) return;
+  if (applyCameraLockIfNeeded()) return;
   const pts = [];
   for (const s of lastAgentPlan.stays || []) {
     const p = lastCtx.placeById?.[s.placeId];
@@ -3409,6 +3503,7 @@ export function renderLeafletMap(engine) {
       }
       requestAnimationFrame(() => {
         if (!leafletMap) return;
+        if (applyCameraLockIfNeeded()) return;
         leafletMap.invalidateSize(true);
         const view = lastCtx || ctx;
         // Prep / home: keep Shanghai→CHC flight framed; don't let NZ plan-fit steal the camera.
@@ -4891,6 +4986,7 @@ function setViewInSafeArea(latlng, zoom) {
 
 function applyFitForCtx(ctx) {
   if (!leafletMap || !ctx) return;
+  if (applyCameraLockIfNeeded()) return;
 
   // Ocean-crossing flight owns the viewport until it finishes.
   if (flightCrossingActive) return;
@@ -4978,6 +5074,7 @@ let fitPassTimer = null;
 
 function fitLeaflet(ctx) {
   if (!leafletMap || !ctx) return;
+  if (applyCameraLockIfNeeded()) return;
 
   try {
     leafletMap.invalidateSize(false);
@@ -4992,6 +5089,7 @@ function fitLeaflet(ctx) {
   fitPassTimer = setTimeout(() => {
     fitPassTimer = null;
     if (!leafletMap || !lastCtx) return;
+    if (applyCameraLockIfNeeded()) return;
     try {
       leafletMap.invalidateSize(false);
     } catch {

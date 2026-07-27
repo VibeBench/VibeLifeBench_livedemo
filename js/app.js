@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-card1sb";
-import { DemoEngine } from "./engine.js?v=20260727-card1sb";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-hotelfocus";
+import { DemoEngine } from "./engine.js?v=20260727-hotelfocus";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260727-card1sb";
-import { Trajectory, isValidRecording } from "./trajectory.js?v=20260727-card1sb";
-import { UI } from "./ui.js?v=20260727-card1sb";
+} from "./agent.js?v=20260727-hotelfocus";
+import { Trajectory, isValidRecording } from "./trajectory.js?v=20260727-hotelfocus";
+import { UI } from "./ui.js?v=20260727-hotelfocus";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,7 +18,7 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260727-card1sb";
+} from "./map.js?v=20260727-hotelfocus";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -26,7 +26,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260727-card1sb";
+} from "./playback.js?v=20260727-hotelfocus";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -40,7 +40,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260727-card1sb";
+} from "./i18n.js?v=20260727-hotelfocus";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
