@@ -6,7 +6,7 @@
  *   onStream({ thinking, content, phase, toolHint })
  *   phase: 'thinking' | 'answering' | 'tool' | 'done'
  */
-import { L, getLocale, localizeUserState } from "./i18n.js?v=20260727-audit1";
+import { L, getLocale, localizeUserState } from "./i18n.js?v=20260727-langseg";
 
 const DEFAULT_BASE = "https://api.deepseek.com";
 const DEFAULT_MODEL = "deepseek-v4-pro";

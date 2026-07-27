@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-audit1";
-import { DemoEngine } from "./engine.js?v=20260727-audit1";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-langseg";
+import { DemoEngine } from "./engine.js?v=20260727-langseg";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260727-audit1";
-import { Trajectory } from "./trajectory.js?v=20260727-audit1";
-import { UI } from "./ui.js?v=20260727-audit1";
+} from "./agent.js?v=20260727-langseg";
+import { Trajectory } from "./trajectory.js?v=20260727-langseg";
+import { UI } from "./ui.js?v=20260727-langseg";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,18 +18,18 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260727-audit1";
+} from "./map.js?v=20260727-langseg";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
   playbackMs,
   sleepPlayback,
   playbackSpeedLabel,
-} from "./playback.js?v=20260727-audit1";
+} from "./playback.js?v=20260727-langseg";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
-  toggleLocale,
+  setLocale,
   getLocale,
   t as i18nT,
   L as i18nL,
@@ -39,7 +39,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260727-audit1";
+} from "./i18n.js?v=20260727-langseg";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -1023,8 +1023,11 @@ function setBusyUI(on) {
 }
 
 function bindChrome() {
-  document.querySelector("#btnLang")?.addEventListener("click", () => {
-    toggleLocale();
+  document.querySelector("#btnLangZh")?.addEventListener("click", () => {
+    if (getLocale() !== "zh") setLocale("zh");
+  });
+  document.querySelector("#btnLangEn")?.addEventListener("click", () => {
+    if (getLocale() !== "en") setLocale("en");
   });
   document.querySelector("#btnAutoplay").addEventListener("click", () => {
     if (autoplay) stopAutoplay();

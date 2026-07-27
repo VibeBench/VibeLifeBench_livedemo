@@ -368,13 +368,14 @@ export function applyDomI18n(root = document) {
     const key = el.getAttribute("data-i18n-aria");
     if (key) el.setAttribute("aria-label", t(key));
   });
-  const btn = root.querySelector("#btnLang");
-  if (btn) {
-    const code = locale === "en" ? "ZH" : "EN";
-    btn.textContent = `language/语言 ${code}`;
-    btn.setAttribute("title", t("lang.btnTitle"));
-    btn.setAttribute("aria-label", t("lang.btnTitle"));
-    btn.dataset.locale = locale;
+  const zhBtn = root.querySelector("#btnLangZh");
+  const enBtn = root.querySelector("#btnLangEn");
+  if (zhBtn && enBtn) {
+    const isEn = locale === "en";
+    zhBtn.classList.toggle("is-active", !isEn);
+    enBtn.classList.toggle("is-active", isEn);
+    zhBtn.setAttribute("aria-pressed", isEn ? "false" : "true");
+    enBtn.setAttribute("aria-pressed", isEn ? "true" : "false");
   }
 }
 
