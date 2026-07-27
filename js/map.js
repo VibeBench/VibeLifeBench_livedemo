@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-noroutine";
-import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-noroutine";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-noroutine";
+} from "./routing.js?v=20260727-hotelemoji";
+import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-hotelemoji";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelemoji";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -541,10 +541,10 @@ function hotelMarkDivIcon({ tip = "", flash = false, cancel = false } = {}) {
     html: `<span class="${cls}" title="${escapeHtml(tip)}" role="img" aria-label="${escapeHtml(tip || "hotel")}">
       <span class="hotel-mark-burst" aria-hidden="true"></span>
       <span class="hotel-mark-ring" aria-hidden="true"></span>
-      <span class="hotel-mark-face" aria-hidden="true"><span class="hotel-mark-h">H</span></span>
+      <span class="hotel-mark-face" aria-hidden="true"><span class="hotel-mark-emoji">🏨</span></span>
     </span>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
   });
 }
 

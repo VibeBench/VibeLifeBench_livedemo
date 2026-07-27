@@ -3976,8 +3976,8 @@ select {
   position: relative;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 22px;
+  height: 22px;
   pointer-events: auto;
 }
 
@@ -3986,22 +3986,19 @@ select {
   z-index: 2;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: linear-gradient(165deg, #fff 0%, #fff7ed 100%);
-  border: 2px solid #f97316;
-  box-shadow:
-    0 2px 8px rgba(194, 65, 12, 0.22),
-    0 0 0 3px rgba(251, 146, 60, 0.18);
+  background: #fff7ed;
+  border: 1.5px solid #f97316;
+  box-shadow: 0 1px 4px rgba(194, 65, 12, 0.2);
 }
 
-.hotel-mark-h {
-  font-size: 13px;
-  font-weight: 800;
-  color: #dc2626;
+.hotel-mark-emoji {
+  font-size: 11px;
   line-height: 1;
-  font-family: "DM Sans", "Noto Sans SC", system-ui, sans-serif;
+  display: block;
+  transform: translateY(0.5px);
 }
 
 .hotel-mark-ring,
@@ -4034,16 +4031,9 @@ select {
 .hotel-mark.is-flash-cancel .hotel-mark-face,
 .hotel-mark.is-cancel .hotel-mark-face {
   border-color: #ef4444;
-  background: linear-gradient(165deg, #fff 0%, #fef2f2 100%);
-  box-shadow:
-    0 2px 8px rgba(185, 28, 28, 0.28),
-    0 0 0 3px rgba(248, 113, 113, 0.22);
+  background: #fef2f2;
+  box-shadow: 0 1px 4px rgba(185, 28, 28, 0.25);
   animation: hotelMarkShake calc(0.55s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.hotel-mark.is-flash-cancel .hotel-mark-h,
-.hotel-mark.is-cancel .hotel-mark-h {
-  color: #b91c1c;
 }
 
 .hotel-mark.is-flash-cancel .hotel-mark-ring {
