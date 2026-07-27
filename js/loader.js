@@ -2,7 +2,7 @@
  * Generic case loader — works with any vibelifebench event.yaml of the same schema:
  *   stages: { N: [ { id, time, kind, body?, user_state?, from?, source?, channel?, apply?, silent? } ] }
  */
-import { localizeEvent } from "./i18n.js?v=20260727-xfer5s";
+import { localizeEvent } from "./i18n.js?v=20260727-hotelz9";
 
 export const EVENT_KINDS = [
   "user_message",

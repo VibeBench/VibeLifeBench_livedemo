@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-xfer5s";
-import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-xfer5s";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-xfer5s";
+} from "./routing.js?v=20260727-hotelz9";
+import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-hotelz9";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelz9";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -333,7 +333,7 @@ function armHotelFocusGuard() {
 }
 
 /** Force the viewport onto one hotel pin; reassert until async paints stop fighting. */
-function focusHotelCamera(at, { zoom = 12, holdMs = 3200 } = {}) {
+function focusHotelCamera(at, { zoom = 9, holdMs = 3200 } = {}) {
   if (!leafletMap || !at) return;
   armHotelFocusGuard();
   const hold = Math.max(1200, Number(holdMs) || 3200);
@@ -517,8 +517,8 @@ export function playHotelPinCinematic({
       .join(" · ")
       .slice(0, 96);
 
-    // Stay tight on THIS hotel — block async flight/plan fitBounds races.
-    const focusZoom = 12;
+    // Same mid-scale as route checks (zoom 9) — avoid zoom-12 tile thrash / blank map lag.
+    const focusZoom = 9;
     const holdMs = isReplayMode() ? cardDisplayMs(2200) : 3600;
     focusHotelCamera(at, { zoom: focusZoom, holdMs });
 
