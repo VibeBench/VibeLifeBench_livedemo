@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-hotelfocus3";
-import { DemoEngine } from "./engine.js?v=20260727-hotelfocus3";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-xfer5s";
+import { DemoEngine } from "./engine.js?v=20260727-xfer5s";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260727-hotelfocus3";
-import { Trajectory, isValidRecording } from "./trajectory.js?v=20260727-hotelfocus3";
-import { UI } from "./ui.js?v=20260727-hotelfocus3";
+} from "./agent.js?v=20260727-xfer5s";
+import { Trajectory, isValidRecording } from "./trajectory.js?v=20260727-xfer5s";
+import { UI } from "./ui.js?v=20260727-xfer5s";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,7 +18,7 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260727-hotelfocus3";
+} from "./map.js?v=20260727-xfer5s";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -26,7 +26,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260727-hotelfocus3";
+} from "./playback.js?v=20260727-xfer5s";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -40,7 +40,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260727-hotelfocus3";
+} from "./i18n.js?v=20260727-xfer5s";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -322,8 +322,8 @@ async function maybePlayDriveHop(fromGeo, toGeo, { time = null } = {}) {
     time,
   });
   await (ui.playDriveHop
-    ? ui.playDriveHop({ fromGeo: from, toGeo: to, durationMs: 2400 })
-    : playDriveHop({ fromGeo: from, toGeo: to, durationMs: 2400 }));
+    ? ui.playDriveHop({ fromGeo: from, toGeo: to, durationMs: 5000 })
+    : playDriveHop({ fromGeo: from, toGeo: to, durationMs: 5000 }));
   return true;
 }
 

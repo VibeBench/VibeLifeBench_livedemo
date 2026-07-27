@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-hotelfocus3";
-import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-hotelfocus3";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelfocus3";
+} from "./routing.js?v=20260727-xfer5s";
+import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-xfer5s";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-xfer5s";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -4912,7 +4912,7 @@ function stopDriveHop() {
 export function playDriveHop({
   fromGeo = null,
   toGeo = null,
-  durationMs = 2400,
+  durationMs = 5000,
   label = "",
 } = {}) {
   return new Promise(async (resolve) => {
@@ -4997,7 +4997,8 @@ export function playDriveHop({
     }
 
     const t0 = performance.now();
-    const dur = playbackMs(Number(durationMs) || 2400, { min: 350, max: 3600 });
+    // Even at high replay speed, keep ≥5s so geo transitions stay readable.
+    const dur = playbackMs(Math.max(Number(durationMs) || 5000, 5000), { min: 5000 });
 
     function frame(now) {
       if (!isMapSession(session) || !driveHopActive) {
@@ -5175,7 +5176,8 @@ export function playFlightCrossing({
     }
 
     const t0 = performance.now();
-    const dur = playbackMs(Number(durationMs) || 6800, { min: 700 });
+    // Even at high replay speed, keep ≥5s so the ocean crossing stays cinematic.
+    const dur = playbackMs(Math.max(Number(durationMs) || 6800, 5000), { min: 5000 });
 
     function frame(now) {
       if (!isMapSession(session) || !flightCrossingActive) {
