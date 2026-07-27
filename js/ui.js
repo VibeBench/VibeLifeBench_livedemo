@@ -22,10 +22,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260727-hotelpos";
-import { groupLedgerByDate } from "./ledger.js?v=20260727-hotelpos";
-import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs } from "./playback.js?v=20260727-hotelpos";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-hotelpos";
+} from "./map.js?v=20260727-toast1";
+import { groupLedgerByDate } from "./ledger.js?v=20260727-toast1";
+import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs } from "./playback.js?v=20260727-toast1";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-toast1";
 
 function kindMeta(kind) {
   const base = {
@@ -465,29 +465,35 @@ export class UI {
     if (fresh.length) this.enqueuePhoneBanners(fresh);
   }
 
+  /**
+   * Phone banners behave like iOS/Android: a new notice immediately replaces
+   * whatever is on screen (no FIFO wait for a full 4–5s each).
+   * All items still land in the mail inbox.
+   */
   enqueuePhoneBanners(items) {
     if (!items?.length) return;
-    if (!this._phoneToastQueue) this._phoneToastQueue = [];
     for (const item of items) this.archiveToInbox(item);
-    const batch = items.length > 4 ? items.slice(-4) : items;
-    this._phoneToastQueue.push(...batch);
-    if (!this._phoneToastShowing) this._drainPhoneBannerQueue();
+    // Show only the newest; drop any backlog so we never drip-feed "还有 N 条".
+    this._phoneToastQueue = [];
+    const latest = items[items.length - 1];
+    this.showPhoneBanner(latest, { replace: true });
   }
 
   _drainPhoneBannerQueue() {
+    // Kept for rewind / hide paths; queue is no longer used for sequential display.
     const next = this._phoneToastQueue.shift();
     if (!next) {
       this._phoneToastShowing = false;
       return;
     }
-    this.showPhoneBanner(next);
+    this.showPhoneBanner(next, { replace: true });
   }
 
   /**
-   * In-phone notification. Auto-fades after 5s (tap × / card still dismisses early).
+   * In-phone notification. Auto-fades after ~3s unless replaced by a newer one.
    * Tapping the card opens 邮件 and focuses the archived item.
    */
-  showPhoneBanner(change) {
+  showPhoneBanner(change, { replace = false } = {}) {
     const el = this.els.phoneToast || $("#phoneToast");
     if (!el || !change) return;
     this.els.phoneToast = el;
@@ -501,22 +507,25 @@ export class UI {
     const text = change.text || L("有新通知", "New notification");
     const app = change.app || L("通知", "Notice");
     const mailKey = change.key || null;
-    const pending = this._phoneToastQueue?.length || 0;
 
     el.hidden = false;
     el.removeAttribute("hidden");
     el.classList.remove("is-leaving");
+    // Retrigger pop animation when replacing mid-show.
+    if (replace) {
+      el.classList.remove("show");
+      void el.offsetWidth;
+    }
     el.className = "phone-toast show";
     el.innerHTML = `
       <div class="phone-toast-top">
         <span class="phone-toast-app">${escapeHtml(app)}</span>
-        ${pending ? `<span class="phone-toast-more">${L(`还有 ${pending} 条`, `${pending} more`)}</span>` : ""}
         <button type="button" class="phone-toast-close" aria-label="${L("关闭", "Close")}">×</button>
       </div>
       <span class="phone-toast-body">${icon} ${escapeHtml(text)}</span>`;
 
     const dismiss = (openMail) => {
-      this.hidePhoneBanner({ advanceQueue: true });
+      this.hidePhoneBanner({ advanceQueue: false });
       if (openMail) this.setPhoneTab("mail", { mailKey });
     };
     el.querySelector(".phone-toast-close")?.addEventListener("click", (ev) => {
@@ -529,11 +538,11 @@ export class UI {
       dismiss(true);
     };
 
-    // Default: auto fade-out after 5s
+    // Auto fade — shorter than before; new notices replace immediately anyway.
     this._phoneToastTimer = setTimeout(() => {
       this._phoneToastTimer = null;
-      this.hidePhoneBanner({ advanceQueue: true });
-    }, 5000);
+      this.hidePhoneBanner({ advanceQueue: false });
+    }, 3000);
   }
 
   /** Explicit notify from tool writes / mutations / env events. */
