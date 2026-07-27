@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-i18n3";
-import { playbackMs } from "./playback.js?v=20260727-i18n3";
-import { t, L, getLocale } from "./i18n.js?v=20260727-i18n3";
+} from "./routing.js?v=20260727-i18n3b";
+import { playbackMs } from "./playback.js?v=20260727-i18n3b";
+import { t, L, getLocale } from "./i18n.js?v=20260727-i18n3b";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -1012,7 +1012,7 @@ export async function focusPlanning(opts = {}) {
                 ? L("路况正常", "Roads clear")
                 : mode === "adjust"
                   ? L("调整后路线", "Adjusted route")
-                  : L("推演路线", "Draft route")
+                  : L("推演路线", "Draft route"))
       );
     for (const ll of path) focus.push(window.L.latLng(ll[0], ll[1]));
   } else if (drawRoadIds.length && lastCtx) {
@@ -1079,7 +1079,7 @@ export async function focusPlanning(opts = {}) {
             ? L("路线调整中", "Adjusting route")
             : placeIds.length >= 2
               ? L("路线推演中", "Drafting route")
-              : L("地图聚焦中", "Focusing map");
+              : L("地图聚焦中", "Focusing map"));
   setPlanningBadge(badge, mode === "clear" ? "consider" : mode);
 
   // Prep flight framing keeps PVG→CHC — but never when verifying NZ roads/places.
