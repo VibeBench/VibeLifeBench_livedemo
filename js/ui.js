@@ -23,10 +23,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260727-hotelmark2";
-import { groupLedgerByDate } from "./ledger.js?v=20260727-hotelmark2";
-import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-hotelmark2";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-hotelmark2";
+} from "./map.js?v=20260727-noroutine";
+import { groupLedgerByDate } from "./ledger.js?v=20260727-noroutine";
+import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-noroutine";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-noroutine";
 
 function kindMeta(kind) {
   const base = {
@@ -89,7 +89,6 @@ export class UI {
       toast: $("#toast"),
       phoneNav: $("#phoneNav"),
       phoneToast: $("#phoneToast"),
-      routineStrip: $("#routineStrip"),
       tripLedger: $("#tripLedger"),
       notionLedger: $("#notionLedger"),
       notionTitle: $("#notionTitle"),
@@ -734,73 +733,18 @@ export class UI {
   }
 
   /**
-   * Trip-node line under the status strip (aligned with float-status glass chips).
+   * Trip-node strip under status chips — removed from UI; keep no-op stubs
+   * so older call sites don't break.
    */
-  showRoutineStrip({ icon = "🚗", title = "", detail = "", flash = true } = {}) {
-    const el = this.els.routineStrip || $("#routineStrip");
-    if (!el) return;
-    this.els.routineStrip = el;
-    const head = String(title || "").trim();
-    const sub = String(detail || "").trim();
-    if (!head && !sub) {
-      this.hideRoutineStrip();
-      return;
-    }
-    this._routinePayload = { icon, title: head, detail: sub };
-    el.hidden = false;
-    el.removeAttribute("hidden");
-    el.innerHTML = `
-      <div class="routine-chip" title="${escapeHtml([head, sub].filter(Boolean).join(" · "))}">
-        <span class="routine-chip-ico" aria-hidden="true">${icon}</span>
-        <div class="routine-chip-main">
-          ${head ? `<span class="routine-chip-title">${escapeHtml(head)}</span>` : ""}
-          ${sub && sub !== head ? `<span class="routine-chip-detail">${escapeHtml(sub)}</span>` : ""}
-        </div>
-      </div>`;
-    if (flash) {
-      el.classList.remove("is-flash");
-      void el.offsetWidth;
-      el.classList.add("is-flash");
-      clearTimeout(this._routineFlashTimer);
-      this._routineFlashTimer = setTimeout(() => {
-        el.classList.remove("is-flash");
-      }, cardDisplayMs(1200));
-    }
-  }
+  showRoutineStrip(_opts) {}
 
   hideRoutineStrip() {
-    const el = this.els.routineStrip || $("#routineStrip");
-    if (!el) return;
     clearTimeout(this._routineFlashTimer);
     this._routineFlashTimer = null;
     this._routinePayload = null;
-    el.classList.remove("is-flash");
-    el.hidden = true;
-    el.setAttribute("hidden", "");
-    el.replaceChildren();
   }
 
-  /** Keep strip in sync from current user_state when no dedicated routine body. */
-  syncRoutineStripFromState(state) {
-    if (this._routinePayload?.detail) return; // keep last routine narrative until next routine
-    const action = String(state?.demo_action || "").trim();
-    const node = String(state?.trip_node || "").trim();
-    const loc = String(state?.location || "").trim();
-    if (!action && !node) return;
-    const prep = getLocale() === "en" ? "Pre-trip prep" : "行前准备";
-    if (!action || action === "行程中" || action === "On the trip" || action === prep) {
-      if (node && node !== prep) {
-        this.showRoutineStrip({ icon: "🧭", title: node, detail: loc, flash: false });
-      }
-      return;
-    }
-    this.showRoutineStrip({
-      icon: /自驾|驾驶|drive/i.test(action) ? "🚗" : "🧭",
-      title: action,
-      detail: [node && node !== action ? node : null, loc].filter(Boolean).join(" · "),
-      flash: false,
-    });
-  }
+  syncRoutineStripFromState(_state) {}
 
   /** Archive a banner/notification into the mail inbox (deduped by key). */
   archiveToInbox(item) {

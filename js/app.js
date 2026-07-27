@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-hotelmark2";
-import { DemoEngine } from "./engine.js?v=20260727-hotelmark2";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-noroutine";
+import { DemoEngine } from "./engine.js?v=20260727-noroutine";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260727-hotelmark2";
-import { Trajectory, isValidRecording } from "./trajectory.js?v=20260727-hotelmark2";
-import { UI } from "./ui.js?v=20260727-hotelmark2";
+} from "./agent.js?v=20260727-noroutine";
+import { Trajectory, isValidRecording } from "./trajectory.js?v=20260727-noroutine";
+import { UI } from "./ui.js?v=20260727-noroutine";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,7 +18,7 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260727-hotelmark2";
+} from "./map.js?v=20260727-noroutine";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -26,7 +26,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260727-hotelmark2";
+} from "./playback.js?v=20260727-noroutine";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -40,7 +40,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260727-hotelmark2";
+} from "./i18n.js?v=20260727-noroutine";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
