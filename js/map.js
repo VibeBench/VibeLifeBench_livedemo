@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-hotelfocus2";
-import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-hotelfocus2";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelfocus2";
+} from "./routing.js?v=20260727-hotelfocus3";
+import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-hotelfocus3";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelfocus3";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -114,6 +114,9 @@ let cameraLockLatLng = null;
 let cameraLockZoom = 9;
 /** Extra grace after hotel book/cancel so home/plan auto-fit can't yank the view mid-card. */
 let hotelFocusUntil = 0;
+/** Leaflet fitBounds patched while a hotel card owns the camera. */
+let hotelFocusGuardInstalled = false;
+let _leafletFitBoundsOrig = null;
 /** Bumped on rewind/reset — async overlays must check before painting. */
 let mapSession = 1;
 let mapActionToken = 0;
@@ -183,7 +186,7 @@ export function abortMapPlayback() {
   } catch {
     /* ignore */
   }
-  clearHotelFx();
+  clearHotelFx({ clearFocus: true });
   // Keep lastAgentPlan so a map rebuild can repaint; explicit clearAgentPlan on rewind.
   try {
     agentPlanLayer?.clearLayers();
@@ -298,12 +301,13 @@ export function pulseMapEvent({
   return new Promise((r) => setTimeout(() => r(true), Math.min(cardDisplayMs(2800), totalMs)));
 }
 
-function clearHotelFx() {
+function clearHotelFx({ clearFocus = false } = {}) {
   for (const t of hotelFxTimers) clearTimeout(t);
   hotelFxTimers = [];
   hotelFxActive = false;
-  hotelFocusUntil = 0;
-  // Strip flash classes from persistent marks; don't wipe the layer (booked pins stay).
+  // Do not clear hotelFocusUntil here by default — async fitBounds races were
+  // zooming back out to the Shanghai↔CHC ocean frame while the booking card was up.
+  if (clearFocus) hotelFocusUntil = 0;
   try {
     hotelMarksLayer?.eachLayer?.((layer) => {
       const el = layer.getElement?.()?.querySelector?.(".hotel-mark");
@@ -311,6 +315,52 @@ function clearHotelFx() {
     });
   } catch {
     /* ignore */
+  }
+}
+
+/** Block Leaflet fitBounds while hotel card focus is active (beats async paint races). */
+function armHotelFocusGuard() {
+  if (!leafletMap || hotelFocusGuardInstalled) return;
+  _leafletFitBoundsOrig = leafletMap.fitBounds.bind(leafletMap);
+  leafletMap.fitBounds = function hotelFocusGuardedFitBounds(...args) {
+    if (isHotelFocusActive()) {
+      applyCameraLockIfNeeded();
+      return this;
+    }
+    return _leafletFitBoundsOrig(...args);
+  };
+  hotelFocusGuardInstalled = true;
+}
+
+/** Force the viewport onto one hotel pin; reassert until async paints stop fighting. */
+function focusHotelCamera(at, { zoom = 12, holdMs = 3200 } = {}) {
+  if (!leafletMap || !at) return;
+  armHotelFocusGuard();
+  const hold = Math.max(1200, Number(holdMs) || 3200);
+  hotelFocusUntil = Date.now() + hold + 1200;
+  lockCamera(at, { zoom, holdMs: hold });
+  lastMapCameraSig = `hotel-focus:${Number(at.lat ?? at[0]).toFixed(4)},${Number(at.lng ?? at[1]).toFixed(4)}`;
+
+  const reassert = () => {
+    if (!leafletMap || !isHotelFocusActive()) return;
+    try {
+      const ll = window.L.latLng(at);
+      // Direct setView first — more reliable than only panBy-based safe framing.
+      leafletMap.setView(ll, zoom, { animate: false });
+      setViewInSafeArea(ll, zoom);
+      cameraLockLatLng = ll;
+      cameraLockZoom = zoom;
+    } catch {
+      /* ignore */
+    }
+  };
+  reassert();
+  requestAnimationFrame(() => {
+    reassert();
+    requestAnimationFrame(reassert);
+  });
+  for (const ms of [40, 100, 220, 450, 900, 1600]) {
+    hotelFxTimers.push(setTimeout(reassert, ms));
   }
 }
 
@@ -467,13 +517,10 @@ export function playHotelPinCinematic({
       .join(" · ")
       .slice(0, 96);
 
-    // Stay tight on THIS hotel — never inherit a zoomed-out flight/plan frame.
-    const focusZoom = 11;
-    const holdMs = isReplayMode() ? cardDisplayMs(2000) : 3200;
-    hotelFocusUntil = Date.now() + holdMs + 800;
-    lockCamera(at, { zoom: focusZoom, holdMs });
-    // Stop maybeAutoFitCamera from treating this as "needs plan/home refit".
-    lastMapCameraSig = `hotel-focus:${Number(at.lat).toFixed(4)},${Number(at.lng).toFixed(4)}`;
+    // Stay tight on THIS hotel — block async flight/plan fitBounds races.
+    const focusZoom = 12;
+    const holdMs = isReplayMode() ? cardDisplayMs(2200) : 3600;
+    focusHotelCamera(at, { zoom: focusZoom, holdMs });
 
     // Info card anchored on the hotel pin (not a wide-area toast).
     pulsePlaceBubble({
@@ -483,7 +530,7 @@ export function playHotelPinCinematic({
       kindCls: isCancel ? "hotel-cancel" : "hotel-book",
       latlng: at,
       durationMs: holdMs,
-      holdMs: Math.max(cardDisplayMs(900), holdMs - cardDisplayMs(700)),
+      holdMs: Math.max(cardDisplayMs(1000), holdMs - cardDisplayMs(800)),
     });
 
     // Prefer flashing an existing booked pin at this spot; otherwise create one.
@@ -1803,7 +1850,7 @@ export function mapZoomOut() {
 export function clearMapOverlays() {
   clearPlanning({ immediate: true });
   clearAgentPlan();
-  clearHotelFx();
+  clearHotelFx({ clearFocus: true });
   stopDriveHop();
   try {
     pulseLayer?.clearLayers();
@@ -3772,7 +3819,7 @@ function maybeAutoFitCamera(ctx, camSig, { replay = false, force = false } = {})
 
   requestAnimationFrame(() => {
     if (!leafletMap) return;
-    if (applyCameraLockIfNeeded()) return;
+    if (isHotelFocusActive() || applyCameraLockIfNeeded()) return;
     try {
       leafletMap.invalidateSize(false);
     } catch {
@@ -3834,6 +3881,9 @@ export function destroyMap() {
   driveHopLayer = null;
   hotelMarksLayer = null;
   agentPlanLayer = null;
+  hotelFocusGuardInstalled = false;
+  _leafletFitBoundsOrig = null;
+  hotelFocusUntil = 0;
   lockedFlightArcs = new Map();
   lastFlightCatalogSig = "";
   lastMapPaintSig = "";

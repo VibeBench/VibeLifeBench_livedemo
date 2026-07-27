@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-hotelfocus2";
-import { DemoEngine } from "./engine.js?v=20260727-hotelfocus2";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-hotelfocus3";
+import { DemoEngine } from "./engine.js?v=20260727-hotelfocus3";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260727-hotelfocus2";
-import { Trajectory, isValidRecording } from "./trajectory.js?v=20260727-hotelfocus2";
-import { UI } from "./ui.js?v=20260727-hotelfocus2";
+} from "./agent.js?v=20260727-hotelfocus3";
+import { Trajectory, isValidRecording } from "./trajectory.js?v=20260727-hotelfocus3";
+import { UI } from "./ui.js?v=20260727-hotelfocus3";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,7 +18,7 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260727-hotelfocus2";
+} from "./map.js?v=20260727-hotelfocus3";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -26,7 +26,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260727-hotelfocus2";
+} from "./playback.js?v=20260727-hotelfocus3";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -40,7 +40,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260727-hotelfocus2";
+} from "./i18n.js?v=20260727-hotelfocus3";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -519,10 +519,17 @@ function ensureAgent({ allowOfflineTools = false } = {}) {
           name || ""
         );
       if (isWriteTool || isJournalOrCal) {
-        refreshDashboard();
+        // Hotel book/cancel: focus the pin first, then refresh — otherwise async
+        // fitBounds (Shanghai↔CHC) races and leaves the card on an ocean zoom.
+        if (!/book_hotel|cancel_hotel/i.test(name || "")) {
+          refreshDashboard();
+        }
       }
       // Wait for this tool's map cinematic (+ status check) before the next tool runs.
       await Promise.resolve(ui.focusMapFromTool(name, args || {}, result));
+      if (/book_hotel|cancel_hotel/i.test(name || "")) {
+        refreshDashboard();
+      }
       // Calendar / hotel writes: remember tools for the end-of-turn stay commit.
       // Do NOT paint the full itinerary here — answer may still be incomplete.
       if (/calendar|schedule|book_hotel|cancel_hotel/i.test(name || "")) {
@@ -813,8 +820,11 @@ async function replayCachedAgentTurn(turn, time) {
         /book|cancel|create|send|post|update|write|insert|reserve|confirm|refund|submit_nzeta|place_gear|record_pickup|report_scratch|record_return|checkin_flight/i.test(
           name || ""
         );
-      if (isWriteTool || isJournalOrCal) refreshDashboard();
+      if (isWriteTool || isJournalOrCal) {
+        if (!/book_hotel|cancel_hotel/i.test(name || "")) refreshDashboard();
+      }
       await Promise.resolve(ui.focusMapFromTool(name, args, result));
+      if (/book_hotel|cancel_hotel/i.test(name || "")) refreshDashboard();
       if (/calendar|schedule|book_hotel|cancel_hotel/i.test(name || "")) {
         if (ui._streamBubble) {
           ui._streamBubble._planContext = agentPlanContext();
