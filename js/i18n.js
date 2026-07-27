@@ -18,9 +18,10 @@ const DICT = {
   zh: {
     "lang.zh": "ZH",
     "lang.en": "EN",
+    "lang.label": "语言",
     "lang.toast.zh": "界面语言：中文",
     "lang.toast.en": "Language · English",
-    "lang.btnTitle": "language / 语言",
+    "lang.btnTitle": "语言",
     "top.speed": "倍速",
     "top.speedTitle": "动画与回放倍速",
     "top.speedAria": "播放倍速",
@@ -163,9 +164,10 @@ const DICT = {
   en: {
     "lang.zh": "ZH",
     "lang.en": "EN",
+    "lang.label": "Language",
     "lang.toast.zh": "界面语言：中文",
     "lang.toast.en": "Language · English",
-    "lang.btnTitle": "language / 语言",
+    "lang.btnTitle": "Language",
     "top.speed": "Speed",
     "top.speedTitle": "Animation & replay speed",
     "top.speedAria": "Playback speed",
@@ -368,6 +370,10 @@ export function applyDomI18n(root = document) {
     const key = el.getAttribute("data-i18n-aria");
     if (key) el.setAttribute("aria-label", t(key));
   });
+  const labelEl = root.querySelector("#langSwitchLabel");
+  if (labelEl) labelEl.textContent = t("lang.label");
+  const group = root.querySelector(".lang-switch");
+  if (group) group.setAttribute("aria-label", t("lang.label"));
   const zhBtn = root.querySelector("#btnLangZh");
   const enBtn = root.querySelector("#btnLangEn");
   if (zhBtn && enBtn) {

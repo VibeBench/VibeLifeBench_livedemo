@@ -364,21 +364,29 @@ select {
 .lang-switch {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 4px 2px 8px;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 999px;
-  background: #fff;
-  white-space: nowrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0 2px;
   font-size: 12px;
-  line-height: 1;
+  color: #64748b;
+  white-space: nowrap;
+  user-select: none;
 }
 
 .lang-switch-label {
-  color: #64748b;
-  font-weight: 500;
-  padding-right: 2px;
-  user-select: none;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.lang-switch-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 999px;
+  background: #fff;
+  line-height: 1;
 }
 
 .lang-switch-btn {
