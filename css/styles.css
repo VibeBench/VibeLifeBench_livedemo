@@ -3364,6 +3364,16 @@ select {
   text-overflow: ellipsis;
 }
 
+/* English activity phrases are longer — show fuller text, wrap to 2 lines */
+.map-here-wrap.is-en .map-here-caption {
+  max-width: 150px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.2;
+  border-radius: 10px;
+}
+
 @keyframes map-here-pulse {
   0% {
     transform: scale(0.72);

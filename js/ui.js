@@ -22,10 +22,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260727-langseg";
-import { groupLedgerByDate } from "./ledger.js?v=20260727-langseg";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260727-langseg";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-langseg";
+} from "./map.js?v=20260727-bubble";
+import { groupLedgerByDate } from "./ledger.js?v=20260727-bubble";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260727-bubble";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-bubble";
 
 function kindMeta(kind) {
   const base = {
@@ -4804,7 +4804,8 @@ function shortWeather(w) {
   // Prefer just the condition word for the chip (temps stay in tooltip).
   const cond = head.replace(/\s*\d+\s*°?[CcFf]?\s*$/, "").trim();
   const short = cond || head;
-  return short.length > 6 ? `${short.slice(0, 5)}…` : short;
+  const max = getLocale() === "en" ? 22 : 6;
+  return short.length > max ? `${short.slice(0, max - 1)}…` : short;
 }
 
 function weatherSub(state) {

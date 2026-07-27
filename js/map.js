@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-langseg";
-import { playbackMs } from "./playback.js?v=20260727-langseg";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-langseg";
+} from "./routing.js?v=20260727-bubble";
+import { playbackMs } from "./playback.js?v=20260727-bubble";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-bubble";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -5083,9 +5083,13 @@ function emojiIcon(emoji, extraClass = "") {
 function hereMarkerIcon(emoji, label = "") {
   const raw = String(label || "").trim();
   const tip = escapeHtml(raw);
-  const short = escapeHtml(raw.length > 8 ? `${raw.slice(0, 7)}…` : raw);
+  // Chinese stays compact; English keeps the full activity phrase (no "Authori…").
+  const maxLen = getLocale() === "en" ? 42 : 8;
+  const shown =
+    raw.length > maxLen ? `${raw.slice(0, Math.max(1, maxLen - 1))}…` : raw;
+  const short = escapeHtml(shown);
   return window.L.divIcon({
-    className: "map-here-wrap",
+    className: `map-here-wrap${getLocale() === "en" ? " is-en" : ""}`,
     html: `
       <div class="map-here-marker" title="${tip}">
         <div class="map-here-orb">
@@ -5099,8 +5103,8 @@ function hereMarkerIcon(emoji, label = "") {
         ${short ? `<div class="map-here-caption">${short}</div>` : ""}
       </div>`,
     // Orb + overlapping tag + caption; anchor at orb center.
-    iconSize: [96, 96],
-    iconAnchor: [48, 26],
+    iconSize: getLocale() === "en" ? [168, 112] : [96, 96],
+    iconAnchor: getLocale() === "en" ? [84, 26] : [48, 26],
   });
 }
 
