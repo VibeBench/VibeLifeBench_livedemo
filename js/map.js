@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-bubble";
-import { playbackMs } from "./playback.js?v=20260727-bubble";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-bubble";
+} from "./routing.js?v=20260727-planen";
+import { playbackMs } from "./playback.js?v=20260727-planen";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-planen";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -983,13 +983,26 @@ export async function focusPlanning(opts = {}) {
       if (p) focus.push(window.L.latLng(p.lat, p.lng));
     }
     if (placeIds.length >= 2) {
-      try {
-        path = await buildDrivingPath(lastCtx, placeIds);
-      } catch {
-        path = placeIds
-          .map((id) => lastCtx.placeById?.[id])
-          .filter(Boolean)
-          .map((p) => [p.lat, p.lng]);
+      // Hop-by-hop so we never draw a CHC↔AKL ocean chord as "planning".
+      path = [];
+      for (let i = 1; i < placeIds.length; i++) {
+        const a = placeIds[i - 1];
+        const b = placeIds[i];
+        if (shouldSkipPlanLeg(a, b)) continue;
+        let hop = [];
+        try {
+          hop = await buildDrivingPath(lastCtx, [a, b]);
+        } catch {
+          hop = [];
+        }
+        if (hop.length < 2) {
+          const pa = lastCtx.placeById?.[a];
+          const pb = lastCtx.placeById?.[b];
+          if (pa && pb) hop = [[pa.lat, pa.lng], [pb.lat, pb.lng]];
+        }
+        if (hop.length < 2) continue;
+        if (path.length) path.push(...hop.slice(1));
+        else path.push(...hop);
       }
     }
   }
@@ -1037,12 +1050,21 @@ export async function focusPlanning(opts = {}) {
       }
     }
   } else if (placeIds.length >= 2 && lastCtx) {
-    const straight = placeIds
-      .map((id) => lastCtx.placeById?.[id])
-      .filter(Boolean)
-      .map((p) => [p.lat, p.lng]);
-    if (straight.length >= 2) {
-      window.L.polyline(straight, { ...style, opacity: 0.55 }).addTo(planningLayer);
+    // Same-island hops only — never CHC→AKL across the Tasman.
+    for (let i = 1; i < placeIds.length; i++) {
+      const a = placeIds[i - 1];
+      const b = placeIds[i];
+      if (shouldSkipPlanLeg(a, b)) continue;
+      const pa = lastCtx.placeById?.[a];
+      const pb = lastCtx.placeById?.[b];
+      if (!pa || !pb) continue;
+      window.L.polyline(
+        [
+          [pa.lat, pa.lng],
+          [pb.lat, pb.lng],
+        ],
+        { ...style, opacity: 0.55 }
+      ).addTo(planningLayer);
     }
   }
 
@@ -1642,7 +1664,7 @@ function looksLikePlanCommit(text, toolCalls = []) {
   if (parseDayPlaceStays(blob).length >= 2) return true;
   if (
     places.length >= 3 &&
-    /规划|行程安排|整体行程|调整行程|改路线|自驾环线|过夜|住宿|营地|Day\s*\d+|第\s*\d+\s*天|路线如下|行程如下|更新后的行程/i.test(
+    /规划|行程安排|整体行程|调整行程|改路线|自驾环线|过夜|住宿|营地|Day\s*\d+|第\s*\d+\s*天|路线如下|行程如下|更新后的行程|itinerary|overnights?|campervan\s+route|day[\s-]?by[\s-]?day|proposed\s+route/i.test(
       blob
     )
   ) {
@@ -1679,6 +1701,18 @@ function placeIsland(placeId) {
   return null;
 }
 
+/** Skip absurd / cross-island mega legs (except Picton↔Wellington ferry). */
+function shouldSkipPlanLeg(a, b) {
+  if (!a || !b || a === b) return true;
+  const ferry =
+    (a === "pl_picton" && b === "pl_wellington") ||
+    (a === "pl_wellington" && b === "pl_picton");
+  const ia = placeIsland(a);
+  const ib = placeIsland(b);
+  if (ia && ib && ia !== ib && !ferry) return true;
+  return false;
+}
+
 function looksLikeOvernightStayLabel(label = "") {
   return /过夜|住宿|营地|入住|入住|Hotel|Motel|Lodge|Holiday\s*Park|Park|露营|住一晚|入住|check[\s-]?in|overnight|stay|camp(site)?|arrival\s*night|landing/i.test(
     String(label || "")
@@ -1692,9 +1726,19 @@ function allowTransitHubStay(row = {}) {
   if (row.placeId === "pl_chc_airport") {
     const days = collectStayDays(row);
     if (days.includes(1)) return true;
-    if (/落地|抵达|过夜|住宿|入住|第一晚|Day\s*1|第\s*1\s*天/i.test(String(row.label || ""))) {
+    if (
+      /落地|抵达|过夜|住宿|入住|第一晚|Day\s*1|第\s*1\s*天|arriv(?:e|al)|land(?:ing|ed)|first\s*night|overnight/i.test(
+        String(row.label || "")
+      )
+    ) {
       return true;
     }
+  }
+  // Auckland return airport: only real overnight language — not bare "return/fly home".
+  if (row.placeId === "pl_akl_airport") {
+    return /过夜|住宿|入住|overnight|check[\s-]?in|last\s*night|final\s*night/i.test(
+      String(row.label || "")
+    );
   }
   // Only keep airport pins when the copy clearly means an overnight, not a flight end.
   return looksLikeOvernightStayLabel(row.label);
@@ -1821,7 +1865,10 @@ function buildPlanFromAgentOutputs({
   void thinking;
   const days = Array.isArray(tripDays) ? tripDays : [];
   const byPlace = new Map(); // placeId -> stay (later sources can refine)
-  const flightHeavy = /机票|航班|MU\d+|PVG\s*→|值机|舱位|去程|返程|出票|已确认.*票/i.test(blob);
+  const flightHeavy =
+    /机票|航班|MU\d+|PVG\s*[→\-]|值机|舱位|去程|返程|出票|已确认.*票|flight|ticket(?:ed)?|check[\s-]?in|boarding|airfare|airline|outbound|homebound|return\s*flight|PVG|AKL\s*[→\-]/i.test(
+      blob
+    ) && !/Day\s*\d+|第\s*\d+\s*天|overnight|itinerary|住宿|过夜|营地/i.test(blob);
 
   const upsert = (row, { prefer = false } = {}) => {
     if (!row?.placeId || row.placeId === "shanghai_home") return;
@@ -1972,7 +2019,9 @@ function buildPlanFromAgentOutputs({
   const dayStays = parseDayPlaceStays(blob);
   const fullRewrite =
     dayStays.length >= 2 ||
-    /重新规划|整段行程|完整行程|行程如下|调整后的行程|改成如下/i.test(blob);
+    /重新规划|整段行程|完整行程|行程如下|调整后的行程|改成如下|revised\s+itinerary|full\s+itinerary|itinerary\s+as\s+follows|day[\s-]?by[\s-]?day|updated\s+itinerary|proposed\s+route/i.test(
+      blob
+    );
   if (!fullRewrite && lastAgentPlan?.stays?.length && byPlace.size > 0) {
     for (const s of lastAgentPlan.stays) {
       if (!byPlace.has(s.placeId)) upsert(s);
@@ -2208,24 +2257,33 @@ function placeLabel(placeId) {
 function parseDayPlaceStays(text) {
   const s = String(text || "");
   if (!s.trim()) return [];
+  // Day 3 Tekapo | Days 2-3 Tekapo | Day 2–3: Tekapo | 第4天：瓦纳卡 | D2-3 蒂卡波
   const re =
-    /(?:Day\s*(\d+)|第\s*(\d+)\s*天|D\s*(\d+))\s*[:：.、\-\s]*([^\n。；;]{1,48})/gi;
+    /(?:Days?\s*(\d+)\s*[–\-~到至]\s*(\d+)|Day\s*(\d+)|第\s*(\d+)\s*天|D\s*(\d+)(?:\s*[–\-]\s*(\d+))?)\s*[:：.、\-\s]*([^\n。；;]{1,64})/gi;
   const out = [];
   const seenDay = new Set();
   let m;
   while ((m = re.exec(s))) {
-    const day = Number(m[1] || m[2] || m[3]) || out.length + 1;
-    const chunk = String(m[4] || "").trim();
+    const d0 = Number(m[1] || m[3] || m[4] || m[5]) || 0;
+    const d1 = Number(m[2] || m[6] || 0) || d0;
+    const dayStart = Math.min(d0, d1) || out.length + 1;
+    const dayEnd = Math.max(d0, d1) || dayStart;
+    const chunk = String(m[7] || "").trim();
     const ids = extractPlaceIdsFromText(chunk);
     if (!ids[0]) continue;
-    if (seenDay.has(day)) continue;
-    seenDay.add(day);
-    out.push({
-      day,
-      days: [day],
-      placeId: ids[0],
-      label: chunk.replace(/[（(].*$/, "").trim().slice(0, 16) || placeLabel(ids[0]),
-    });
+    const label =
+      chunk.replace(/[（(].*$/, "").trim().slice(0, getLocale() === "en" ? 36 : 16) ||
+      placeLabel(ids[0]);
+    for (let day = dayStart; day <= dayEnd; day++) {
+      if (seenDay.has(day)) continue;
+      seenDay.add(day);
+      out.push({
+        day,
+        days: [day],
+        placeId: ids[0],
+        label,
+      });
+    }
   }
   out.sort((a, b) => a.day - b.day);
   return out;
@@ -2290,11 +2348,15 @@ export async function commitAgentItineraryPlan({
     hotels: hotelsForPlan,
   });
   // Show even a single overnight — edits often arrive one stay at a time.
-  if (!(plan?.stays || []).length) {
+  const stayIds = (plan?.stays || []).map((s) => s.placeId);
+  const onlyAirports =
+    stayIds.length > 0 && stayIds.every((id) => isTransitHubPlace(id));
+  if (!(plan?.stays || []).length || onlyAirports) {
     // Flight / ticket replies used to invent CHC+AKL "stays" and a fake drive line —
     // wipe that leftover corridor when this turn has nothing real to show.
     if (
-      /机票|航班|MU\d+|值机|舱位|去程|返程/i.test(blob) ||
+      onlyAirports ||
+      /机票|航班|MU\d+|值机|舱位|去程|返程|flight|ticket|check[\s-]?in|boarding|airfare/i.test(blob) ||
       calTools.some((t) => /book_hotel|calendar/i.test(String(t?.name || "")))
     ) {
       clearAgentPlan();
@@ -2348,13 +2410,11 @@ async function buildAgentPlanLinkSegments(ctx, routeIds = []) {
     const pb = ctx.placeById?.[b];
     if (!pa || !pb) continue;
 
-    const ia = placeIsland(a);
-    const ib = placeIsland(b);
     const ferry =
       (a === "pl_picton" && b === "pl_wellington") ||
       (a === "pl_wellington" && b === "pl_picton");
     // No cross-island mega drive (except short Picton↔Wellington ferry hop).
-    if (ia && ib && ia !== ib && !ferry) continue;
+    if (shouldSkipPlanLeg(a, b)) continue;
     // Don't invent long airport mega-drives — but keep real overnight hops
     // (e.g. 基督城落地过夜 → 蒂卡波) when both ends are planned stays.
     const planPlaces = new Set((lastAgentPlan?.stays || []).map((s) => s.placeId));

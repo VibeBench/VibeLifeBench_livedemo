@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-bubble";
-import { DemoEngine } from "./engine.js?v=20260727-bubble";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-planen";
+import { DemoEngine } from "./engine.js?v=20260727-planen";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260727-bubble";
-import { Trajectory } from "./trajectory.js?v=20260727-bubble";
-import { UI } from "./ui.js?v=20260727-bubble";
+} from "./agent.js?v=20260727-planen";
+import { Trajectory } from "./trajectory.js?v=20260727-planen";
+import { UI } from "./ui.js?v=20260727-planen";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,14 +18,14 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260727-bubble";
+} from "./map.js?v=20260727-planen";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
   playbackMs,
   sleepPlayback,
   playbackSpeedLabel,
-} from "./playback.js?v=20260727-bubble";
+} from "./playback.js?v=20260727-planen";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -39,7 +39,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260727-bubble";
+} from "./i18n.js?v=20260727-planen";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
