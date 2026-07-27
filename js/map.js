@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-hotelz9";
-import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-hotelz9";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelz9";
+} from "./routing.js?v=20260727-onecar";
+import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-onecar";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-onecar";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -3693,6 +3693,12 @@ export function renderLeafletMap(engine) {
     } else if (paintChanged) {
       // Live activity / "现在" caption changed — refresh traveler orb only (keep roads & pins).
       lastMapPaintSig = paintSig;
+      if (driveHopActive) {
+        // Hop car is the only vehicle on screen right now.
+        updateBanner(panel, ctx);
+        updateLegend(panel, ctx);
+        return { ok: true, mode: "leaflet", skipped: "drive-hop" };
+      }
       const token = ++drawToken;
       if (ctx.isHome) {
         try {
@@ -4927,6 +4933,8 @@ export function playDriveHop({
       return;
     }
     stopDriveHop();
+    // Invalidate in-flight paintLiveActivity from refreshDashboard (otherwise a 2nd 🚗 appears).
+    drawToken += 1;
     // Hide the stationary "现在" pin while the hop car is moving.
     stopTravelerAnim();
     try {
@@ -4961,6 +4969,14 @@ export function playDriveHop({
     if (!isMapSession(session) || !leafletMap) {
       resolve(false);
       return;
+    }
+
+    // Re-clear in case a stale async paint sneaked in during path build.
+    stopTravelerAnim();
+    try {
+      activityLayer?.clearLayers();
+    } catch {
+      /* ignore */
     }
 
     if (!driveHopLayer) driveHopLayer = window.L.layerGroup().addTo(leafletMap);
@@ -5240,12 +5256,22 @@ function paintHomeActivity(ctx) {
 
 async function paintLiveActivity(ctx, token) {
   if (!activityLayer || token !== drawToken) return;
+  // Drive-hop owns the single 🚗 — don't resurrect the itinerary traveler underneath it.
+  if (driveHopActive) {
+    stopTravelerAnim();
+    try {
+      activityLayer.clearLayers();
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
   activityLayer.clearLayers();
   stopTravelerAnim();
 
   const act = ctx.activity || classifyActivity("", { isHome: false });
   const path = await liveSegmentPath(ctx);
-  if (token !== drawToken) return;
+  if (token !== drawToken || driveHopActive) return;
 
   if ((act.kind === "driving" || act.kind === "ferry" || act.kind === "cruise") && path.length >= 2) {
     // Status text lives under the here-marker — no side tooltip on the path.
@@ -5257,11 +5283,13 @@ async function paintLiveActivity(ctx, token) {
       interactive: false,
     }).addTo(activityLayer);
 
+    if (driveHopActive) return;
     startTravelerAnim(path, act.emoji, act.label);
     return;
   }
 
   // Stationary: prominent "现在" marker (not a bare emoji among place pins).
+  if (driveHopActive) return;
   const here = placeLatLng(ctx);
   if (!here) return;
   window.L.circle(here, {
@@ -5732,6 +5760,7 @@ function hereMarkerIcon(emoji, label = "") {
 
 function startTravelerAnim(latlngs, emoji, label) {
   stopTravelerAnim();
+  if (driveHopActive) return;
   if (!activityLayer || !latlngs?.length) return;
 
   const marker = window.L.marker(latlngs[0], {
