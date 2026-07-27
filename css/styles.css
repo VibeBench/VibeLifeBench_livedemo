@@ -3974,6 +3974,8 @@ select {
   border: 1px solid #fed7aa;
   font-size: 12px;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+  /* Extra nudge right of the stay day/date stack */
+  transform: translateX(4px);
 }
 
 /* Hotel book / cancel cinematic pin + info card */

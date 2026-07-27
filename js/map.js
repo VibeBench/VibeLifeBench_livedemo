@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-hotelfocus";
-import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-hotelfocus";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelfocus";
+} from "./routing.js?v=20260727-hotelpos";
+import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-hotelpos";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelpos";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -3937,7 +3937,8 @@ function paintLeafletBase(ctx) {
           className: "map-emoji-icon hotel-badge",
           html: `<span class="hotel-badge-pill">🏨</span>`,
           iconSize: [22, 22],
-          iconAnchor: [-8, 18],
+          // Sit clear of the D# / date stay pill (same latlng).
+          iconAnchor: [-28, 18],
         }),
         zIndexOffset: 400,
         interactive: true,
