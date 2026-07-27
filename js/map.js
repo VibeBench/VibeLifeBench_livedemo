@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-langout";
-import { playbackMs } from "./playback.js?v=20260727-langout";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-langout";
+} from "./routing.js?v=20260727-home1";
+import { playbackMs } from "./playback.js?v=20260727-home1";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-home1";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -3854,6 +3854,8 @@ function paintHomeBase(ctx) {
   const chc = ctx.placeById.pl_chc_airport || { lat: -43.4894, lng: 172.532 };
   const atAirport = Boolean(flags.atDepartureAirport);
 
+  // Soft base pin only — the live「现在」orb in paintHomeActivity already shows 🏠/✈️.
+  // Drawing a second emoji here stacks two house icons at the same latlng.
   window.L.circleMarker([home.lat, home.lng], {
     radius: 11,
     color: "#fff",
@@ -3866,7 +3868,18 @@ function paintHomeBase(ctx) {
       permanent: false,
       direction: "top",
       offset: [0, -10],
-    });
+    })
+    .bindPopup(
+      `<strong>${atAirport ? L("上海·机场出发", "Shanghai · departing airport") : L("上海·家中", "Shanghai · home")}</strong><br/>${escapeHtml(
+        ctx.activity?.label || (atAirport ? L("机场候机中", "Waiting at airport") : L("行前准备", "Pre-trip prep"))
+      )}<br/><span style="color:#64748b">${
+        flags.showPlannedArrival
+          ? flags.showOutboundFlightArc
+            ? L("已确认到机场，航班航线已显示", "At airport — flight path shown")
+            : L("机票已订，抵达机场后显示航线", "Ticketed — path shows after airport arrival")
+          : L("机票确认前仅显示家中位置", "Home only until flight is confirmed")
+      }</span>`
+    );
 
   // 「计划抵达」only after flight is booked (D2+)
   if (flags.showPlannedArrival) {
@@ -3881,23 +3894,6 @@ function paintHomeBase(ctx) {
       .addTo(leafletLayer)
       .bindTooltip(`✈️ ${L("计划抵达 · 基督城", "Planned arrival · Christchurch")}${fno}`, { permanent: false, direction: "bottom", offset: [0, 10] });
   }
-
-  window.L.marker([home.lat, home.lng], {
-    icon: emojiIcon(atAirport ? "✈️" : "🏠", "home-emoji"),
-    zIndexOffset: 600,
-  })
-    .addTo(leafletLayer)
-    .bindPopup(
-      `<strong>${atAirport ? L("上海·机场出发", "Shanghai · departing airport") : L("上海·家中", "Shanghai · home")}</strong><br/>${escapeHtml(
-        ctx.activity?.label || (atAirport ? L("机场候机中", "Waiting at airport") : L("行前准备", "Pre-trip prep"))
-      )}<br/><span style="color:#64748b">${
-        flags.showPlannedArrival
-          ? flags.showOutboundFlightArc
-            ? L("已确认到机场，航班航线已显示", "At airport — flight path shown")
-            : L("机票已订，抵达机场后显示航线", "Ticketed — path shows after airport arrival")
-          : L("机票确认前仅显示家中位置", "Home only until flight is confirmed")
-      }</span>`
-    );
 }
 
 async function paintLeafletRoutes(ctx) {

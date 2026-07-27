@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-langout";
-import { DemoEngine } from "./engine.js?v=20260727-langout";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-home1";
+import { DemoEngine } from "./engine.js?v=20260727-home1";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260727-langout";
-import { Trajectory } from "./trajectory.js?v=20260727-langout";
-import { UI } from "./ui.js?v=20260727-langout";
+} from "./agent.js?v=20260727-home1";
+import { Trajectory } from "./trajectory.js?v=20260727-home1";
+import { UI } from "./ui.js?v=20260727-home1";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,14 +18,14 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260727-langout";
+} from "./map.js?v=20260727-home1";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
   playbackMs,
   sleepPlayback,
   playbackSpeedLabel,
-} from "./playback.js?v=20260727-langout";
+} from "./playback.js?v=20260727-home1";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -39,7 +39,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260727-langout";
+} from "./i18n.js?v=20260727-home1";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
