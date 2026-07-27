@@ -3,6 +3,8 @@
  * Shape aligns with future MCP writes so UI can stay stable.
  */
 
+import { L, getLocale } from "./i18n.js?v=20260727-i18n2";
+
 export function emptyLedger() {
   return {
     flights: [],
@@ -57,7 +59,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       date: "2026-10-10",
       status: "confirmed",
       booked_at: bookedAt,
-      note: "去程已出票",
+      note: L("去程已出票", "Outbound ticketed"),
     });
     ledger.flights.push({
       id: "flt_return",
@@ -66,7 +68,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       date: "2026-10-24",
       status: ids.has("D19_return_delay_mutation") ? "delayed" : "confirmed",
       booked_at: bookedAt,
-      note: ids.has("D19_return_delay_mutation") ? "返程延误 +3h · 登机口 15" : "返程已出票",
+      note: ids.has("D19_return_delay_mutation") ? L("返程延误 +3h · 登机口 15", "Return delayed +3h · gate 15") : L("返程已出票", "Return ticketed"),
       delay_min: ids.has("D19_return_delay_mutation") ? 180 : 0,
     });
     // Prefer live env.flights overlay
@@ -88,7 +90,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       kind: "flight",
       tab: "trip",
       icon: "✈️",
-      text: `已订 ${flightNo}`,
+      text: L(`已订 ${flightNo}`, `Booked ${flightNo}`),
     });
     if (ids.has("D19_return_delay_mutation")) {
       pushChange(changes, {
@@ -96,7 +98,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
         kind: "flight",
         tab: "trip",
         icon: "✈️",
-        text: `${returnFlightNo} 延误 +3h`,
+        text: L(`${returnFlightNo} 延误 +3h`, `${returnFlightNo} delayed +3h`),
       });
     }
   }
@@ -115,10 +117,10 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       status: "confirmed",
       refundable: true,
       price_nzd: 55,
-      note: "营地",
+      note: L("营地", "Campsite"),
       booked_at: at,
     });
-    pushChange(changes, { at, kind: "hotel", tab: "trip", icon: "🏨", text: "蒂卡波营地已订" });
+    pushChange(changes, { at, kind: "hotel", tab: "trip", icon: "🏨", text: L("蒂卡波营地已订", "Tekapo campsite booked") });
   }
 
   const surgeDone = ids.has("D11_mut_hotel_price_surge") || ids.has("D11_hotel_surge_notice");
@@ -143,7 +145,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
         status: "cancelled",
         refundable: false,
         price_nzd: 145,
-        note: "涨价后退订",
+        note: L("涨价后退订", "Cancelled after price surge"),
         booked_at: at,
       });
       ledger.hotels.push({
@@ -156,7 +158,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
         status: "confirmed",
         refundable: true,
         price_nzd: 89,
-        note: "可退 · 换订",
+        note: L("可退 · 换订", "Refundable · rebooked"),
         booked_at: at,
       });
       pushChange(changes, {
@@ -164,7 +166,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
         kind: "hotel",
         tab: "trip",
         icon: "🏨",
-        text: "皇后镇换订 alpine（可退）",
+        text: L("皇后镇换订 alpine（可退）", "Queenstown rebooked Alpine (refundable)"),
       });
     } else if (surgeDone) {
       const surgePrice = env.hotels
@@ -180,7 +182,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
         status: "confirmed",
         refundable: false,
         price_nzd: Number(surgePrice) || 145,
-        note: "涨价中 · 待换订",
+        note: L("涨价中 · 待换订", "Price surge · pending rebook"),
         booked_at: at,
       });
       pushChange(changes, {
@@ -201,7 +203,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
         status: "confirmed",
         refundable: true,
         price_nzd: 58,
-        note: "原价",
+        note: L("原价", "Original price"),
         booked_at: at,
       });
     }
@@ -220,7 +222,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       status: "confirmed",
       refundable: true,
       price_nzd: 72,
-      note: "温泉友好",
+      note: L("温泉友好", "Spa-friendly"),
       booked_at: at,
     });
   }
@@ -249,7 +251,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       vehicle_name: live?.vehicle_name || "Britz Venturer 2-Berth",
       offer_id: live?.offer_id || "offer_venturer_2b",
       status,
-      insurance: live?.insurance_plan_id === "ins_zero_excess" || !live ? "零自付额" : "基础险",
+      insurance: live?.insurance_plan_id === "ins_zero_excess" || !live ? L("零自付额", "Zero excess") : L("基础险", "Basic cover"),
       bond_nzd: live?.bond_nzd ?? 1500,
       daily_price: live?.daily_price ?? 165,
       one_way_fee_nzd: live?.one_way_fee_nzd ?? 200,
@@ -258,10 +260,10 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       booked_at: bookedAt,
       note:
         status === "returned"
-          ? "已还车 · 押金待解冻"
+          ? L("已还车 · 押金待解冻", "Returned · bond pending")
           : status === "active"
-            ? "已取车 · 行程中"
-            : "已预订 · 待取车",
+            ? L("已取车 · 行程中", "Picked up · on trip")
+            : L("已预订 · 待取车", "Booked · awaiting pickup"),
       pickup_condition: live?.pickup_condition_json || live?.pickup_condition || null,
       return_condition: live?.return_condition_json || live?.return_condition || null,
     };
@@ -269,10 +271,10 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       const inc = (env.rental?.incidents || [])[0];
       rental.incident = {
         case_ref: inc?.case_ref || "INC-SCRATCH-001",
-        description: inc?.description || "停车场侧面划痕（已如实上报）",
+        description: inc?.description || L("停车场侧面划痕（已如实上报）", "Side scratch in car park (reported)"),
         at: firstDateWith((e) => e.id === "D17_user_report_scratch", events) || "2026-10-22",
       };
-      rental.note = `${rental.note} · 划痕已上报`;
+      rental.note = `${rental.note} · ${L("划痕已上报", "scratch reported")}`;
     }
     ledger.rentals.push(rental);
     pushChange(changes, {
@@ -282,10 +284,10 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       icon: "🚐",
       text:
         status === "returned"
-          ? "房车已还车"
+          ? L("房车已还车", "Campervan returned")
           : status === "active"
-            ? "房车已取车激活"
-            : "房车已预订（held）",
+            ? L("房车已取车激活", "Campervan picked up")
+            : L("房车已预订（held）", "Campervan booked (held)"),
     });
   }
 
@@ -307,11 +309,11 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       ledger.visas.push({
         id: app.application_id || `nzeta_${app.user_id || app.traveler_name}`,
         product: "NZeTA",
-        traveler: app.traveler_name || (app.user_id === "zhao_mei" ? "赵梅" : "王力"),
+        traveler: app.traveler_name || (app.user_id === "zhao_mei" ? L("赵梅", "Zhao Mei") : L("王力", "Wang Li")),
         status: st,
         booked_at: at,
         decided_at: st === "approved" ? "2026-10-06" : null,
-        note: st === "approved" ? "已批准" : "审批中（最长 72h）",
+        note: st === "approved" ? L("已批准", "Approved") : L("审批中（最长 72h）", "Processing (up to 72h)"),
       });
     }
     pushChange(changes, {
@@ -319,7 +321,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       kind: "visa",
       tab: "trip",
       icon: "🛂",
-      text: approved ? "NZeTA 已批准" : "NZeTA 已提交",
+      text: approved ? L("NZeTA 已批准", "NZeTA approved") : L("NZeTA 已提交", "NZeTA submitted"),
     });
   }
 
@@ -334,18 +336,18 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
     ledger.orders.push({
       id: live?.order_id || "ord_gear_prep",
       order_id: live?.order_id || "ord_gear_prep",
-      items: live?.items || ["膝关节护具", "沙蝇喷雾", "Type I 转换插头"],
+      items: live?.items || (getLocale()==="en" ? ["Knee brace", "Sandfly spray", "Type I adapter"] : ["膝关节护具", "沙蝇喷雾", "Type I 转换插头"]),
       status: delivered ? "delivered" : live?.status || "paid",
       booked_at: at,
       delivered_at: delivered ? "2026-10-06" : null,
-      note: delivered ? "已送达" : "已支付 · 配送中",
+      note: delivered ? L("已送达", "Delivered") : L("已支付 · 配送中", "Paid · shipping"),
     });
     pushChange(changes, {
       at: delivered ? "2026-10-06" : at,
       kind: "order",
       tab: "trip",
       icon: "📦",
-      text: delivered ? "装备已送达" : "装备已下单",
+      text: delivered ? L("装备已送达", "Gear delivered") : L("装备已下单", "Gear ordered"),
     });
   }
 
@@ -380,7 +382,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
     seenCal.add(c.id);
     ledger.calendar.push({
       ...c,
-      summary: c.summary || c.title || "日程",
+      summary: c.summary || c.title || L("日程", "Event"),
       title: c.title || c.summary,
     });
   }
@@ -411,14 +413,14 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
     ledger.hotels.push({
       id: h.hotel_id || key,
       hotel_id: h.hotel_id || key,
-      name: h.name || h.hotel_name || "住宿",
+      name: h.name || h.hotel_name || L("住宿", "Stay"),
       place_id: h.place_id || null,
       check_in: check_in || null,
       check_out: h.check_out || null,
       status: h.status || "confirmed",
       refundable: h.refundable !== false,
       price_nzd: h.price_nzd ?? h.nightly_price ?? null,
-      note: h.note || "Agent 预订",
+      note: h.note || L("Agent 预订", "Agent booking"),
       source: h.source || "agent",
       booked_at: check_in || latestDate,
     });
@@ -430,29 +432,29 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       kind: "calendar",
       tab: "trip",
       icon: "📅",
-      text: `+${ledger.calendar.length} 日历`,
+      text: L(`+${ledger.calendar.length} 日历`, `+${ledger.calendar.length} calendar`),
     });
   }
 
   // —— Notion ——
   const safetyBits = [];
   if (events.some((e) => /靠左|左舵|IDP|驾照/.test(String(e.body || "")))) {
-    safetyBits.push("靠左驾驶 + IDP/翻译件提醒已记入");
+    safetyBits.push(L("靠左驾驶 + IDP/翻译件提醒已记入", "Left-hand driving + IDP/translation note saved"));
   }
   if (ids.has("D8_mut_quake_sh80_closure") || ids.has("D8_earthquake_alert")) {
-    safetyBits.push("SH80 震后落石：留缓冲 / 等开放");
+    safetyBits.push(L("SH80 震后落石：留缓冲 / 等开放", "SH80 post-quake rockfall: buffer / wait to reopen"));
   }
   if (ids.has("D9_milford_road_closed_mutation") || ids.has("D9_milford_closed_notice")) {
-    safetyBits.push("SH94 米尔福德封路 → 改 Doubtful Sound");
+    safetyBits.push(L("SH94 米尔福德封路 → 改 Doubtful Sound", "SH94 Milford closed → switch to Doubtful Sound"));
   }
   ledger.notion.sections.safety = safetyBits.join("\n");
 
   const journalBits = [];
   if (events.some((e) => e.user_state?.geo_key === "mt_cook")) {
-    journalBits.push("库克山：胡克谷平缓步道 + 蒂卡波观星（赵梅低强度）");
+    journalBits.push(L("库克山：胡克谷平缓步道 + 蒂卡波观星（赵梅低强度）", "Mt Cook: Hooker Valley easy walk + Tekapo stargazing (low intensity)"));
   }
   if (events.some((e) => e.user_state?.geo_key === "queenstown")) {
-    journalBits.push("皇后镇 / 瓦纳卡湖：缆车与湖畔漫步");
+    journalBits.push(L("皇后镇 / 瓦纳卡湖：缆车与湖畔漫步", "Queenstown / Wanaka: gondola & lakeside stroll"));
   }
   // s16 restaurant rebook → Notion gate
   if (
@@ -461,7 +463,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
     ids.has("D16_user_rotorua") ||
     events.some((e) => /少盐|清淡|菜单/.test(String(e.body || "")) && e.user_state?.geo_key === "rotorua")
   ) {
-    journalBits.push("罗托鲁阿：改订 Lakeside Light Grill（少盐 / 清淡 / 可取消）");
+    journalBits.push(L("罗托鲁阿：改订 Lakeside Light Grill（少盐 / 清淡 / 可取消）", "Rotorua: rebooked Lakeside Light Grill (low-salt / light / cancellable)"));
     pushChange(changes, {
       at: firstDateWith(
         (e) =>
@@ -473,11 +475,11 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       kind: "notion",
       tab: "notes",
       icon: "📝",
-      text: "少盐餐厅已记入 Notion",
+      text: L("少盐餐厅已记入 Notion", "Low-salt restaurant saved to Notion"),
     });
   }
   if (events.some((e) => e.user_state?.geo_key === "rotorua")) {
-    journalBits.push("地热间歇泉 + 温泉（关节炎友好）");
+    journalBits.push(L("地热间歇泉 + 温泉（关节炎友好）", "Geothermal geyser + spa (arthritis-friendly)"));
   }
   if (ids.has("D16_mut_notion_menu_external_edit") || env._externalNotionMenu) {
     journalBits.push(
@@ -488,7 +490,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       kind: "notion",
       tab: "notes",
       icon: "📝",
-      text: "外部菜单写入 Notion",
+      text: L("外部菜单写入 Notion", "External menu note in Notion"),
     });
   }
   // Preserve agent write_journal blocks that live on env.ledger until rebuild
@@ -506,13 +508,13 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
 
   const expenseBits = [];
   if (spent > 0) {
-    expenseBits.push(`累计已用约 ¥${Math.round(spent).toLocaleString("zh-CN")}（含机票等）`);
+    expenseBits.push(L(`累计已用约 ¥${Math.round(spent).toLocaleString("zh-CN")}（含机票等）`, `Spent about ¥${Math.round(spent).toLocaleString("en-US")} (incl. flights)`));
   }
   if (reselectDone) {
-    expenseBits.push("皇后镇：Lakeview 退订 · Alpine NZ$89 可退入住");
+    expenseBits.push(L("皇后镇：Lakeview 退订 · Alpine NZ$89 可退过夜", "Queenstown: Lakeview cancelled · Alpine NZ$89 refundable"));
   }
   if (ids.has("D19_user_total") || ids.has("D25_user_wrap")) {
-    expenseBits.push("返程/收尾：费用对账与押金正规渠道核对");
+    expenseBits.push(L("返程/收尾：费用对账与押金正规渠道核对", "Return wrap-up: reconcile spend & official bond channel"));
   }
   const agentExpense = env.ledger?.notion?.sections?.expense || "";
   if (agentExpense) expenseBits.push(agentExpense);
@@ -525,7 +527,7 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
         kind: "notion",
         tab: "notes",
         icon: "📝",
-        text: "游记有更新",
+        text: L("游记有更新", "Journal updated"),
       });
     }
   }
@@ -546,18 +548,18 @@ function preferTickerChanges(arr, n) {
 function calendarSummary(day) {
   const label = day.label || "";
   const place = day.place || "";
-  if (/Depart|基督/.test(label + place)) return `✈️ 航班落地 · ${place}`;
-  if (/Tekapo|蒂卡波/.test(label + place)) return `⛺ 营地 · ${place}`;
-  if (/Cook|库克/.test(label + place)) return `🏔️ 景点日 · ${place}`;
-  if (/Queenstown|皇后/.test(label + place)) return `🏞️ 湖畔 / 住宿 · ${place}`;
-  if (/Wanaka|瓦纳卡/.test(label + place)) return `🌳 支线日 · ${place}`;
-  if (/Fiord|峡湾/.test(label + place)) return `⛵ 峡湾游船 · ${place}`;
-  if (/Transfer|南岛北上/.test(label + place)) return `🚗 DRIVE 转场 · ${place}`;
-  if (/Ferry|皮克顿/.test(label + place)) return `⛴️ 渡轮日 · ${place}`;
-  if (/Wellington|惠灵顿/.test(label + place)) return `🏙️ 北岛 · ${place}`;
-  if (/Taupo|陶波/.test(label + place)) return `💧 湖畔 · ${place}`;
-  if (/Rotorua|罗托鲁阿/.test(label + place)) return `♨️ 地热 / 晚宴 · ${place}`;
-  if (/Auckland|奥克兰|Return|返/.test(label + place)) return `✈️ 还车返程 · ${place}`;
+  if (/Depart|基督|Christchurch/i.test(label + place)) return L(`✈️ 航班落地 · ${place}`, `✈️ Arrival · ${place}`);
+  if (/Tekapo|蒂卡波/i.test(label + place)) return L(`⛺ 营地 · ${place}`, `⛺ Campsite · ${place}`);
+  if (/Cook|库克/i.test(label + place)) return L(`🏔️ 景点日 · ${place}`, `🏔️ Sightseeing · ${place}`);
+  if (/Queenstown|皇后/i.test(label + place)) return L(`🏞️ 湖畔 / 住宿 · ${place}`, `🏞️ Lakeside / stay · ${place}`);
+  if (/Wanaka|瓦纳卡/i.test(label + place)) return L(`🌳 支线日 · ${place}`, `🌳 Side trip · ${place}`);
+  if (/Fiord|峡湾/i.test(label + place)) return L(`⛵ 峡湾游船 · ${place}`, `⛵ Fiord cruise · ${place}`);
+  if (/Transfer|南岛北上/i.test(label + place)) return L(`🚗 DRIVE 转场 · ${place}`, `🚗 Drive transfer · ${place}`);
+  if (/Ferry|皮克顿|Picton/i.test(label + place)) return L(`⛴️ 渡轮日 · ${place}`, `⛴️ Ferry day · ${place}`);
+  if (/Wellington|惠灵顿/i.test(label + place)) return L(`🏙️ 北岛 · ${place}`, `🏙️ North Island · ${place}`);
+  if (/Taupo|陶波/i.test(label + place)) return L(`💧 湖畔 · ${place}`, `💧 Lakeside · ${place}`);
+  if (/Rotorua|罗托鲁阿/i.test(label + place)) return L(`♨️ 地热 / 晚宴 · ${place}`, `♨️ Geothermal / dinner · ${place}`);
+  if (/Auckland|奥克兰|Return|返/i.test(label + place)) return L(`✈️ 还车返程 · ${place}`, `✈️ Return van · ${place}`);
   return `📍 ${place || label}`;
 }
 

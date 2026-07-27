@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260725-i18n";
-import { playbackMs } from "./playback.js?v=20260725-i18n";
-import { t, getLocale } from "./i18n.js?v=20260725-i18n";
+} from "./routing.js?v=20260727-i18n2";
+import { playbackMs } from "./playback.js?v=20260727-i18n2";
+import { t, L, getLocale } from "./i18n.js?v=20260727-i18n2";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -37,7 +37,7 @@ const DEFAULT_PLACE_GEO = {
   pl_akl_airport: "auckland",
 };
 
-const SHANGHAI_HOME = { lat: 31.2304, lng: 121.4737, name: "上海·家中", geo_key: "shanghai_home" };
+const SHANGHAI_HOME = { lat: 31.2304, lng: 121.4737, name: "Shanghai · Home", geo_key: "shanghai_home" };
 
 let leafletMap = null;
 let leafletLayer = null;
@@ -234,7 +234,7 @@ export function pulseMapEvent({
     if (weatherAt) {
       return pulsePlaceBubble({
         icon: icon || "🌦️",
-        head: head || "天气",
+        head: head || L("天气", "Weather"),
         sub,
         kindCls: "weather",
         latlng: weatherAt,
@@ -356,7 +356,7 @@ export function playHotelPinCinematic({
     if (!hotelFxLayer) hotelFxLayer = window.L.layerGroup().addTo(leafletMap);
 
     const isCancel = mode === "cancel";
-    const name = String(hotelName || "住宿")
+    const name = String(hotelName || L("住宿", "Stay"))
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 36);
@@ -384,7 +384,7 @@ export function playHotelPinCinematic({
             <span class="map-hotel-fx-h">H</span>
           </span>
           <div class="map-hotel-fx-card">
-            <div class="map-hotel-fx-kicker">${isCancel ? "取消住宿" : "预订住宿"}</div>
+            <div class="map-hotel-fx-kicker">${isCancel ? L("取消住宿", "Cancel stay") : L("预订住宿", "Book stay")}</div>
             <div class="map-hotel-fx-name">${escapeHtml(name)}</div>
             ${meta ? `<div class="map-hotel-fx-meta">${escapeHtml(meta)}</div>` : ""}
           </div>
@@ -678,14 +678,14 @@ function pulsePlaceBubble({ icon, head, sub, kindCls, latlng, durationMs, holdMs
       /邮件|收件箱|@\w+\.\w+/i.test(`${title} ${detail}`);
     const smsFrom = isSms
       ? isMail
-        ? "收件箱"
+        ? L("收件箱", "Inbox")
         : /移民|签证|NZeTA|海关/i.test(`${title} ${detail}`)
-          ? "新西兰移民局"
+          ? L("新西兰移民局", "NZ Immigration")
           : /租车|房车|Britz/i.test(`${title} ${detail}`)
-            ? "租车"
-            : "系统通知"
+            ? L("租车", "Rental")
+            : L("系统通知", "System")
       : "";
-    const smsBadge = isMail ? "邮件" : "短信";
+    const smsBadge = isMail ? L("邮件", "Mail") : L("短信", "SMS");
 
     const html = isSms
       ? `
@@ -1005,14 +1005,14 @@ export async function focusPlanning(opts = {}) {
       .bindTooltip(
         opts.label ||
           (mode === "blocked"
-            ? "确认受阻"
+            ? L("确认受阻", "Confirmed blocked")
             : mode === "checking"
-              ? "核查路况中"
+              ? L("核查路况中", "Checking roads")
               : mode === "clear"
-                ? "路况正常"
+                ? L("路况正常", "Roads clear")
                 : mode === "adjust"
-                  ? "调整后路线"
-                  : "推演路线")
+                  ? L("调整后路线", "Adjusted route")
+                  : L("推演路线", "Draft route")
       );
     for (const ll of path) focus.push(window.L.latLng(ll[0], ll[1]));
   } else if (drawRoadIds.length && lastCtx) {
@@ -1070,16 +1070,16 @@ export async function focusPlanning(opts = {}) {
   const badge =
     opts.label ||
     (mode === "blocked"
-      ? "确认受阻 · 地图已标记"
+      ? L("确认受阻 · 地图已标记", "Blocked · marked on map")
       : mode === "checking"
-        ? "核查路况中"
+        ? L("核查路况中", "Checking roads")
         : mode === "clear"
-          ? "路况正常"
+          ? L("路况正常", "Roads clear")
           : mode === "adjust"
-            ? "路线调整中"
+            ? L("路线调整中", "Adjusting route")
             : placeIds.length >= 2
-              ? "路线推演中"
-              : "地图聚焦中");
+              ? L("路线推演中", "Drafting route")
+              : L("地图聚焦中", "Focusing map");
   setPlanningBadge(badge, mode === "clear" ? "consider" : mode);
 
   // Prep flight framing keeps PVG→CHC — but never when verifying NZ roads/places.
@@ -1171,11 +1171,11 @@ function briefRoadAnalysisNote(roadId, { mode = "checking", text = "", event = n
     return sanitizeCheckPillNote(String(event.note), roadId);
   }
 
-  if (mode === "blocked") return "路段封闭 / 受阻";
-  if (mode === "clear") return "未发现生效封路 · 可通行";
-  if (mode === "adjust") return "建议绕行 / 改道";
-  if (mode === "warn") return "有路况事件 · 需留意";
-  return "正在核对通行状态";
+  if (mode === "blocked") return L("路段封闭 / 受阻", "Road closed / blocked");
+  if (mode === "clear") return L("未发现生效封路 · 可通行", "No active closures · clear");
+  if (mode === "adjust") return L("建议绕行 / 改道", "Detour recommended");
+  if (mode === "warn") return L("有路况事件 · 需留意", "Road event · caution");
+  return L("正在核对通行状态", "Verifying access");
 }
 
 /** Full-trip prose must not become a per-road 核查 tag. */
@@ -1211,7 +1211,7 @@ function prioritizeCheckMarks(marks = []) {
     else if (st === "checking") s += 10;
     const note = String(m.note || "");
     if (looksLikeItineraryDump(note)) s -= 50;
-    else if (note && note !== "正在核对通行状态") s += 12;
+    else if (note && note !== L("正在核对通行状态", "Verifying access") && note !== "正在核对通行状态" && note !== "Verifying access") s += 12;
     return s;
   };
   // One pill per road — duplicates look like stacked ghosts.
@@ -1276,7 +1276,7 @@ function buildRouteAnalysisMarks({
       roadId,
       status,
       title,
-      note: note || (status === "checking" ? "正在核对通行状态" : ""),
+      note: note || (status === "checking" ? L("正在核对通行状态", "Verifying access") : ""),
       geom: ev?.geom || null,
     };
   });
@@ -1346,15 +1346,15 @@ async function paintRoadCheckMarks(marks) {
     const status = String(mark.status || "checking").toLowerCase();
     const shortName = shortRoadName(mark.title || road?.name || rid);
     const note = sanitizeCheckPillNote(mark.note || "", rid) ||
-      (status === "checking" ? "正在核对通行状态" : "");
+      (status === "checking" ? L("正在核对通行状态", "Verifying access") : "");
     const statusLabel =
       status === "blocked"
-        ? "封闭"
+        ? L("封闭", "Closed")
         : status === "clear"
-          ? "通行"
+          ? L("通行", "Open")
           : status === "warn"
-            ? "注意"
-            : "核查";
+            ? L("注意", "Caution")
+            : L("核查", "Check");
     // Keep pill short — full detail stays in the popup.
     const pillText = note ? `${statusLabel} · ${shortName} · ${note}` : `${statusLabel} · ${shortName}`;
 
@@ -1368,12 +1368,12 @@ async function paintRoadCheckMarks(marks) {
     const popupBits = [
       `<strong>${escapeHtml(road?.name || rid)}</strong>`,
       status === "blocked"
-        ? "状态：已确认封闭 / 受阻"
+        ? L("状态：已确认封闭 / 受阻", "Status: confirmed closed / blocked")
         : status === "clear"
-          ? "状态：通行正常"
+          ? L("状态：通行正常", "Status: clear")
           : status === "warn"
-            ? "状态：有路况事件"
-            : "状态：核查中",
+            ? L("状态：有路况事件", "Status: road event")
+            : L("状态：核查中", "Status: checking"),
       note ? escapeHtml(note) : "",
     ].filter(Boolean);
 
@@ -1492,16 +1492,16 @@ export async function syncPlanningFromText(
     label:
       label ||
       (fromThinking
-        ? "思考：推演路线"
+        ? L("思考：推演路线", "Thinking: draft route")
         : mode === "blocked"
-          ? "思考：路段受阻"
+          ? L("思考：路段受阻", "Thinking: road blocked")
           : mode === "checking"
-            ? "思考：核查路况"
+            ? L("思考：核查路况", "Thinking: check roads")
             : mode === "clear"
-              ? "思考：路况正常"
+              ? L("思考：路况正常", "Thinking: roads clear")
               : mode === "adjust"
-                ? "思考：调整路线"
-                : "思考：推演路线"),
+                ? L("思考：调整路线", "Thinking: adjust route")
+                : L("思考：推演路线", "Thinking: draft route")),
   });
 }
 
@@ -1959,7 +1959,7 @@ function buildPlanFromAgentOutputs({
           days: [1],
           date: d1.date ? String(d1.date).slice(0, 10) : null,
           placeId: "pl_chc_airport",
-          label: "基督城 · 落地过夜",
+          label: L("基督城 · 落地过夜", "Christchurch · arrival overnight"),
           kind: "overnight",
         },
         { prefer: true }
@@ -1984,8 +1984,8 @@ function buildPlanFromAgentOutputs({
 
   const label =
     calAgent.length || merged.some((s) => s.kind === "hotel")
-      ? "行程规划 · 住宿"
-      : "行程规划";
+      ? t("plan.stays")
+      : t("plan.label");
   return staysToPlan(superviseStays(merged, days, blob), label);
 }
 
@@ -2162,7 +2162,8 @@ function resolveTripDayForPlace(placeId, tripDays = [], { date = null, label = "
   return scored[0]?.day ?? Number(matches[0].day);
 }
 
-function staysToPlan(stays, label = "行程规划") {
+function staysToPlan(stays, label) {
+  if (!label) label = t("plan.label");
   const routePlaceIds = [];
   for (const s of stays) {
     if (routePlaceIds[routePlaceIds.length - 1] !== s.placeId) routePlaceIds.push(s.placeId);
@@ -2171,7 +2172,7 @@ function staysToPlan(stays, label = "行程规划") {
 }
 
 function placeLabel(placeId) {
-  const map = {
+  const zh = {
     pl_chc_airport: "基督城",
     pl_tekapo: "蒂卡波",
     pl_mt_cook: "库克山",
@@ -2184,6 +2185,20 @@ function placeLabel(placeId) {
     pl_rotorua: "罗托鲁阿",
     pl_akl_airport: "奥克兰",
   };
+  const en = {
+    pl_chc_airport: "Christchurch",
+    pl_tekapo: "Tekapo",
+    pl_mt_cook: "Mt Cook",
+    pl_queenstown: "Queenstown",
+    pl_wanaka: "Wanaka",
+    pl_milford: "Milford",
+    pl_picton: "Picton",
+    pl_wellington: "Wellington",
+    pl_taupo: "Taupō",
+    pl_rotorua: "Rotorua",
+    pl_akl_airport: "Auckland",
+  };
+  const map = getLocale() === "en" ? en : zh;
   return map[placeId] || String(placeId || "").replace(/^pl_/, "");
 }
 
@@ -2427,7 +2442,7 @@ async function repaintAgentPlan({ fit = false, announce = false } = {}) {
       className: "map-agent-plan-route",
     })
       .addTo(agentPlanLayer)
-      .bindTooltip(lastAgentPlan.label || "行程规划");
+      .bindTooltip(lastAgentPlan.label || t("plan.label"));
   }
   try {
     agentPlanLayer.bringToBack?.();
@@ -2579,7 +2594,7 @@ export async function focusTrafficResult(result, args = {}) {
     analysisText,
     label: uniqRoads.length
       ? `工具：核查 ${uniqRoads.length} 条路段…`
-      : "工具：核查路况…",
+      : L("工具：核查路况…", "Tool: checking roads…"),
     force: true,
     forceFit: true,
     roadMarks: checkingMarks,
@@ -2605,7 +2620,7 @@ export async function focusTrafficResult(result, args = {}) {
       analysisText,
       label: topNote
         ? `确认受阻 · ${truncateMapNote(topNote, 36)}`
-        : "确认：路段受阻",
+        : L("确认：路段受阻", "Confirmed: road blocked"),
       force: true,
       forceFit: true,
       roadMarks: blockedMarks,
@@ -2626,7 +2641,7 @@ export async function focusTrafficResult(result, args = {}) {
     analysisText,
     label: uniqRoads.length
       ? `路况正常 · 已核查 ${uniqRoads.length} 条`
-      : "工具：路况正常",
+      : L("工具：路况正常", "Tool: roads clear"),
     force: true,
     forceFit: true,
     roadMarks: clearMarks,
@@ -2655,7 +2670,7 @@ function buildTrafficRoadMarks({
     const road = lastCtx?.roadById?.[roadId];
     const title = top?.road_name || road?.name || roadId;
     if (phase === "checking") {
-      const rawNote = top?.note || "正在核对通行状态";
+      const rawNote = top?.note || L("正在核对通行状态", "Verifying access");
       return {
         roadId,
         status: "checking",
@@ -2778,7 +2793,7 @@ export function playMapAction({
               <span class="map-action-caret">|</span>
             </div>
           </div>
-          <div class="map-action-search-meta">正在检索相关结果…</div>
+          <div class="map-action-search-meta">${L("正在检索相关结果…", "Searching related results…")}</div>
           <div class="map-action-search-results" id="mapActionResults"></div>
         </div>`;
     } else if (kind === "notion") {
@@ -2787,10 +2802,10 @@ export function playMapAction({
           <div class="map-action-notion-head">
             <span class="map-action-notion-ico">📝</span>
             <div>
-              <div class="map-action-notion-app">Notion 游记</div>
+              <div class="map-action-notion-app">${L("Notion 游记", "Notion journal")}</div>
               <div class="map-action-notion-title">${escapeHtml(title || "NZ Road Trip Journal")}</div>
             </div>
-            <span class="map-action-status" id="mapActionStatus">生成中</span>
+            <span class="map-action-status" id="mapActionStatus">${L("生成中", "Writing")}</span>
           </div>
           <div class="map-action-notion-body" id="mapActionBody">
             <span class="map-action-notion-stream" id="mapActionStream"></span><span class="map-action-notion-caret" id="mapActionCaret">▍</span>
@@ -2806,10 +2821,10 @@ export function playMapAction({
           <div class="map-action-cal-head">
             <span class="map-action-cal-ico">📅</span>
             <div>
-              <div class="map-action-cal-app">日程</div>
-              <div class="map-action-cal-title">${escapeHtml(title || "行程日程")}</div>
+              <div class="map-action-cal-app">${L("日程", "Calendar")}</div>
+              <div class="map-action-cal-title">${escapeHtml(title || L("行程日程", "Trip schedule"))}</div>
             </div>
-            <span class="map-action-status" id="mapActionStatus">添加中</span>
+            <span class="map-action-status" id="mapActionStatus">${L("添加中", "Adding")}</span>
           </div>
           <div class="map-action-cal-event" id="mapActionBody"></div>
           <div class="map-action-cal-foot" id="mapActionFoot" hidden>
@@ -2826,12 +2841,12 @@ export function playMapAction({
           <div class="map-action-budget-head">
             <div>
               <div class="map-action-budget-app">Budget</div>
-              <div class="map-action-budget-title">${escapeHtml(title || "行程预算")}</div>
+              <div class="map-action-budget-title">${escapeHtml(title || L("行程预算", "Trip budget"))}</div>
             </div>
-            <span class="map-action-status" id="mapActionStatus">核对中</span>
+            <span class="map-action-status" id="mapActionStatus">${L("核对中", "Checking")}</span>
           </div>
           <div class="map-action-budget-hero">
-            <div class="map-action-budget-hero-label">剩余可用</div>
+            <div class="map-action-budget-hero-label">${L("剩余可用", "Remaining")}</div>
             <div class="map-action-budget-hero-value" id="mapActionBudgetHero">${escapeHtml(hero)}</div>
             <div class="map-action-budget-meter" aria-hidden="true">
               <span class="map-action-budget-meter-fill" id="mapActionBudgetMeter" style="width:0%"></span>

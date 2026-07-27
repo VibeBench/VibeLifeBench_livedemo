@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260725-i18n";
-import { DemoEngine } from "./engine.js?v=20260725-i18n";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-i18n2";
+import { DemoEngine } from "./engine.js?v=20260727-i18n2";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260725-i18n";
-import { Trajectory } from "./trajectory.js?v=20260725-i18n";
-import { UI } from "./ui.js?v=20260725-i18n";
+} from "./agent.js?v=20260727-i18n2";
+import { Trajectory } from "./trajectory.js?v=20260727-i18n2";
+import { UI } from "./ui.js?v=20260727-i18n2";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,27 +18,28 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260725-i18n";
+} from "./map.js?v=20260727-i18n2";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
   playbackMs,
   sleepPlayback,
   playbackSpeedLabel,
-} from "./playback.js?v=20260725-i18n";
+} from "./playback.js?v=20260727-i18n2";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
   toggleLocale,
   getLocale,
   t as i18nT,
+  L as i18nL,
   localizeEvent,
   localizeUserState,
   localizeMeta,
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260725-i18n";
+} from "./i18n.js?v=20260727-i18n2";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -46,14 +47,16 @@ const PROVIDERS = {
     label: "DeepSeek",
     base: "https://api.deepseek.com",
     models: ["deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"],
-    hint: "推荐默认。浏览器直连可能 CORS → Base 改用本地代理 http://127.0.0.1:8787，并保留提供商=DeepSeek。",
+    hintZh: "推荐默认。浏览器直连可能 CORS → Base 改用本地代理 http://127.0.0.1:8787，并保留提供商=DeepSeek。",
+    hintEn: "Recommended default. If the browser hits CORS, set Base to the local proxy http://127.0.0.1:8787 and keep provider=DeepSeek.",
     thinking: true,
   },
   openai: {
     label: "OpenAI",
     base: "https://api.openai.com/v1",
     models: ["gpt-4.1", "gpt-4o", "o3-mini", "o4-mini"],
-    hint: "需可 CORS 的网关或本地代理。o 系列可开 Thinking（reasoning_effort）。",
+    hintZh: "需可 CORS 的网关或本地代理。o 系列可开 Thinking（reasoning_effort）。",
+    hintEn: "Needs a CORS-friendly gateway or local proxy. o-series can enable Thinking (reasoning_effort).",
     thinking: true,
   },
   openrouter: {
@@ -65,39 +68,62 @@ const PROVIDERS = {
       "anthropic/claude-sonnet-4",
       "google/gemini-2.5-flash",
     ],
-    hint: "一站式多模型；github.io 上通常比直连各家更方便（仍可能需代理）。",
+    hintZh: "一站式多模型；github.io 上通常比直连各家更方便（仍可能需代理）。",
+    hintEn: "One-stop multi-model hub; often easier from github.io than calling vendors directly (proxy may still help).",
     thinking: true,
   },
   siliconflow: {
-    label: "硅基流动 SiliconFlow",
+    labelZh: "硅基流动 SiliconFlow",
+    labelEn: "SiliconFlow",
     base: "https://api.siliconflow.cn/v1",
     models: ["deepseek-ai/DeepSeek-V3", "Qwen/Qwen2.5-72B-Instruct", "Pro/deepseek-ai/DeepSeek-R1"],
-    hint: "国内常用 OpenAI 兼容网关；模型名以控制台为准。",
+    hintZh: "国内常用 OpenAI 兼容网关；模型名以控制台为准。",
+    hintEn: "Popular OpenAI-compatible gateway in China; use model IDs from the console.",
     thinking: false,
   },
   ollama: {
-    label: "Ollama（本地）",
+    labelZh: "Ollama（本地）",
+    labelEn: "Ollama (local)",
     base: "http://127.0.0.1:11434/v1",
     models: ["llama3.2", "qwen2.5", "deepseek-r1"],
-    hint: "本机 Ollama，可无 Key。需浏览器能访问 11434（同机或已放行 CORS）。",
+    hintZh: "本机 Ollama，可无 Key。需浏览器能访问 11434（同机或已放行 CORS）。",
+    hintEn: "Local Ollama; key optional. Browser must reach port 11434 (same machine or CORS allowed).",
     thinking: false,
   },
   proxy: {
-    label: "本地 CORS 代理",
+    labelZh: "本地 CORS 代理",
+    labelEn: "Local CORS proxy",
     base: "http://127.0.0.1:8787",
     models: ["deepseek-v4-pro", "gpt-4o", "deepseek/deepseek-r1"],
-    hint: "配合 ./start.sh。请求经代理转发；真实上游由「上游 Base」或默认 DeepSeek 决定。",
+    hintZh: "配合 ./start.sh。请求经代理转发；真实上游由「上游 Base」或默认 DeepSeek 决定。",
+    hintEn: "Use with ./start.sh. Requests are proxied; upstream is set by Upstream Base or defaults to DeepSeek.",
     thinking: true,
     upstream: "https://api.deepseek.com",
   },
   custom: {
-    label: "自定义 OpenAI 兼容",
+    labelZh: "自定义 OpenAI 兼容",
+    labelEn: "Custom OpenAI-compatible",
     base: "",
     models: [],
-    hint: "任意 Chat Completions 兼容地址。Base 填到 /v1 一层（不要带 /chat/completions）。",
+    hintZh: "任意 Chat Completions 兼容地址。Base 填到 /v1 一层（不要带 /chat/completions）。",
+    hintEn: "Any Chat Completions-compatible base. Point Base at the /v1 root (not /chat/completions).",
     thinking: false,
   },
 };
+
+function providerLabel(idOrObj) {
+  const p = typeof idOrObj === "string" ? PROVIDERS[idOrObj] : idOrObj;
+  if (!p) return String(idOrObj || "");
+  if (p.labelZh || p.labelEn) return i18nL(p.labelZh || p.label, p.labelEn || p.label);
+  return p.label || "";
+}
+
+function providerHint(idOrObj) {
+  const p = typeof idOrObj === "string" ? PROVIDERS[idOrObj] : idOrObj;
+  if (!p) return "";
+  if (p.hintZh || p.hintEn) return i18nL(p.hintZh || p.hint || "", p.hintEn || p.hint || "");
+  return p.hint || "";
+}
 
 const ui = new UI();
 let caseData = null;
@@ -148,7 +174,11 @@ function rerenderForLocale() {
   }
   ui.rerenderTaskHistory(revealedEvents.map((ev) => localizeEvent(ev)));
   refreshDashboard();
+  fillProviderSelect({ refresh: true });
+  applySettingsToForm();
+  syncConsoleOnboard();
   syncAutoplayButtonLabel();
+  syncReplayButton();
   ui.toast(i18nT(getLocale() === "en" ? "lang.toast.en" : "lang.toast.zh"));
 }
 
@@ -166,11 +196,11 @@ async function main() {
   try {
     caseData = await loadDefaultCase("./data");
     bootCase(caseData);
-    ui.toast(getLocale() === "en" ? "Loaded newzealand_drive_30d_v3" : "已加载 newzealand_drive_30d_v3");
+    ui.toast(i18nL("已加载 newzealand_drive_30d_v3", "Loaded newzealand_drive_30d_v3"));
     maybeAutoOpenConsole();
   } catch (e) {
     console.error(e);
-    ui.toast((getLocale() === "en" ? "Failed to load default data: " : "默认数据加载失败：") + e.message);
+    ui.toast(i18nL("默认数据加载失败：", "Failed to load default data: ") + e.message);
   }
 }
 
@@ -253,8 +283,8 @@ async function maybePlayFlightCrossing(fromGeo, toGeo, { event = null, time = nu
   ui.appendChat({
     role: "system",
     text: outbound
-      ? `✈️ 航班起飞 · ${flightNo} · 上海浦东 → 基督城`
-      : `✈️ 返程起飞 · ${flightNo} · 奥克兰 → 上海浦东`,
+      ? i18nL(`✈️ 航班起飞 · ${flightNo} · 上海浦东 → 基督城`, `✈️ Departing · ${flightNo} · Shanghai PVG → Christchurch`)
+      : i18nL(`✈️ 返程起飞 · ${flightNo} · 奥克兰 → 上海浦东`, `✈️ Return flight · ${flightNo} · Auckland → Shanghai PVG`),
     time,
   });
   await ui.playFlightCrossing({
@@ -278,7 +308,7 @@ async function maybePlayDriveHop(fromGeo, toGeo, { time = null } = {}) {
   drivePlayed.add(key);
   ui.appendChat({
     role: "system",
-    text: `🚗 转场出发 · ${from} → ${to}`,
+    text: i18nL(`🚗 转场出发 · ${from} → ${to}`, `🚗 Transfer · ${from} → ${to}`),
     time,
   });
   await (ui.playDriveHop
@@ -300,7 +330,7 @@ function showEntryGuide() {
   ui.showWelcomeGuide(
     {
       configured,
-      providerLabel: PROVIDERS[provider]?.label || provider,
+      providerLabel: providerLabel(provider) || provider,
       model: settings.model || DEFAULT_MODEL,
     },
     {
@@ -310,14 +340,14 @@ function showEntryGuide() {
       },
       onStartDemo: () => {
         if (!hasApiKeyConfigured() || !ensureAgent()) {
-          ui.toast("请先配置 API Key");
+          ui.toast(i18nL("请先配置 API Key", "Please configure an API Key first"));
           openConsole(true);
           return;
         }
         ui.setPhoneTab("chat");
         startAutoplay();
         pulseAutoplayButton();
-        ui.toast("自动演示已开始");
+        ui.toast(i18nL("自动演示已开始", "Auto demo started"));
       },
     }
   );
@@ -425,7 +455,7 @@ function ensureAgent({ allowOfflineTools = false } = {}) {
   if (!key && !allowEmptyKey) {
     agent = null;
     ui.setAgentStatus(
-      getLocale() === "en" ? "Offline · API Key required" : "Offline · 需配置 API Key",
+      i18nL("Offline · 需配置 API Key", "Offline · API Key required"),
       false
     );
     return null;
@@ -491,33 +521,33 @@ function ensureAgent({ allowOfflineTools = false } = {}) {
       // Booking tools leave a durable state card in chat history
       if (!isJournalOrCal && isWriteTool) {
         const tab = "trip";
-        let title = "已写入行程状态";
+        let title = i18nL("已写入行程状态", "Trip state updated");
         let icon = "🔧";
         if (/hotel/i.test(name)) {
-          title = `预订酒店${args.hotel_name || args.hotel_id || args.name ? ` · ${args.hotel_name || args.hotel_id || args.name}` : ""}`;
+          title = i18nL("预订酒店", "Hotel booked") + (args.hotel_name || args.hotel_id || args.name ? ` · ${args.hotel_name || args.hotel_id || args.name}` : "");
           icon = "🏨";
         } else if (/checkin|flight|air/i.test(name)) {
           title = /checkin/i.test(name)
-            ? `值机${args.flight_no ? ` · ${args.flight_no}` : ""}`
-            : `预订机票${args.flight_no ? ` · ${args.flight_no}` : ""}`;
+            ? i18nL("值机", "Checked in") + (args.flight_no ? ` · ${args.flight_no}` : "")
+            : i18nL("预订机票", "Flight booked") + (args.flight_no ? ` · ${args.flight_no}` : "");
           icon = "✈️";
         } else if (/nzeta|visa/i.test(name)) {
-          title = result?.summary || "NZeTA 已提交";
+          title = result?.summary || i18nL("NZeTA 已提交", "NZeTA submitted");
           icon = "🛂";
         } else if (/campervan|pickup|return|scratch/i.test(name)) {
-          title = result?.summary || "房车状态已更新";
+          title = result?.summary || i18nL("房车状态已更新", "Campervan status updated");
           icon = /scratch/i.test(name) ? "🩹" : "🚐";
         } else if (/gear|order/i.test(name)) {
-          title = result?.summary || "装备订单已写入";
+          title = result?.summary || i18nL("装备订单已写入", "Gear order saved");
           icon = "📦";
         } else if (/cancel/i.test(name) && /hotel/i.test(name)) {
-          title = "取消酒店预订";
+          title = i18nL("取消酒店预订", "Hotel cancelled");
           icon = "🏨";
         } else if (/cancel/i.test(name) && /flight/i.test(name)) {
-          title = "取消机票";
+          title = i18nL("取消机票", "Flight cancelled");
           icon = "✈️";
         } else {
-          title = `已执行 · ${String(name).replace(/[_-]+/g, " ")}`;
+          title = i18nL("已执行", "Ran") + ` · ${String(name).replace(/[_-]+/g, " ")}`;
         }
         const detail =
           result?.summary ||
@@ -540,7 +570,7 @@ function ensureAgent({ allowOfflineTools = false } = {}) {
     },
   });
   if (upstreamBase) agent.upstreamBase = normalizeBaseUrl(upstreamBase, detectProvider(upstreamBase));
-  const tag = PROVIDERS[provider]?.label || provider;
+  const tag = providerLabel(provider) || provider;
   ui.setAgentStatus(`Online · ${tag} · ${model}`, true);
   return agent;
 }
@@ -591,7 +621,7 @@ async function stepOnce({ useCache = false } = {}) {
   if (!engine || busy) return;
   if (engine.progress.done) {
     snapshotRecording();
-    ui.toast(replaying ? "加速回放完成" : "全部事件已播放完毕");
+    ui.toast(replaying ? i18nL("加速回放完成", "Fast replay finished") : i18nL("全部事件已播放完毕", "All events played"));
     stopAutoplay();
     stopReplay();
     syncReplayButton();
@@ -680,7 +710,7 @@ async function stepOnce({ useCache = false } = {}) {
         if (!a) {
           ui.appendChat({
             role: "agent",
-            text: "（未配置 DeepSeek API Key — 打开演示控制台填入后可继续生成回复）",
+            text: i18nL("（未配置 DeepSeek API Key — 打开演示控制台填入后可继续生成回复）", "(No API Key — open the demo console to continue)"),
             time: t,
           });
         } else {
@@ -690,7 +720,7 @@ async function stepOnce({ useCache = false } = {}) {
             if (epoch !== playbackEpoch) return;
             ui.finishAgentTurn(ui._streamBubble, {
               thinking: turn.thinking,
-              content: turn.content || "（空回复）",
+              content: turn.content || i18nL("（空回复）", "(Empty reply)"),
               toolCalls: turn.toolCalls || [],
               planContext: agentPlanContext(),
             });
@@ -779,7 +809,7 @@ async function replayCachedAgentTurn(turn, time) {
     if (epoch !== playbackEpoch) return;
     ui.finishAgentTurn(ui._streamBubble, {
       thinking: turn.thinking || "",
-      content: turn.output || "（空回复）",
+      content: turn.output || i18nL("（空回复）", "(Empty reply)"),
       toolCalls: tools,
       planContext: agentPlanContext(),
     });
@@ -803,7 +833,7 @@ async function sendUserChat(text) {
   if (!text || busy) return;
   const a = ensureAgent();
   if (!a) {
-    ui.toast("请先在演示控制台配置 DeepSeek API Key");
+    ui.toast(i18nL("请先在演示控制台配置 DeepSeek API Key", "Configure an API Key in the demo console first"));
     openConsole(true);
     return;
   }
@@ -820,7 +850,7 @@ async function sendUserChat(text) {
     if (epoch !== playbackEpoch) return;
     ui.finishAgentTurn(ui._streamBubble, {
       thinking: turn.thinking,
-      content: turn.content || "（空回复）",
+      content: turn.content || i18nL("（空回复）", "(Empty reply)"),
       toolCalls: turn.toolCalls || [],
       planContext: agentPlanContext(),
     });
@@ -850,7 +880,7 @@ function startAutoplay() {
   if (replaying) stopReplay();
   autoplay = true;
   document.querySelector("#btnAutoplay").classList.add("active");
-  document.querySelector("#btnAutoplay").textContent = "自动播放中";
+  document.querySelector("#btnAutoplay").textContent = i18nL("自动播放中", "Autoplaying");
   syncReplayButton();
   tickAutoplay();
 }
@@ -860,7 +890,7 @@ function stopAutoplay() {
   clearTimeout(autoplayTimer);
   document.querySelector("#btnAutoplay")?.classList.remove("active");
   document.querySelector("#btnAutoplay") &&
-    (document.querySelector("#btnAutoplay").textContent = "自动播放");
+    (document.querySelector("#btnAutoplay").textContent = i18nT("top.autoplay"));
   syncReplayButton();
 }
 
@@ -891,7 +921,7 @@ function stopReplay() {
   const btn = document.querySelector("#btnReplay");
   if (btn) {
     btn.classList.remove("active");
-    btn.textContent = "加速回放";
+    btn.textContent = i18nT("top.replay");
   }
   syncReplayButton();
 }
@@ -907,11 +937,11 @@ function syncReplayButton() {
   btn.disabled = !can && !replaying;
   if (replaying) {
     btn.classList.add("active");
-    btn.textContent = `回放中 ${playbackSpeedLabel()}`;
+    btn.textContent = i18nL(`回放中 ${playbackSpeedLabel()}`, `Replaying ${playbackSpeedLabel()}`);
     btn.disabled = false;
   } else {
     btn.classList.remove("active");
-    btn.textContent = "加速回放";
+    btn.textContent = i18nT("top.replay");
   }
 }
 
@@ -928,18 +958,18 @@ async function startAcceleratedReplay() {
     busy = false;
     setBusyUI(false);
     ui.abortCinematics?.();
-    ui.toast("已停止加速回放");
+    ui.toast(i18nL("已停止加速回放", "Fast replay stopped"));
     return;
   }
   if (!lastRecording?.steps?.length) {
     if (trajectory?.steps?.length) snapshotRecording({ quiet: true });
   }
   if (!lastRecording?.steps?.length) {
-    ui.toast("请先跑完一局（或至少产生模型回合），再加速回放");
+    ui.toast(i18nL("请先跑完一局（或至少产生模型回合），再加速回放", "Finish a run (or at least one model turn) before fast replay"));
     return;
   }
   if (lastRecording.case_id !== caseData?.meta?.case_id) {
-    ui.toast("回放记录与当前 case 不匹配");
+    ui.toast(i18nL("回放记录与当前 case 不匹配", "Replay recording does not match this case"));
     return;
   }
 
@@ -962,7 +992,7 @@ async function startAcceleratedReplay() {
 
   replaying = true;
   syncReplayButton();
-  ui.toast(`加速回放 ${playbackSpeedLabel()} · 不重跑模型`);
+  ui.toast(i18nL(`加速回放 ${playbackSpeedLabel()} · 不重跑模型`, `Fast replay ${playbackSpeedLabel()} · no new LLM calls`));
 
   const epoch = playbackEpoch;
   try {
@@ -973,7 +1003,7 @@ async function startAcceleratedReplay() {
       await sleepPlayback(Number(settings.autoplayMs) || 1200, { min: 40 });
     }
     if (epoch === playbackEpoch && engine?.progress?.done) {
-      ui.toast("加速回放完成");
+      ui.toast(i18nL("加速回放完成", "Fast replay finished"));
     }
   } finally {
     if (epoch === playbackEpoch) {
@@ -1020,14 +1050,14 @@ function bindChrome() {
     syncConsoleOnboard();
     applySettingsToForm();
     if (!a) {
-      ui.toast("请填写 API Key 后再保存");
+      ui.toast(i18nL("请填写 API Key 后再保存", "Enter an API Key before saving"));
       document.querySelector("#apiKey")?.focus();
       return;
     }
     openConsole(false);
     showEntryGuide();
     pulseAutoplayButton();
-    ui.toast("已连接 · 点「开始自动演示」或顶部自动播放");
+    ui.toast(i18nL("已连接 · 点「开始自动演示」或顶部自动播放", "Connected · tap Start auto demo or Autoplay"));
   });
   document.querySelector("#btnClearKey")?.addEventListener("click", () => {
     clearSavedApiKey({ toast: true });
@@ -1035,7 +1065,7 @@ function bindChrome() {
   document.querySelector("#btnExport").addEventListener("click", () => {
     if (!trajectory) return;
     trajectory.download();
-    ui.toast("Trajectory 已导出");
+    ui.toast(i18nL("Trajectory 已导出", "Trajectory exported"));
   });
   document.querySelector("#btnRewind").addEventListener("click", () => clearAndRewind());
   document.querySelector("#btnReset").addEventListener("click", () => clearAndRewind());
@@ -1055,9 +1085,9 @@ function bindChrome() {
       lastRecording = null;
       bootCase(data);
       syncReplayButton();
-      ui.toast("已加载：" + file.name);
+      ui.toast(i18nL("已加载：", "Loaded: ") + file.name);
     } catch (err) {
-      ui.toast("加载失败：" + err.message);
+      ui.toast(i18nL("加载失败：", "Load failed: ") + err.message);
     }
   });
 
@@ -1067,7 +1097,7 @@ function bindChrome() {
     const prevGeo = currentSceneGeo();
     if (chip.dataset.phase === "prep") {
       if (!engine.focusPrepDay(chip.dataset.date)) {
-        ui.toast("该行前日期尚未到达");
+        ui.toast(i18nL("该行前日期尚未到达", "That prep day is not reached yet"));
         return;
       }
       refreshDashboard();
@@ -1076,7 +1106,7 @@ function bindChrome() {
     }
     if (chip.dataset.phase === "pre") {
       if (!engine.focusPreTrip()) {
-        ui.toast("行前阶段尚未开始");
+        ui.toast(i18nL("行前阶段尚未开始", "Prep phase has not started"));
         return;
       }
       refreshDashboard();
@@ -1085,7 +1115,7 @@ function bindChrome() {
     }
     const dayNum = Number(chip.dataset.day);
     if (!engine.focusDay(dayNum)) {
-      ui.toast("尚未进展到这一天");
+      ui.toast(i18nL("尚未进展到这一天", "That day is not reached yet"));
       return;
     }
     refreshDashboard();
@@ -1101,7 +1131,7 @@ function bindChrome() {
   });
 
   document.querySelector("#btnHelp")?.addEventListener("click", () => {
-    sendUserChat("我们需要帮助，请根据当前行程状态主动检查有没有风险。");
+    sendUserChat(i18nL("我们需要帮助，请根据当前行程状态主动检查有没有风险。", "We need help — please proactively check the current trip state for any risks."));
   });
 
   document.querySelector("#btnMapZoomIn")?.addEventListener("click", (e) => {
@@ -1115,7 +1145,7 @@ function bindChrome() {
   document.querySelector("#btnMapClearOverlays")?.addEventListener("click", (e) => {
     e.stopPropagation();
     clearMapOverlays();
-    ui.toast("已清除地图标注");
+    ui.toast(i18nL("已清除地图标注", "Map overlays cleared"));
   });
 
   const legendBtn = document.querySelector("#btnMapLegend");
@@ -1193,18 +1223,25 @@ function clearSavedApiKey({ toast = false } = {}) {
   ensureAgent();
   syncConsoleOnboard();
   showEntryGuide();
-  if (toast) ui.toast("已清除本机 API Key");
+  if (toast) ui.toast(i18nL("已清除本机 API Key", "Local API Key cleared"));
 }
 
-function fillProviderSelect() {
+function fillProviderSelect({ refresh = false } = {}) {
   const sel = document.querySelector("#apiProvider");
-  if (!sel || sel.options.length) return;
-  for (const [id, p] of Object.entries(PROVIDERS)) {
-    const opt = document.createElement("option");
-    opt.value = id;
-    opt.textContent = p.label;
-    sel.appendChild(opt);
+  if (!sel) return;
+  if (!sel.options.length) {
+    for (const id of Object.keys(PROVIDERS)) {
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = providerLabel(id);
+      sel.appendChild(opt);
+    }
+  } else if (refresh) {
+    for (const opt of sel.options) {
+      opt.textContent = providerLabel(opt.value);
+    }
   }
+  updateProviderHint(sel.value || settings.provider || DEFAULT_PROVIDER);
 }
 
 function fillModelSuggestions(providerId) {
@@ -1220,7 +1257,7 @@ function fillModelSuggestions(providerId) {
 
 function updateProviderHint(providerId) {
   const el = document.querySelector("#providerHint");
-  if (el) el.textContent = PROVIDERS[providerId]?.hint || "";
+  if (el) el.textContent = providerHint(providerId);
 }
 
 function applyProviderPreset(providerId, { keepModel = false } = {}) {
@@ -1262,14 +1299,14 @@ function applySettingsToForm() {
   if (keyInput) {
     keyInput.value = "";
     keyInput.placeholder = hasApiKeyConfigured()
-      ? "已保存（留空沿用）· 输入新 Key 可更换"
-      : "粘贴 API Key（保存后不会回显）";
+      ? i18nL("已保存（留空沿用）· 输入新 Key 可更换", "Saved (leave blank to keep) · paste a new key to replace")
+      : i18nL("粘贴 API Key（保存后不会回显）", "Paste API Key (it will not be shown again after save)");
   }
   const keyHint = document.querySelector("#apiKeyHint");
   if (keyHint) {
     if (hasApiKeyConfigured()) {
       keyHint.hidden = false;
-      keyHint.textContent = "本机已保存 Key，输入框故意留空以免泄露；点「清除 Key」可删除。";
+      keyHint.textContent = i18nL("本机已保存 Key，输入框故意留空以免泄露；点「清除 Key」可删除。", "A key is saved on this device; the field is left blank on purpose. Tap Clear key to remove it.");
     } else {
       keyHint.hidden = true;
       keyHint.textContent = "";

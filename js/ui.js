@@ -22,10 +22,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260725-i18n";
-import { groupLedgerByDate } from "./ledger.js?v=20260725-i18n";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260725-i18n";
-import { t, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260725-i18n";
+} from "./map.js?v=20260727-i18n2";
+import { groupLedgerByDate } from "./ledger.js?v=20260727-i18n2";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260727-i18n2";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-i18n2";
 
 function kindMeta(kind) {
   const base = {
@@ -373,7 +373,7 @@ export class UI {
           id: `ledger:${a.key}`,
           kind: "agent_state",
           icon: a.icon,
-          who: a.app || "账本",
+          who: a.app || L("账本", "Ledger"),
           body: a.title || a.text,
           detail: a.body && a.body !== a.title ? truncate(a.body, 100) : "",
           time: a.time || null,
@@ -383,19 +383,19 @@ export class UI {
       if (a.kind === "notion") {
         this.playQueuedMapAction({
           kind: "notion",
-          title: a.title || "游记更新",
+          title: a.title || L("游记更新", "Journal update"),
           body: a.mapBody || "", // stream on map; chat card stays title-only
-          fingerprint: `notion:${String(a.title || "游记更新").slice(0, 80)}`,
+          fingerprint: `notion:${String(a.title || "journal").slice(0, 80)}`,
         }).catch(() => {});
       } else if (a.kind === "calendar") {
         this.playQueuedMapAction({
           kind: "calendar",
-          title: a.title || "日程",
+          title: a.title || L("日程", "Schedule"),
           body: a.body || a.text || "",
           items: [
-            a.time ? { label: "时间", value: String(a.time).slice(0, 16) } : null,
-            { label: "日程", value: a.title || a.text || "日程" },
-            a.body && a.body !== a.title ? { label: "详情", value: truncate(a.body, 48) } : null,
+            a.time ? { label: L("时间", "Time"), value: String(a.time).slice(0, 16) } : null,
+            { label: L("日程", "Schedule"), value: a.title || a.text || L("日程", "Schedule") },
+            a.body && a.body !== a.title ? { label: L("详情", "Detail"), value: truncate(a.body, 48) } : null,
           ].filter(Boolean),
           fingerprint: `calendar-ledger:${a.key || a.title || Date.now()}`,
         }).catch(() => {});
@@ -415,7 +415,7 @@ export class UI {
     const timeHtml = stamp ? `<div class="bubble-time">${escapeHtml(stamp)}</div>` : "";
     const detail = body && body !== title ? `<div class="state-card-body">${escapeHtml(body)}</div>` : "";
     const tabHint =
-      tab === "trip" ? "行程" : tab === "notes" ? "笔记" : tab === "mail" ? "邮件" : "";
+      tab === "trip" ? t("nav.trip") : tab === "notes" ? t("nav.notes") : tab === "mail" ? t("nav.mail") : "";
     wrap.innerHTML = `
       ${timeHtml}
       <div class="state-card-inner">
@@ -423,7 +423,7 @@ export class UI {
         <div class="state-card-main">
           <div class="state-card-title">${escapeHtml(title)}</div>
           ${detail}
-          ${tabHint ? `<div class="state-card-hint">已记入 · ${tabHint}</div>` : ""}
+          ${tabHint ? `<div class="state-card-hint">${L("已记入", "Saved")} · ${tabHint}</div>` : ""}
         </div>
       </div>`;
     if (tab) {
@@ -446,13 +446,13 @@ export class UI {
       const key = `email:${id}`;
       if (this._seenLedgerKeys.has(key)) continue;
       this._seenLedgerKeys.add(key);
-      const subject = String(em.subject || "无主题").trim();
-      const from = String(em.from_addr || em.from || "未知发件人").trim();
+      const subject = String(em.subject || L("无主题", "No subject")).trim();
+      const from = String(em.from_addr || em.from || L("未知发件人", "Unknown sender")).trim();
       const body = String(em.body_text || em.body || "").trim();
       fresh.push({
         key,
         icon: "✉️",
-        app: "邮件",
+        app: t("app.mail"),
         text: subject.length > 42 ? subject.slice(0, 40) + "…" : subject,
         title: subject,
         body: body || subject,
@@ -498,8 +498,8 @@ export class UI {
     this._phoneToastFadeTimer = null;
 
     const icon = change.icon || "🔔";
-    const text = change.text || "有新通知";
-    const app = change.app || "通知";
+    const text = change.text || L("有新通知", "New notification");
+    const app = change.app || L("通知", "Notice");
     const mailKey = change.key || null;
     const pending = this._phoneToastQueue?.length || 0;
 
@@ -510,8 +510,8 @@ export class UI {
     el.innerHTML = `
       <div class="phone-toast-top">
         <span class="phone-toast-app">${escapeHtml(app)}</span>
-        ${pending ? `<span class="phone-toast-more">还有 ${pending} 条</span>` : ""}
-        <button type="button" class="phone-toast-close" aria-label="关闭">×</button>
+        ${pending ? `<span class="phone-toast-more">${L(`还有 ${pending} 条`, `${pending} more`)}</span>` : ""}
+        <button type="button" class="phone-toast-close" aria-label="${L("关闭", "Close")}">×</button>
       </div>
       <span class="phone-toast-body">${icon} ${escapeHtml(text)}</span>`;
 
@@ -539,9 +539,9 @@ export class UI {
   /** Explicit notify from tool writes / mutations / env events. */
   notifyStateChange({
     icon = "🔔",
-    text = "状态已更新",
+    text = L("状态已更新", "Status updated"),
     tab = "mail",
-    app = "账本",
+    app = L("账本", "Ledger"),
     key,
     title,
     body,
@@ -660,7 +660,7 @@ export class UI {
     if (event.kind === "world" || event.kind === "app_notification") {
       const isMail =
         toast.app === t("app.mail") ||
-        toast.app === "邮件" ||
+        toast.app === t("app.mail") || toast.app === "邮件" ||
         /email/i.test(String(event.channel || event.source || "")) ||
         /邮件|收件箱|inbox|@/i.test(`${toast.from || ""} ${body || ""}`);
       this.appendSmsChat({
@@ -708,14 +708,14 @@ export class UI {
     if (!item) return;
     if (!this._inbox) this._inbox = [];
     const key = item.key || `mail:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`;
-    const title = String(item.title || item.text || "新消息").trim();
+    const title = String(item.title || item.text || L("新消息", "New message")).trim();
     const body = String(item.body || item.text || "").trim();
     const entry = {
       key,
       time: item.time || null,
-      app: item.app || "通知",
+      app: item.app || L("通知", "Notice"),
       icon: item.icon || "✉️",
-      from: item.from || item.app || "系统",
+      from: item.from || item.app || L("系统", "System"),
       title,
       body,
       preview: previewText(body || title, 72),
@@ -763,7 +763,7 @@ export class UI {
     this.els.mailInbox = el;
     const list = this._inbox || [];
     if (!list.length) {
-      el.innerHTML = `<div class="ledger-empty">通知、资讯与邮件会归档在这里。点顶部 Banner 也可跳转查看。</div>`;
+      el.innerHTML = `<div class="ledger-empty">${L("通知、资讯与邮件会归档在这里。点顶部 Banner 也可跳转查看。", "Alerts, news and mail are archived here. Tap the top banner to jump in.")}</div>`;
       return;
     }
     const highlight = this._highlightMailKey;
@@ -1318,7 +1318,7 @@ export class UI {
     toText = "",
     visas = [],
     detail = "",
-    title = "签证状态更新",
+    title = L("签证状态更新", "Visa status update"),
   } = {}) {
     return new Promise((resolve) => {
       const chip = this.els.statusGrid?.querySelector('[data-status="visa"]');
@@ -1351,11 +1351,15 @@ export class UI {
             .map((v, i) => {
               const st = String(v.status || "").toLowerCase();
               const stLabel =
-                st === "approved" ? "已批准" : st === "rejected" ? "未通过" : "审批中";
+                st === "approved"
+                  ? L("已批准", "Approved")
+                  : st === "rejected"
+                    ? L("未通过", "Rejected")
+                    : L("审批中", "Processing");
               const tone =
                 st === "approved" ? "is-ok" : st === "rejected" ? "is-bad" : "is-wait";
               return `<div class="status-visa-pop-row ${tone}" style="animation-delay:${(i * 0.06).toFixed(2)}s">
-              <span class="status-visa-pop-who">${escapeHtml(v.traveler || v.traveler_name || "旅客")}</span>
+              <span class="status-visa-pop-who">${escapeHtml(v.traveler || v.traveler_name || L("旅客", "Traveler"))}</span>
               <span class="status-visa-pop-st">${escapeHtml(stLabel)}</span>
             </div>`;
             })
@@ -1422,7 +1426,7 @@ export class UI {
       if (valEl && display) {
         this.setStatusChipValue(valEl, String(display));
       }
-      if (detail) chip.title = `签证 · ${detail}`;
+      if (detail) chip.title = L(`签证 · ${detail}`, `Visa · ${detail}`);
 
       clearTimeout(chip._landTimer);
       chip._landTimer = setTimeout(() => {
@@ -1623,7 +1627,7 @@ export class UI {
     this._ledgerSnap = ledger || {};
     const groups = groupLedgerByDate(ledger || {}, { expandDate });
     if (!groups.length) {
-      el.innerHTML = `<div class="ledger-empty">暂无行程记录。预订机票 / 酒店 / 房车或推进日程后会出现在这里。</div>`;
+      el.innerHTML = `<div class="ledger-empty">${L("暂无行程记录。预订机票 / 酒店 / 房车或推进日程后会出现在这里。", "No trip records yet. Book flights / hotels / a campervan or advance the schedule to see them here.")}</div>`;
       return;
     }
     el.innerHTML = groups
@@ -1736,7 +1740,7 @@ export class UI {
     const hasAny = sections.some((s) => notion.sections?.[s.key]);
     el.innerHTML = hasAny
       ? body
-      : `<div class="ledger-empty">Agent 写入游记 / 费用 / 安全备注后会出现在这里。</div>${body}`;
+      : `<div class="ledger-empty">${L("Agent 写入游记 / 费用 / 安全备注后会出现在这里。", "Journal / expenses / safety notes appear here after the Agent writes them.")}</div>${body}`;
   }
 
   renderEventStream(_events, _meta) {
@@ -2133,7 +2137,7 @@ export class UI {
       const open = full.hasAttribute("hidden");
       if (open) full.removeAttribute("hidden");
       else full.setAttribute("hidden", "");
-      moreBtn.textContent = open ? "收起" : "展开全文";
+      moreBtn.textContent = open ? L("收起", "Collapse") : t("tool.expand");
     });
 
     const thinkToggle = wrap.querySelector("[data-think-toggle]");
@@ -2288,7 +2292,7 @@ export class UI {
           id: `tool-place:${name}:clear`,
           icon: meta.icon,
           title: meta.title,
-          detail: meta.detail || "当前无路况/渡轮/航班异常",
+          detail: meta.detail || L("当前无路况/渡轮/航班异常", "No active road / ferry / flight issues"),
           kind: "agent_tool",
           placeId: anchor.placeId,
           geoKey: anchor.geoKey,
@@ -2449,7 +2453,7 @@ export class UI {
         )
       );
     } else if (name === "write_journal" || /notion|journal|write_page/i.test(name)) {
-      const notionTitle = args.title || result?.title || "游记";
+      const notionTitle = args.title || result?.title || L("游记", "Journal");
       const notionBody =
         args.content || result?.content || result?.preview || meta.detail || "";
       return this.enqueueCinematic(
@@ -2457,7 +2461,7 @@ export class UI {
           this.playStatusChipUpdate({
             kind: "activity",
             icon: "📝",
-            title: "游记已同步",
+            title: L("游记已同步", "Journal synced"),
             toText: truncate(notionTitle, 28),
             detail: truncate(notionBody, 48),
           }),
@@ -2496,7 +2500,7 @@ export class UI {
               toText: fb.toText,
               visas: fb.visas || result?.applications || [],
               detail: fb.detail,
-              title: fb.statusTitle || "签证状态已同步",
+              title: fb.statusTitle || L("签证状态已同步", "Visa status synced"),
             }),
           { fingerprint: `visa-chip:${String(fb.toText || "").slice(0, 60)}` }
         );
@@ -2773,7 +2777,7 @@ export class UI {
     const title = humanizeToolName(name);
     const sub =
       n > 1
-        ? `已调用 ${n} 次`
+        ? L(`已调用 ${n} 次`, `Called ${n}×`)
         : String(last.meta?.detail || "").trim() ||
           (TOOL_META[name] && TOOL_META[name].focus) ||
           toolCallName(name);
@@ -2867,7 +2871,7 @@ export class UI {
       collapseWrap.hidden = false;
       collapseWrap.removeAttribute("hidden");
       const btn = collapseWrap.querySelector("[data-rail-collapse-btn]");
-      if (btn) btn.textContent = "收起中间步骤";
+      if (btn) btn.textContent = L("收起中间步骤", "Hide intermediate steps");
       panel?.appendChild(collapseWrap);
       return;
     }
@@ -3032,7 +3036,7 @@ export class UI {
 
     this.updateAgentTurn(wrap, {
       thinking: thinking || "",
-      content: content || "（空回复）",
+      content: content || L("（空回复）", "(Empty reply)"),
       phase: "done",
     });
 
@@ -3135,66 +3139,62 @@ function streamItemHtml({ id, cls, time, icon, who, body }) {
         </div>`;
 }
 
-const TOOL_META = {
-  get_current_weather: {
-    icon: "🌦️",
-    label: "获取当日天气",
-    focus: "气温 · 风力 · 降水",
-  },
-  get_forecast_daily: {
-    icon: "📅",
-    label: "获取多日预报",
-    focus: "未来几天天气趋势",
-  },
-  get_traffic_estimate: {
-    icon: "🛣️",
-    label: "查询道路通行",
-    focus: "封路 · 延误 · 通行状态",
-  },
-  get_flight_status: {
-    icon: "✈️",
-    label: "查询航班动态",
-    focus: "准点 / 延误 / 登机口",
-  },
-  list_active_alerts: {
-    icon: "🚨",
-    label: "列出生效告警",
-    focus: "路况 · 渡轮 · 航班异常",
-  },
-  get_budget_snapshot: {
-    icon: "💰",
-    label: "预算",
-    focus: "已花 · 总额 · 剩余",
-  },
-  search_web: {
-    icon: "🔍",
-    label: "网页搜索",
-    focus: "路况 · 营地 · 签证资讯",
-  },
-  write_journal: {
-    icon: "📝",
-    label: "写入游记",
-    focus: "Notion 章节更新",
-  },
-  add_calendar_event: {
-    icon: "📅",
-    label: "加入日程",
-    focus: "日期 · 行程节点",
-  },
-  submit_nzeta: { icon: "🛂", label: "提交 NZeTA", focus: "两人入境授权" },
-  book_campervan: { icon: "🚐", label: "预订房车", focus: "车型 · 保险 · 押金" },
-  book_hotel: { icon: "🏨", label: "预订酒店", focus: "入住日期 · 房价 · 确认状态" },
-  book_flight: { icon: "✈️", label: "预订机票", focus: "航班号 · 航线 · 出票状态" },
-  place_gear_order: { icon: "📦", label: "下单装备", focus: "护膝 · 喷雾 · 插头" },
-  record_pickup: { icon: "🚐", label: "记录取车", focus: "里程 · 油量 · 车况" },
-  report_scratch: { icon: "🩹", label: "上报划痕", focus: "incident · 照片" },
-  record_return: { icon: "🚐", label: "记录还车", focus: "验车 · 押金待处理" },
-  checkin_flight: { icon: "✈️", label: "航班值机", focus: "座位 · 登机牌" },
-  cancel_hotel: { icon: "🏨", label: "取消酒店", focus: "取消确认" },
-  cancel_flight: { icon: "✈️", label: "取消机票", focus: "取消确认" },
-  write_notion_page: { icon: "📝", label: "写入游记", focus: "Notion 页面更新" },
-  "API-post-page": { icon: "📝", label: "创建 Notion 页面", focus: "游记文档" },
-};
+function toolMeta(name) {
+  const n = String(name || "");
+  const zh = {
+    get_current_weather: { icon: "🌦️", label: "获取当日天气", focus: "气温 · 风力 · 降水" },
+    get_forecast_daily: { icon: "📅", label: "获取多日预报", focus: "未来几天天气趋势" },
+    get_traffic_estimate: { icon: "🛣️", label: "查询道路通行", focus: "封路 · 延误 · 通行状态" },
+    get_flight_status: { icon: "✈️", label: "查询航班动态", focus: "准点 / 延误 / 登机口" },
+    list_active_alerts: { icon: "🚨", label: "列出生效告警", focus: "路况 · 渡轮 · 航班异常" },
+    get_budget_snapshot: { icon: "💰", label: "预算", focus: "已花 · 总额 · 剩余" },
+    search_web: { icon: "🔍", label: "网页搜索", focus: "路况 · 营地 · 签证资讯" },
+    write_journal: { icon: "📝", label: "写入游记", focus: "Notion 章节更新" },
+    add_calendar_event: { icon: "📅", label: "加入日程", focus: "日期 · 行程节点" },
+    submit_nzeta: { icon: "🛂", label: "提交 NZeTA", focus: "两人入境授权" },
+    book_campervan: { icon: "🚐", label: "预订房车", focus: "车型 · 保险 · 押金" },
+    book_hotel: { icon: "🏨", label: "预订酒店", focus: "入住日期 · 房价 · 确认状态" },
+    book_flight: { icon: "✈️", label: "预订机票", focus: "航班号 · 航线 · 出票状态" },
+    place_gear_order: { icon: "📦", label: "下单装备", focus: "护膝 · 喷雾 · 插头" },
+    record_pickup: { icon: "🚐", label: "记录取车", focus: "里程 · 油量 · 车况" },
+    report_scratch: { icon: "🩹", label: "上报划痕", focus: "incident · 照片" },
+    record_return: { icon: "🚐", label: "记录还车", focus: "验车 · 押金待处理" },
+    checkin_flight: { icon: "✈️", label: "航班值机", focus: "座位 · 登机牌" },
+    cancel_hotel: { icon: "🏨", label: "取消酒店", focus: "取消确认" },
+    cancel_flight: { icon: "✈️", label: "取消机票", focus: "取消确认" },
+    write_notion_page: { icon: "📝", label: "写入游记", focus: "Notion 页面更新" },
+    "API-post-page": { icon: "📝", label: "创建 Notion 页面", focus: "游记文档" },
+  };
+  const en = {
+    get_current_weather: { icon: "🌦️", label: "Current weather", focus: "Temp · wind · rain" },
+    get_forecast_daily: { icon: "📅", label: "Multi-day forecast", focus: "Upcoming weather trend" },
+    get_traffic_estimate: { icon: "🛣️", label: "Road conditions", focus: "Closures · delays · status" },
+    get_flight_status: { icon: "✈️", label: "Flight status", focus: "On time / delay / gate" },
+    list_active_alerts: { icon: "🚨", label: "List active alerts", focus: "Roads · ferry · flights" },
+    get_budget_snapshot: { icon: "💰", label: "Budget", focus: "Spent · total · remaining" },
+    search_web: { icon: "🔍", label: "Web search", focus: "Roads · camps · visas" },
+    write_journal: { icon: "📝", label: "Write journal", focus: "Notion section update" },
+    add_calendar_event: { icon: "📅", label: "Add calendar event", focus: "Date · trip node" },
+    submit_nzeta: { icon: "🛂", label: "Submit NZeTA", focus: "Two travelers" },
+    book_campervan: { icon: "🚐", label: "Book campervan", focus: "Vehicle · insurance · bond" },
+    book_hotel: { icon: "🏨", label: "Book hotel", focus: "Dates · price · status" },
+    book_flight: { icon: "✈️", label: "Book flight", focus: "Flight · route · ticket" },
+    place_gear_order: { icon: "📦", label: "Order gear", focus: "Knee brace · spray · adapter" },
+    record_pickup: { icon: "🚐", label: "Record pickup", focus: "Odometer · fuel · condition" },
+    report_scratch: { icon: "🩹", label: "Report scratch", focus: "Incident · photos" },
+    record_return: { icon: "🚐", label: "Record return", focus: "Inspection · bond pending" },
+    checkin_flight: { icon: "✈️", label: "Flight check-in", focus: "Seat · boarding pass" },
+    cancel_hotel: { icon: "🏨", label: "Cancel hotel", focus: "Cancellation" },
+    cancel_flight: { icon: "✈️", label: "Cancel flight", focus: "Cancellation" },
+    write_notion_page: { icon: "📝", label: "Write journal", focus: "Notion page update" },
+    "API-post-page": { icon: "📝", label: "Create Notion page", focus: "Journal doc" },
+  };
+  const table = getLocale() === "en" ? en : zh;
+  return table[n] || null;
+}
+
+/** @deprecated — use toolMeta(name) */
+const TOOL_META = new Proxy({}, { get(_t, prop) { return toolMeta(String(prop)); } });
 
 /** Colorful emoji icons for the tool rail (from TOOL_META). */
 function toolEmojiIcon(name) {
@@ -3256,32 +3256,32 @@ function thinkSummaryLine(text) {
 
 function humanizeToolName(name) {
   const n = String(name || "").trim();
-  if (!n) return "未知工具";
+  if (!n) return L("未知工具", "Unknown tool");
   if (TOOL_META[n]) return TOOL_META[n].label;
   const map = {
-    get_current_weather: "获取当日天气",
-    get_forecast_daily: "获取多日预报",
-    get_traffic_estimate: "查询道路通行",
-    get_flight_status: "查询航班动态",
-    list_active_alerts: "列出生效告警",
-    get_budget_snapshot: "读取行程预算",
-    search_web: "网页搜索",
-    write_journal: "写入游记",
-    add_calendar_event: "加入日程",
-    book_hotel: "预订酒店",
-    book_flight: "预订机票",
-    reserve_hotel: "预订酒店",
-    reserve_flight: "预订机票",
-    update_flight: "更新航班",
-    send_email: "发送邮件",
-    create_page: "创建页面",
+    get_current_weather: L("获取当日天气", "Current weather"),
+    get_forecast_daily: L("获取多日预报", "Multi-day forecast"),
+    get_traffic_estimate: L("查询道路通行", "Road conditions"),
+    get_flight_status: L("查询航班动态", "Flight status"),
+    list_active_alerts: L("列出生效告警", "List active alerts"),
+    get_budget_snapshot: L("读取行程预算", "Budget snapshot"),
+    search_web: L("网页搜索", "Web search"),
+    write_journal: L("写入游记", "Write journal"),
+    add_calendar_event: L("加入日程", "Add calendar event"),
+    book_hotel: L("预订酒店", "Book hotel"),
+    book_flight: L("预订机票", "Book flight"),
+    reserve_hotel: L("预订酒店", "Book hotel"),
+    reserve_flight: L("预订机票", "Book flight"),
+    update_flight: L("更新航班", "Update flight"),
+    send_email: L("发送邮件", "Send email"),
+    create_page: L("创建页面", "Create page"),
   };
   if (map[n]) return map[n];
-  if (/hotel/i.test(n) && /book|reserve|create/i.test(n)) return "预订酒店";
-  if (/flight|air/i.test(n) && /book|reserve|create/i.test(n)) return "预订机票";
-  if (/notion|page|journal/i.test(n)) return "更新游记";
-  if (/weather/i.test(n)) return "获取天气";
-  if (/traffic|road/i.test(n)) return "查询路况";
+  if (/hotel/i.test(n) && /book|reserve|create/i.test(n)) return L("预订酒店", "Book hotel");
+  if (/flight|air/i.test(n) && /book|reserve|create/i.test(n)) return L("预订机票", "Book flight");
+  if (/notion|page|journal/i.test(n)) return L("更新游记", "Update journal");
+  if (/weather/i.test(n)) return L("获取天气", "Get weather");
+  if (/traffic|road/i.test(n)) return L("查询路况", "Check roads");
   if (/budget/i.test(n)) return "读取预算";
   if (/alert/i.test(n)) return "查询告警";
   return n
@@ -3317,16 +3317,18 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
         status: a.status || "processing",
       }))
     );
-    const st = apps.some((a) => a.status === "approved") ? "已批准" : "审批中";
+    const st = apps.some((a) => a.status === "approved")
+      ? L("已批准", "Approved")
+      : L("审批中", "Processing");
     const items = [
-      { label: "产品", value: "NZeTA" },
-      { label: "人数", value: String(apps.length || args.travelers?.length || 2) },
-      { label: "状态", value: st },
+      { label: L("产品", "Product"), value: "NZeTA" },
+      { label: L("人数", "Travelers"), value: String(apps.length || args.travelers?.length || 2) },
+      { label: L("状态", "Status"), value: st },
     ];
     for (const a of apps.slice(0, 3)) {
       items.push({
-        label: a.traveler_name || a.traveler || "旅客",
-        value: a.status === "approved" ? "已批准" : "审批中",
+        label: a.traveler_name || a.traveler || L("旅客", "Traveler"),
+        value: a.status === "approved" ? L("已批准", "Approved") : L("审批中", "Processing"),
       });
     }
     return {
@@ -3335,9 +3337,9 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
       icon,
       cardTitle: label,
       cardQuery: icon,
-      statusTitle: "签证状态已同步",
+      statusTitle: L("签证状态已同步", "Visa status synced"),
       toText: chip.value,
-      detail: summary || chip.sub || `${apps.length || 2} 份申请`,
+      detail: summary || chip.sub || L(`${apps.length || 2} 份申请`, `${apps.length || 2} applications`),
       items,
       visas: apps.map((a) => ({
         traveler: a.traveler_name || a.traveler || a.user_id,
@@ -3395,7 +3397,7 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
   }
   if (/book_flight|cancel_flight/i.test(n)) {
     const no = String(args.flight_no || result?.flight?.flight_no || result?.flight_no || "").toUpperCase();
-    const st = /cancel/i.test(n) ? "已取消" : "已出票";
+    const st = /cancel/i.test(n) ? L("已取消", "Cancelled") : L("已出票", "Ticketed");
     return {
       actionKind: "flight",
       statusKind: "flight",
@@ -3441,7 +3443,7 @@ function describeStateWriteFeedback(name, args = {}, result = null) {
   }
   if (/book_hotel|cancel_hotel/i.test(n)) {
     const hotel = args.hotel_name || args.name || result?.hotel?.name || args.hotel_id || "住宿";
-    const st = /cancel/i.test(n) ? "已取消" : "已确认";
+    const st = /cancel/i.test(n) ? L("已取消", "Cancelled") : L("已确认", "Confirmed");
     return {
       actionKind: "write",
       statusKind: "activity",
@@ -3641,7 +3643,7 @@ function chipDateMd(d) {
 function describeVisaStatusChip(visas = []) {
   const rows = Array.isArray(visas) ? visas.filter(Boolean) : [];
   if (!rows.length) {
-    return { value: "—", sub: "提交 NZeTA 后更新" };
+    return { value: "—", sub: L("提交 NZeTA 后更新", "Updates after NZeTA submit") };
   }
   const approved = rows.filter((v) => String(v.status || "").toLowerCase() === "approved").length;
   const total = rows.length;
@@ -3651,19 +3653,21 @@ function describeVisaStatusChip(visas = []) {
     .join(" · ");
   if (approved === total) {
     return {
-      value: `已批·${total}`,
-      sub: names ? `NZeTA · ${names}` : `NZeTA · ${total}人已批准`,
+      value: L(`已批·${total}`, `OK·${total}`),
+      sub: names ? `NZeTA · ${names}` : L(`NZeTA · ${total}人已批准`, `NZeTA · ${total} approved`),
     };
   }
   if (approved > 0) {
     return {
-      value: `${approved}/${total}批`,
-      sub: names ? `NZeTA · ${names}` : "NZeTA · 部分批准",
+      value: L(`${approved}/${total}批`, `${approved}/${total}`),
+      sub: names ? `NZeTA · ${names}` : L("NZeTA · 部分批准", "NZeTA · partial"),
     };
   }
   return {
-    value: `审批·${total}`,
-    sub: names ? `NZeTA 审批中 · ${names}` : "NZeTA 审批中 · 最长 72h",
+    value: L(`审批·${total}`, `Review·${total}`),
+    sub: names
+      ? L(`NZeTA 审批中 · ${names}`, `NZeTA processing · ${names}`)
+      : L("NZeTA 审批中 · 最长 72h", "NZeTA processing · up to 72h"),
   };
 }
 
@@ -3673,39 +3677,42 @@ function describeVisaStatusChip(visas = []) {
  */
 function describeRentalStatusChip(rentalRow) {
   if (!rentalRow) {
-    return { value: "—", sub: "授权预订后更新" };
+    return { value: "—", sub: L("授权预订后更新", "Updates after authorized booking") };
   }
   const status = String(rentalRow.status || "").toLowerCase();
   const statusLabel =
     status === "returned"
-      ? "已还"
+      ? L("已还", "Returned")
       : status === "active"
-        ? "在用"
+        ? L("在用", "In use")
         : status === "held"
-          ? "已订"
+          ? L("已订", "Booked")
           : status || "—";
   const vehicle = shortVehicleChipName(rentalRow.vehicle_name);
   const pickup = chipDateMd(rentalRow.pickup_date);
   const ret = chipDateMd(rentalRow.return_date);
   let value;
   if (status === "held" && pickup) value = `${vehicle} · ${pickup}`;
-  else if (status === "active" && ret) value = `${vehicle} · ${ret}还`;
-  else if (status === "returned") value = `${vehicle} · 已还`;
+  else if (status === "active" && ret)
+    value = `${vehicle} · ${ret}${L("还", " ret")}`;
+  else if (status === "returned") value = `${vehicle} · ${L("已还", "Returned")}`;
   else value = `${vehicle} · ${statusLabel}`;
 
   const sub = [
     statusLabel,
     rentalRow.booking_ref,
     rentalRow.insurance,
-    rentalRow.bond_nzd != null ? `押金 NZ$${rentalRow.bond_nzd}` : null,
-    rentalRow.daily_price != null ? `NZ$${rentalRow.daily_price}/天` : null,
+    rentalRow.bond_nzd != null ? L(`押金 NZ$${rentalRow.bond_nzd}`, `Bond NZ$${rentalRow.bond_nzd}`) : null,
+    rentalRow.daily_price != null
+      ? L(`NZ$${rentalRow.daily_price}/天`, `NZ$${rentalRow.daily_price}/day`)
+      : null,
     pickup && ret ? `${pickup}–${ret}` : pickup || ret || null,
     rentalRow.note,
   ]
     .filter(Boolean)
     .join(" · ");
 
-  return { value, sub: sub || "房车预订" };
+  return { value, sub: sub || L("房车预订", "Campervan booking") };
 }
 
 /**
@@ -3735,7 +3742,7 @@ function describeFlightStatusChip({
     }
     const nos = active.map((f) => f.flight_no).join("/");
     return {
-      value: `${nos} · 已订`,
+      value: L(`${nos} · 已订`, `${nos} · booked`),
       sub: active
         .map((f) => `${f.flight_no}${f.route ? ` ${f.route}` : ""}`)
         .join(" · "),
@@ -3745,42 +3752,45 @@ function describeFlightStatusChip({
   if (cancelled.length && !active.length) {
     const last = cancelled[cancelled.length - 1];
     return {
-      value: last.flight_no ? `${last.flight_no} · 已取消` : "已取消",
-      sub: cancelled.map((f) => f.flight_no).filter(Boolean).join(" · ") || "机票已取消",
+      value: last.flight_no
+        ? L(`${last.flight_no} · 已取消`, `${last.flight_no} · cancelled`)
+        : L("已取消", "Cancelled"),
+      sub: cancelled.map((f) => f.flight_no).filter(Boolean).join(" · ") || L("机票已取消", "Flights cancelled"),
     };
   }
 
   if (flightSettled && flight.flight_no) {
     return {
-      value: `${flight.flight_no} · 已出票`,
-      sub: flight.route || flight.note || "已预订",
+      value: L(`${flight.flight_no} · 已出票`, `${flight.flight_no} · ticketed`),
+      sub: flight.route || flight.note || L("已预订", "Booked"),
     };
   }
 
-  return { value: "待预订", sub: "选定机票后更新" };
+  return { value: L("待预订", "To book"), sub: L("选定机票后更新", "Updates after you pick flights") };
 }
 
 function flightBookingChipLabel(st) {
   const s = String(st || "").toLowerCase();
-  if (s === "cancelled" || s === "canceled") return "已取消";
-  if (s === "checked_in") return "已出票";
-  if (s === "confirmed" || s === "ticketed" || s === "booked" || !s) return "已出票";
-  return "已订";
+  if (s === "cancelled" || s === "canceled") return L("已取消", "Cancelled");
+  if (s === "checked_in") return L("已出票", "Ticketed");
+  if (s === "confirmed" || s === "ticketed" || s === "booked" || !s) return L("已出票", "Ticketed");
+  return L("已订", "Booked");
 }
 
 function flightStatusLabel(st) {
   const s = String(st || "").toLowerCase();
-  if (s === "delayed") return "延误";
-  if (s === "cancelled" || s === "canceled") return "取消";
-  if (s === "boarding") return "登机中";
-  if (s === "landed") return "已落地";
-  if (s === "departed") return "已起飞";
-  if (s === "on_time" || s === "confirmed") return "准点";
-  return st || "状态未知";
+  if (s === "delayed") return L("延误", "Delayed");
+  if (s === "cancelled" || s === "canceled") return L("取消", "Cancelled");
+  if (s === "boarding") return L("登机中", "Boarding");
+  if (s === "landed") return L("已落地", "Landed");
+  if (s === "departed") return L("已起飞", "Departed");
+  if (s === "on_time" || s === "confirmed") return L("准点", "On time");
+  return st || L("状态未知", "Unknown");
 }
 
 function weatherConditionLabel(c) {
   const s = String(c || "");
+  if (getLocale() === "en") return s || "";
   const map = {
     Clear: "晴",
     Sunny: "晴",
@@ -3849,7 +3859,7 @@ function buildWeatherActionRows(name, args = {}, result = null) {
     if (!rows.length) {
       return [
         { label: "地点", value: place || "—" },
-        { label: "预报", value: "暂无数据" },
+        { label: L("预报", "Forecast"), value: L("暂无数据", "No data") },
       ];
     }
     return rows.slice(0, 4).map((r) => {
@@ -3982,14 +3992,14 @@ function buildToolPulse(name, args = {}, result = null) {
       const transit = result?.transit_events || [];
       const flights = Object.entries(result?.flights || {});
       const n = roads.length + transit.length + flights.length;
-      title = n ? `列出生效告警 · ${n} 条` : "列出生效告警 · 暂无";
+      title = n ? L(`列出生效告警 · ${n} 条`, `Active alerts · ${n}`) : L("列出生效告警 · 暂无", "Active alerts · none");
       const bits = [];
       for (const e of roads.slice(0, 2)) bits.push(e.note || `道路 ${roadLabel(e.road_id)}`);
       for (const e of transit.slice(0, 1)) bits.push(e.note || "渡轮服务异常");
       for (const [fn, fv] of flights.slice(0, 1)) {
         bits.push(`${fn} ${flightStatusLabel(fv?.status)}`);
       }
-      detail = bits.length ? bits.join("； ") : "当前无路况/渡轮/航班异常";
+      detail = bits.length ? bits.join(getLocale()==="en" ? "; " : "； ") : L("当前无路况/渡轮/航班异常", "No active road / ferry / flight issues");
       break;
     }
     case "get_budget_snapshot": {
@@ -4002,14 +4012,14 @@ function buildToolPulse(name, args = {}, result = null) {
         if (b.total_cny != null && b.spent_cny != null) {
           bits.push(`剩余 ¥${fmt(Number(b.total_cny) - Number(b.spent_cny))}`);
         }
-        if (result.location) bits.push(`当前位置 ${result.location}`);
+        if (result.location) bits.push(`${L("当前位置", "Location")} ${result.location}`);
         detail = bits.join(" · ");
       } else detail = result?.location ? `位置 ${result.location} · 预算尚未确定` : "预算尚未写入";
       break;
     }
     case "search_web": {
       const q = args.query || result?.query || "";
-      title = q ? `搜索 · ${truncate(q, 28)}` : "网页搜索";
+      title = q ? L(`搜索 · ${truncate(q, 28)}`, `Search · ${truncate(q, 28)}`) : L("网页搜索", "Web search");
       const rows = result?.results || [];
       if (error) detail = result?.error || "搜索失败";
       else if (rows.length) {
@@ -4018,13 +4028,13 @@ function buildToolPulse(name, args = {}, result = null) {
           .map((r) => r.title)
           .join("； ");
         if (rows.length > 2) detail += ` 等 ${rows.length} 条`;
-      } else detail = error ? "无结果" : "检索中…";
+      } else detail = error ? L("无结果", "No results") : L("检索中…", "Searching…");
       break;
     }
     case "write_journal": {
       const sec = args.section || result?.section || "journal";
-      title = args.title ? `写入游记 · ${args.title}` : "写入游记";
-      detail = `已记入 · ${sec === "safety" ? "安全备注" : sec === "expense" ? "费用" : "游记"}`;
+      title = args.title ? L(`写入游记 · ${args.title}`, `Journal · ${args.title}`) : L("写入游记", "Write journal");
+      detail = L("已记入", "Saved") + " · " + (sec === "safety" ? L("安全备注", "Safety") : sec === "expense" ? L("费用", "Expense") : L("游记", "Journal"));
       break;
     }
     case "add_calendar_event": {
@@ -4084,7 +4094,7 @@ function describeToolCall(name, args = {}, result = null) {
   return {
     icon: pulse.icon,
     title: pending && !Object.keys(args || {}).length ? humanizeToolName(name) : pulse.title,
-    detail: pulse.detail || (stateful ? "已写入行程账本 / 环境状态" : pending ? "调用中…" : ""),
+    detail: pulse.detail || (stateful ? L("已写入行程账本 / 环境状态", "Written to trip ledger / env state") : pending ? L("调用中…", "Calling…") : ""),
     focus: pulse.focus,
     pulse,
     stateful,
@@ -4117,7 +4127,7 @@ function collectLedgerAlerts(ledger) {
     out.push({
       key: `flight:${f.id}:${f.status}:${f.delay_min || 0}`,
       tab: "trip",
-      app: "行程账本",
+      app: L("行程账本", "Trip ledger"),
       from: "机票预订",
       icon: "✈️",
       text: title,
@@ -4138,7 +4148,7 @@ function collectLedgerAlerts(ledger) {
       h.name && h.name !== hotel ? h.name : null,
       h.date || h.check_in ? `入住 ${h.date || h.check_in}` : null,
       h.price_nzd != null ? `NZD ${h.price_nzd}` : null,
-      h.status === "cancelled" ? "已取消" : h.status === "confirmed" ? "已确认" : h.status,
+      h.status === "cancelled" ? L("已取消", "Cancelled") : h.status === "confirmed" ? L("已确认", "Confirmed") : h.status,
       h.note,
     ]
       .filter(Boolean)
@@ -4146,7 +4156,7 @@ function collectLedgerAlerts(ledger) {
     out.push({
       key: `hotel:${h.id}:${h.status}:${h.price_nzd ?? ""}`,
       tab: "trip",
-      app: "行程账本",
+      app: L("行程账本", "Trip ledger"),
       from: "酒店预订",
       icon: "🏨",
       text: title,
@@ -4165,7 +4175,7 @@ function collectLedgerAlerts(ledger) {
     out.push({
       key: `rental:${r.id}:${r.status}:${r.incident?.case_ref || ""}`,
       tab: "trip",
-      app: "行程账本",
+      app: L("行程账本", "Trip ledger"),
       from: "房车租赁",
       icon: "🚐",
       text: title,
@@ -4181,8 +4191,8 @@ function collectLedgerAlerts(ledger) {
     out.push({
       key: `visa:${v.id}:${v.status}`,
       tab: "trip",
-      app: "行程账本",
-      from: "签证/入境",
+      app: L("行程账本", "Trip ledger"),
+      from: L("签证/入境", "Visa / entry"),
       icon: "🛂",
       text: title,
       title,
@@ -4196,7 +4206,7 @@ function collectLedgerAlerts(ledger) {
     out.push({
       key: `order:${o.id}:${o.status}`,
       tab: "trip",
-      app: "行程账本",
+      app: L("行程账本", "Trip ledger"),
       from: "电商订单",
       icon: "📦",
       text: title,
@@ -4207,7 +4217,7 @@ function collectLedgerAlerts(ledger) {
   }
   const notion = ledger.notion?.sections || {};
   for (const [sec, label] of [
-    ["journal", "更新游记"],
+    ["journal", L("更新游记", "Journal update")],
     ["expense", "更新费用记录"],
     ["safety", "更新安全备注"],
   ]) {
@@ -4216,7 +4226,7 @@ function collectLedgerAlerts(ledger) {
     out.push({
       key: `notion:${sec}:${text.slice(0, 40)}`,
       tab: "notes",
-      app: "Notion 游记",
+      app: L("Notion 游记", "Notion journal"),
       from: "Notion",
       icon: "📝",
       text: label,
@@ -4241,11 +4251,11 @@ function shortHotel(name) {
 /** Guess a readable SMS sender from notification body. */
 function guessSmsSender(body) {
   const s = String(body || "");
-  if (/移民局|NZeTA|签证|入境/i.test(s)) return "新西兰移民局";
+  if (/移民局|NZeTA|签证|入境|Immigration/i.test(s)) return L("新西兰移民局", "NZ Immigration");
   if (/NZTA|路况|公路|封闭|封路/i.test(s)) return "NZTA 路况";
   if (/Interislander|渡轮|Bluebridge/i.test(s)) return "渡轮通知";
   if (/MetService|天气|风力|降雨/i.test(s)) return "天气提醒";
-  if (/航空|航班|Airport|MU\d+/i.test(s)) return "航班通知";
+  if (/航空|航班|Airport|MU\d+/i.test(s)) return L("航班通知", "Flight notice");
   if (/酒店|营地|Holiday\s*Park|住宿/i.test(s)) return "住宿通知";
   const m = s.match(/^([^：:]{2,12})[：:]/);
   if (m) return m[1].trim();
@@ -4332,7 +4342,7 @@ function formatEnvStreamRow(ev, { labels = {}, speakers = {} } = {}) {
       icon: km.icon,
       cls: km.cls,
       who: speakers[ev.from]?.name || ev.from || "用户",
-      body: truncate(raw || "（空消息）", 160),
+      body: truncate(raw || t("chat.empty"), 160),
     };
   }
   if (kind === "mutation") {
@@ -4395,7 +4405,7 @@ function channelAppLabel(src) {
   if (s.includes("hotel")) return "酒店";
   if (s.includes("weather")) return "天气";
   if (s.includes("maps") || s.includes("nzta")) return "路况";
-  if (s.includes("visa")) return "签证";
+  if (s.includes("visa")) return L("签证", "Visa");
   if (s.includes("ecommerce") || s.includes("britz")) return "租车";
   if (s.includes("notification")) return "通知";
   if (s.includes("email")) return "邮件";

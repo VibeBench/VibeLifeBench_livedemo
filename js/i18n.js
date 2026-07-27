@@ -327,6 +327,11 @@ export function t(key, vars) {
   return vars ? fill(raw, vars) : raw;
 }
 
+/** Inline bilingual copy — prefer for one-off UI strings. */
+export function L(zh, en) {
+  return locale === "en" ? en : zh;
+}
+
 export function onLocaleChange(fn) {
   if (typeof fn === "function") listeners.add(fn);
   return () => listeners.delete(fn);
