@@ -16,11 +16,11 @@ const listeners = new Set();
 
 const DICT = {
   zh: {
-    "lang.zh": "中",
+    "lang.zh": "ZH",
     "lang.en": "EN",
     "lang.toast.zh": "界面语言：中文",
     "lang.toast.en": "Language · English",
-    "lang.btnTitle": "切换中文 / English",
+    "lang.btnTitle": "language / 语言",
     "top.speed": "倍速",
     "top.speedTitle": "动画与回放倍速",
     "top.speedAria": "播放倍速",
@@ -161,11 +161,11 @@ const DICT = {
     "geo.auckland": "奥克兰",
   },
   en: {
-    "lang.zh": "中",
+    "lang.zh": "ZH",
     "lang.en": "EN",
     "lang.toast.zh": "界面语言：中文",
     "lang.toast.en": "Language · English",
-    "lang.btnTitle": "Switch 中文 / English",
+    "lang.btnTitle": "language / 语言",
     "top.speed": "Speed",
     "top.speedTitle": "Animation & replay speed",
     "top.speedAria": "Playback speed",
@@ -370,7 +370,8 @@ export function applyDomI18n(root = document) {
   });
   const btn = root.querySelector("#btnLang");
   if (btn) {
-    btn.textContent = locale === "en" ? "中" : "EN";
+    const code = locale === "en" ? "ZH" : "EN";
+    btn.textContent = `language/语言 ${code}`;
     btn.setAttribute("title", t("lang.btnTitle"));
     btn.setAttribute("aria-label", t("lang.btnTitle"));
     btn.dataset.locale = locale;

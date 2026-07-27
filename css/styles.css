@@ -362,9 +362,12 @@ select {
 }
 
 .lang-toggle {
-  min-width: 40px;
-  font-weight: 700;
+  min-width: auto;
+  font-weight: 600;
   letter-spacing: 0.02em;
+  white-space: nowrap;
+  font-size: 12px;
+  padding-inline: 10px;
 }
 
 .map-view-btn-clear:hover {

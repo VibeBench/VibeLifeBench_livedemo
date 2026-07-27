@@ -22,10 +22,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260727-i18n3b";
-import { groupLedgerByDate } from "./ledger.js?v=20260727-i18n3b";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260727-i18n3b";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-i18n3b";
+} from "./map.js?v=20260727-langbtn";
+import { groupLedgerByDate } from "./ledger.js?v=20260727-langbtn";
+import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260727-langbtn";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-langbtn";
 
 function kindMeta(kind) {
   const base = {
