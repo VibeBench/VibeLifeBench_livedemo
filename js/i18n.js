@@ -514,33 +514,32 @@ export function geoDisplayName(geoKey) {
   return geoKey || "";
 }
 
-export function setLocale(next, { persist = true, silent = false } = {}) {
+export function setLocale(next, { silent = false } = {}) {
   const loc = next === "en" ? "en" : "zh";
   if (loc === locale) {
     applyDomI18n();
     return locale;
   }
   locale = loc;
-  if (persist) {
-    try {
-      localStorage.setItem(STORAGE_KEY, locale);
-    } catch {
-      /* ignore */
-    }
+  // Session-only: do not persist. Fresh visits always open in Chinese.
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
   }
   applyDomI18n();
   if (!silent) notify();
   return locale;
 }
 
+/** Always start in Chinese; ignore / clear any prior vibe.locale preference. */
 export function initLocaleFromStorage() {
-  let saved = "zh";
+  locale = "zh";
   try {
-    saved = localStorage.getItem(STORAGE_KEY) || "zh";
+    localStorage.removeItem(STORAGE_KEY);
   } catch {
-    saved = "zh";
+    /* ignore */
   }
-  locale = saved === "en" ? "en" : "zh";
   applyDomI18n();
   return locale;
 }
