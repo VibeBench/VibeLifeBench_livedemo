@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-toast1";
-import { DemoEngine } from "./engine.js?v=20260727-toast1";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-rstream";
+import { DemoEngine } from "./engine.js?v=20260727-rstream";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260727-toast1";
-import { Trajectory, isValidRecording } from "./trajectory.js?v=20260727-toast1";
-import { UI } from "./ui.js?v=20260727-toast1";
+} from "./agent.js?v=20260727-rstream";
+import { Trajectory, isValidRecording } from "./trajectory.js?v=20260727-rstream";
+import { UI } from "./ui.js?v=20260727-rstream";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,7 +18,7 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260727-toast1";
+} from "./map.js?v=20260727-rstream";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -26,7 +26,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260727-toast1";
+} from "./playback.js?v=20260727-rstream";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -40,7 +40,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260727-toast1";
+} from "./i18n.js?v=20260727-rstream";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -772,19 +772,23 @@ async function stepOnce({ useCache = false } = {}) {
   }
 }
 
-/** Re-run a recorded agent turn: reveal text + re-execute tools for state + map anims. */
+/** Re-run a recorded agent turn: stream thinking → tools → answer (no LLM). */
 async function replayCachedAgentTurn(turn, time) {
   const epoch = playbackEpoch;
   const a = ensureAgent({ allowOfflineTools: true });
   ui._streamBubble = ui.beginAgentTurn({ time, planContext: agentPlanContext() });
   try {
-    await ui.revealAgentTurn(ui._streamBubble, {
-      thinking: turn.thinking || "",
-      content: turn.output || "",
-    });
-    if (epoch !== playbackEpoch) return;
-
+    const thinking = turn.thinking || "";
+    const output = turn.output || "";
     const tools = turn.tool_calls || [];
+
+    // 1) Stream thinking first (live LLM order)
+    if (thinking) {
+      await ui.revealAgentTurn(ui._streamBubble, { thinking, content: "", mode: "thinking" });
+      if (epoch !== playbackEpoch) return;
+    }
+
+    // 2) Tools one-by-one with pending → done, then map cinematic
     for (const tc of tools) {
       if (epoch !== playbackEpoch) return;
       const name = tc.name;
@@ -796,14 +800,12 @@ async function replayCachedAgentTurn(turn, time) {
         console.warn("replay tool", name, err);
         result = tc.result || { ok: false, error: String(err?.message || err) };
       }
+
       if (ui._streamBubble) {
-        ui.appendToolCall(ui._streamBubble, {
-          name,
-          args,
-          result,
-          status: "done",
-        });
+        await ui.revealToolCall(ui._streamBubble, { name, args, result });
       }
+      if (epoch !== playbackEpoch) return;
+
       const isJournalOrCal = /write_journal|notion|journal|page|block|calendar|schedule/i.test(
         name || ""
       );
@@ -823,9 +825,20 @@ async function replayCachedAgentTurn(turn, time) {
     }
 
     if (epoch !== playbackEpoch) return;
+
+    // 3) Stream final answer with cursor
+    if (output) {
+      await ui.revealAgentTurn(ui._streamBubble, {
+        thinking,
+        content: output,
+        mode: "answer",
+      });
+    }
+    if (epoch !== playbackEpoch) return;
+
     ui.finishAgentTurn(ui._streamBubble, {
-      thinking: turn.thinking || "",
-      content: turn.output || i18nL("（空回复）", "(Empty reply)"),
+      thinking,
+      content: output || i18nL("（空回复）", "(Empty reply)"),
       toolCalls: tools,
       planContext: agentPlanContext(),
     });

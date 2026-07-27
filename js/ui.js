@@ -22,10 +22,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260727-toast1";
-import { groupLedgerByDate } from "./ledger.js?v=20260727-toast1";
-import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs } from "./playback.js?v=20260727-toast1";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-toast1";
+} from "./map.js?v=20260727-rstream";
+import { groupLedgerByDate } from "./ledger.js?v=20260727-rstream";
+import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-rstream";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-rstream";
 
 function kindMeta(kind) {
   const base = {
@@ -823,11 +823,11 @@ export class UI {
         el.onclick = null;
       }
       this._phoneToastShowing = false;
+      // Queue is unused for drip display; only drain if something was left explicitly.
       if (advanceQueue && this._phoneToastQueue?.length) {
-        this._phoneToastTimer = setTimeout(() => {
-          this._phoneToastTimer = null;
-          this._drainPhoneBannerQueue();
-        }, 220);
+        this._drainPhoneBannerQueue();
+      } else {
+        this._phoneToastQueue = [];
       }
     };
 
@@ -842,7 +842,7 @@ export class UI {
     this._phoneToastFadeTimer = setTimeout(() => {
       this._phoneToastFadeTimer = null;
       finishHide();
-    }, 320);
+    }, 220);
   }
 
   resetLedgerAlerts() {
@@ -3009,35 +3009,65 @@ export class UI {
   }
 
   /**
-   * Fast-forward a recorded agent turn (thinking + answer) without LLM streaming.
+   * Reveal a recorded agent turn with a typewriter feel (thinking / answer).
+   * mode: "both" | "thinking" | "answer"
+   * During加速回放 keep enough chunks that streaming is visible even at 8×.
    */
-  async revealAgentTurn(wrap, { thinking = "", content = "" } = {}) {
+  async revealAgentTurn(wrap, { thinking = "", content = "", mode = "both" } = {}) {
     if (!wrap) return;
     const think = String(thinking || "");
     const answer = String(content || "");
+    const replay = isReplayMode();
     const spd = Math.max(getPlaybackSpeed(), 1);
-    // Replay: dump text in 1–2 chunks; live cache-replay still soft-streams a bit.
-    const thinkParts = Math.max(1, Math.min(spd >= 4 ? 2 : 6, Math.ceil(think.length / (120 * spd))));
-    const answerParts = Math.max(1, Math.min(spd >= 4 ? 2 : 5, Math.ceil(answer.length / (90 * spd))));
-    if (think) {
-      for (let i = 1; i <= thinkParts; i++) {
-        this.updateAgentTurn(wrap, {
-          thinking: think.slice(0, Math.ceil((think.length * i) / thinkParts)),
-          phase: "thinking",
-        });
-        await sleepPlayback(36, { min: 4, max: 40 });
+
+    const streamBlock = async (text, phase) => {
+      if (!text) return;
+      // Replay: ~10–20 steps over ~0.7–1.4s. Live soft-replay: fewer steps.
+      const targetSteps = replay ? Math.min(20, Math.max(10, Math.ceil(text.length / 48))) : Math.min(8, Math.max(3, Math.ceil(text.length / (90 * spd))));
+      const stepDelay = replay
+        ? { base: 56, min: 22, max: 70 }
+        : { base: 32, min: 6, max: 40 };
+      for (let i = 1; i <= targetSteps; i++) {
+        const slice = text.slice(0, Math.ceil((text.length * i) / targetSteps));
+        if (phase === "thinking") {
+          this.updateAgentTurn(wrap, { thinking: slice, phase: "thinking" });
+        } else {
+          this.updateAgentTurn(wrap, { thinking: think, content: slice, phase: "answering" });
+        }
+        await sleepPlayback(stepDelay.base, { min: stepDelay.min, max: stepDelay.max });
       }
-    }
-    if (answer) {
-      for (let i = 1; i <= answerParts; i++) {
-        this.updateAgentTurn(wrap, {
-          thinking: think,
-          content: answer.slice(0, Math.ceil((answer.length * i) / answerParts)),
-          phase: "answering",
-        });
-        await sleepPlayback(28, { min: 4, max: 36 });
+      // Final full text
+      if (phase === "thinking") {
+        this.updateAgentTurn(wrap, { thinking: text, phase: "thinking" });
+      } else {
+        this.updateAgentTurn(wrap, { thinking: think, content: text, phase: "answering" });
       }
+    };
+
+    if (mode === "both" || mode === "thinking") {
+      await streamBlock(think, "thinking");
+    } else if (think) {
+      // answer-only: keep thinking fully visible without re-streaming
+      this.updateAgentTurn(wrap, { thinking: think, phase: "thinking" });
     }
+
+    if (mode === "both" || mode === "answer") {
+      await streamBlock(answer, "answering");
+    }
+  }
+
+  /**
+   * Replay a single tool call with pending → done streaming feel.
+   * Returns after the row is marked done (caller still runs map cinematics).
+   */
+  async revealToolCall(wrap, { name, args = {}, result = null } = {}) {
+    if (!wrap || !name) return;
+    this.appendToolCall(wrap, { name, args, result: null, status: "pending" });
+    this._scrollChatToBottom();
+    const spinMs = isReplayMode() ? 320 : 120;
+    await sleepPlayback(spinMs, { min: isReplayMode() ? 140 : 40, max: isReplayMode() ? 420 : 200 });
+    this.appendToolCall(wrap, { name, args, result, status: "done" });
+    this._scrollChatToBottom();
   }
 
   finishAgentTurn(wrap, { thinking, content, error, toolCalls = [], planContext = null } = {}) {
