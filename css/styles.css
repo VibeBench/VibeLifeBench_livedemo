@@ -792,8 +792,8 @@ select {
   transform: translateY(-6px) scale(0.97);
   transform-origin: top center;
   transition:
-    opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity calc(0.28s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1),
+    transform calc(0.34s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform, opacity;
 }
 
@@ -811,8 +811,8 @@ select {
   opacity: 0;
   transform: translateY(-4px) scale(0.98);
   transition:
-    opacity 0.22s ease,
-    transform 0.22s ease;
+    opacity calc(0.22s / var(--demo-speed, 1)) ease,
+    transform calc(0.22s / var(--demo-speed, 1)) ease;
 }
 
 .status-budget-pop-caret {
@@ -1158,8 +1158,8 @@ select {
   transform: translateY(-6px) scale(0.97);
   transform-origin: top center;
   transition:
-    opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity calc(0.28s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1),
+    transform calc(0.34s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform, opacity;
 }
 
@@ -1177,8 +1177,8 @@ select {
   opacity: 0;
   transform: translateY(-4px) scale(0.98);
   transition:
-    opacity 0.22s ease,
-    transform 0.22s ease;
+    opacity calc(0.22s / var(--demo-speed, 1)) ease,
+    transform calc(0.22s / var(--demo-speed, 1)) ease;
 }
 
 .status-chip-pop-caret {

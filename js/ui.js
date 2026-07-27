@@ -22,10 +22,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260727-card1s";
-import { groupLedgerByDate } from "./ledger.js?v=20260727-card1s";
-import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs } from "./playback.js?v=20260727-card1s";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-card1s";
+} from "./map.js?v=20260727-card1sb";
+import { groupLedgerByDate } from "./ledger.js?v=20260727-card1sb";
+import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs } from "./playback.js?v=20260727-card1sb";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-card1sb";
 
 function kindMeta(kind) {
   const base = {
@@ -1826,7 +1826,7 @@ export class UI {
             detail,
             kind,
             durationMs: isWeather ? 3400 : 3000,
-            holdMs: Math.max(2000, Number(holdMs) || 2000),
+            holdMs: Number(holdMs) || 2000,
             placeId: resolvedPlace,
             geoKey: resolvedGeo,
             roadId: resolvedRoad,
