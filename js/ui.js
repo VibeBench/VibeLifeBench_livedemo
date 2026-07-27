@@ -3,6 +3,7 @@
  */
 import {
   renderLeafletMap,
+  scheduleRenderLeafletMap,
   destroyMap,
   abortMapPlayback,
   pulseMapEvent,
@@ -22,10 +23,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260727-hotelmark";
-import { groupLedgerByDate } from "./ledger.js?v=20260727-hotelmark";
-import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-hotelmark";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-hotelmark";
+} from "./map.js?v=20260727-mapflash";
+import { groupLedgerByDate } from "./ledger.js?v=20260727-mapflash";
+import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-mapflash";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-mapflash";
 
 function kindMeta(kind) {
   const base = {
@@ -1938,7 +1939,10 @@ export class UI {
   }
 
   renderMap(engine) {
-    const result = renderLeafletMap(engine);
+    // Fast replay: coalesce bursty refreshes into one paint / frame to avoid strobing.
+    const result = isReplayMode()
+      ? scheduleRenderLeafletMap(engine)
+      : renderLeafletMap(engine);
     if (!result.ok) {
       this.els.mapPanel.innerHTML = `<div class="map-canvas map-fallback">${L(
         "地图加载失败：",

@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-hotelmark";
-import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-hotelmark";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelmark";
+} from "./routing.js?v=20260727-mapflash";
+import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-mapflash";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-mapflash";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -55,6 +55,15 @@ let dismissedAlertKey = null;
 let mapResizeObs = null;
 let mapResizeTimer = null;
 let pulseTimers = [];
+/** Skip clear+redraw when map paint inputs are unchanged (kills replay flicker). */
+let lastMapPaintSig = "";
+/** Base map layers (places/hotels/roads) — excludes live activity caption churn. */
+let lastMapBaseSig = "";
+/** Skip fitBounds / invalidateSize when camera framing inputs are unchanged. */
+let lastMapCameraSig = "";
+/** Coalesce bursty renderLeafletMap calls (replay tool storms). */
+let mapRenderRaf = null;
+let mapRenderPendingEngine = null;
 /** Agent route-planning overlay (thinking / tools). */
 let planningToken = 0;
 /** Bumped whenever check pills are cleared/repainted — drops stale async paints. */
@@ -1225,7 +1234,7 @@ export async function focusPlanning(opts = {}) {
       try {
         leafletMap.fitBounds(
           window.L.latLngBounds(planningFocusLatLngs),
-          fitOptions({ maxZoom: 10, padding: [48, 48], animate: true })
+          fitOptions({ maxZoom: 10, padding: [48, 48], animate: !isReplayMode() })
         );
       } catch {
         /* ignore */
@@ -2487,7 +2496,7 @@ function fitAgentPlanBounds() {
     setViewInSafeArea(pts[0], 7);
   } else if (pts.length > 1) {
     try {
-      leafletMap.fitBounds(window.L.latLngBounds(pts), fitOptions({ maxZoom: 7, animate: true }));
+      leafletMap.fitBounds(window.L.latLngBounds(pts), fitOptions({ maxZoom: 7 }));
     } catch {
       /* ignore */
     }
@@ -3492,26 +3501,64 @@ export function renderLeafletMap(engine) {
   try {
     ensureLeaflet(host);
     bindMapResize(host);
-    paintLeafletBase(ctx);
-    watchTiles(host);
-    // Wait for baked road polylines so live legs (e.g. SH80) don't flash as straight lines.
-    loadPrecomputedRoutes("./data/routes.json").finally(() => {
-      if (!leafletMap) return;
-      paintLeafletRoutes(lastCtx || ctx);
-      if (lastAgentPlan?.stays?.length) {
-        repaintAgentPlan({ fit: false }).catch(() => {});
-      }
-      requestAnimationFrame(() => {
+
+    const baseSig = mapBaseSignature(ctx);
+    const paintSig = mapPaintSignature(ctx);
+    const camSig = mapCameraSignature(ctx);
+    const baseChanged = baseSig !== lastMapBaseSig;
+    const paintChanged = paintSig !== lastMapPaintSig;
+    const camChanged = camSig !== lastMapCameraSig;
+    const replay = isReplayMode();
+
+    // Unchanged frame during fast replay: keep layers/camera — this is the main flicker fix.
+    if (!paintChanged && !camChanged && leafletMap) {
+      updateBanner(panel, ctx);
+      updateLegend(panel, ctx);
+      return { ok: true, mode: "leaflet", skipped: true };
+    }
+
+    if (baseChanged) {
+      lastMapBaseSig = baseSig;
+      lastMapPaintSig = paintSig;
+      paintLeafletBase(ctx, { fit: false });
+      watchTiles(host);
+      // Wait for baked road polylines so live legs (e.g. SH80) don't flash as straight lines.
+      loadPrecomputedRoutes("./data/routes.json").finally(() => {
         if (!leafletMap) return;
-        if (applyCameraLockIfNeeded()) return;
-        leafletMap.invalidateSize(true);
-        const view = lastCtx || ctx;
-        // Prep / home: keep Shanghai→CHC flight framed; don't let NZ plan-fit steal the camera.
-        if (view?.isHome) fitLeaflet(view);
-        else if (lastAgentPlan?.stays?.length) fitAgentPlanBounds();
-        else fitLeaflet(view);
+        // Stale async paint from an older base refresh — drop it.
+        if (lastMapBaseSig !== baseSig) return;
+        paintLeafletRoutes(lastCtx || ctx);
+        if (lastAgentPlan?.stays?.length) {
+          repaintAgentPlan({ fit: false }).catch(() => {});
+        }
+        // Fit after routes settle only when framing inputs changed.
+        if (camChanged || !lastMapCameraSig) {
+          maybeAutoFitCamera(lastCtx || ctx, camSig, { replay, force: true });
+        }
       });
-    });
+    } else if (paintChanged) {
+      // Live activity / "现在" caption changed — refresh traveler orb only (keep roads & pins).
+      lastMapPaintSig = paintSig;
+      const token = ++drawToken;
+      if (ctx.isHome) {
+        try {
+          activityLayer?.clearLayers();
+        } catch {
+          /* ignore */
+        }
+        stopTravelerAnim();
+        paintHomeActivity(ctx);
+        paintPersistentFlightArcs(ctx);
+      } else {
+        paintLiveActivity(ctx, token).catch(() => {});
+      }
+      if (camChanged || !lastMapCameraSig) {
+        maybeAutoFitCamera(ctx, camSig, { replay, force: true });
+      }
+    } else if (camChanged || !lastMapCameraSig) {
+      // Paint unchanged but camera framing should update (e.g. plan appeared).
+      maybeAutoFitCamera(ctx, camSig, { replay, force: true });
+    }
   } catch (err) {
     console.warn(err);
     host.innerHTML = `<div class="map-fallback">${L("地图渲染失败：", "Map render failed: ")}${escapeHtml(err.message || String(err))}</div>`;
@@ -3521,6 +3568,106 @@ export function renderLeafletMap(engine) {
   updateBanner(panel, ctx);
   updateLegend(panel, ctx);
   return { ok: true, mode: "leaflet" };
+}
+
+/** Coalesce map paints during加速回放 tool storms (many refreshDashboard / frame). */
+export function scheduleRenderLeafletMap(engine) {
+  mapRenderPendingEngine = engine;
+  if (mapRenderRaf) return { ok: true, mode: "scheduled" };
+  mapRenderRaf = requestAnimationFrame(() => {
+    mapRenderRaf = null;
+    const eng = mapRenderPendingEngine;
+    mapRenderPendingEngine = null;
+    if (eng) renderLeafletMap(eng);
+  });
+  return { ok: true, mode: "scheduled" };
+}
+
+function mapBaseSignature(ctx) {
+  const hotels = (ctx.bookedHotels || [])
+    .map((h) => `${h.hotel_id || h.id || ""}:${h.check_in || ""}:${h.status || ""}`)
+    .sort()
+    .join("|");
+  const roads = (ctx.activeRoads || [])
+    .map((e) => e.event_id || e.road_id)
+    .sort()
+    .join("|");
+  const transit = (ctx.activeTransit || [])
+    .map((e) => e.event_id || e.line_id)
+    .sort()
+    .join("|");
+  const revealed = [...(ctx.revealedIds || [])].sort().join(",");
+  const flags = ctx.flags || {};
+  return [
+    ctx.isHome ? 1 : 0,
+    ctx.geo || "",
+    ctx.planDate || "",
+    ctx.herePlaceId || "",
+    revealed,
+    roads,
+    transit,
+    hotels,
+    flags.flightBooked ? 1 : 0,
+    flags.showOutboundFlightArc ? 1 : 0,
+    flags.showPlannedArrival ? 1 : 0,
+    flags.atDepartureAirport ? 1 : 0,
+    flags.inNewZealand ? 1 : 0,
+    lastAgentPlan?.stays?.map((s) => s.placeId).join(",") || "",
+  ].join("::");
+}
+
+function mapPaintSignature(ctx) {
+  // Full paint identity = base layers + live activity caption on the traveler orb.
+  return [mapBaseSignature(ctx), ctx.activity?.kind || "", ctx.activity?.label || ""].join("##");
+}
+
+function mapCameraSignature(ctx) {
+  const flags = ctx.flags || {};
+  return [
+    ctx.isHome ? 1 : 0,
+    ctx.geo || "",
+    ctx.planDate || "",
+    ctx.herePlaceId || "",
+    (ctx.revealedIds && ctx.revealedIds.size) || 0,
+    flags.showOutboundFlightArc ? 1 : 0,
+    flags.flightBooked ? 1 : 0,
+    flags.showPlannedArrival ? 1 : 0,
+    flags.inNewZealand ? 1 : 0,
+    lastAgentPlan?.stays?.length || 0,
+  ].join("::");
+}
+
+function maybeAutoFitCamera(ctx, camSig, { replay = false, force = false } = {}) {
+  if (!leafletMap || !ctx) return;
+  if (isCameraLocked() || flightCrossingActive) return;
+  if (!force && camSig === lastMapCameraSig) return;
+  lastMapCameraSig = camSig || mapCameraSignature(ctx);
+
+  const runFit = () => {
+    if (!leafletMap || !lastCtx) return;
+    if (applyCameraLockIfNeeded()) return;
+    const view = lastCtx;
+    if (view?.isHome) fitLeaflet(view);
+    else if (lastAgentPlan?.stays?.length) fitAgentPlanBounds();
+    else fitLeaflet(view);
+  };
+
+  if (replay) {
+    // No invalidateSize / rAF bounce — those reload tiles and look like strobing.
+    runFit();
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    if (!leafletMap) return;
+    if (applyCameraLockIfNeeded()) return;
+    try {
+      leafletMap.invalidateSize(false);
+    } catch {
+      /* ignore */
+    }
+    runFit();
+  });
 }
 
 function updateLegend(panel, ctx) {
@@ -3577,6 +3724,18 @@ export function destroyMap() {
   agentPlanLayer = null;
   lockedFlightArcs = new Map();
   lastFlightCatalogSig = "";
+  lastMapPaintSig = "";
+  lastMapBaseSig = "";
+  lastMapCameraSig = "";
+  if (mapRenderRaf) {
+    try {
+      cancelAnimationFrame(mapRenderRaf);
+    } catch {
+      /* ignore */
+    }
+  }
+  mapRenderRaf = null;
+  mapRenderPendingEngine = null;
   flightPlanEntries = [];
   lastCtx = null;
 }
@@ -3963,15 +4122,17 @@ function ensureLeaflet(host) {
   roadCheckLayer = window.L.layerGroup({ pane: "roadCheckPane" }).addTo(leafletMap);
 }
 
-function paintLeafletBase(ctx) {
+function paintLeafletBase(ctx, { fit = true } = {}) {
   leafletLayer.clearLayers();
 
   if (ctx.isHome) {
     paintHomeBase(ctx);
     // Booked NZ hotels stay on the map at their town coords (visible after pin cinematic).
     paintBookedHotelMarks(ctx);
-    fitLeaflet(ctx);
-    setTimeout(() => leafletMap && leafletMap.invalidateSize(), 40);
+    if (fit) fitLeaflet(ctx);
+    if (!isReplayMode()) {
+      setTimeout(() => leafletMap && leafletMap.invalidateSize(), 40);
+    }
     return;
   }
 
@@ -4073,8 +4234,10 @@ function paintLeafletBase(ctx) {
   // Dedicated hotel layer at resolved town coords (not glued to place/D# pins).
   paintBookedHotelMarks(ctx);
 
-  fitLeaflet(ctx);
-  setTimeout(() => leafletMap && leafletMap.invalidateSize(), 40);
+  if (fit) fitLeaflet(ctx);
+  if (!isReplayMode()) {
+    setTimeout(() => leafletMap && leafletMap.invalidateSize(), 40);
+  }
 }
 
 function paintHomeBase(ctx) {
