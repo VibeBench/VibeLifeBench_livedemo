@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-traj1";
-import { DemoEngine } from "./engine.js?v=20260727-traj1";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-card1s";
+import { DemoEngine } from "./engine.js?v=20260727-card1s";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260727-traj1";
-import { Trajectory, isValidRecording } from "./trajectory.js?v=20260727-traj1";
-import { UI } from "./ui.js?v=20260727-traj1";
+} from "./agent.js?v=20260727-card1s";
+import { Trajectory, isValidRecording } from "./trajectory.js?v=20260727-card1s";
+import { UI } from "./ui.js?v=20260727-card1s";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,14 +18,15 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260727-traj1";
+} from "./map.js?v=20260727-card1s";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
   playbackMs,
   sleepPlayback,
   playbackSpeedLabel,
-} from "./playback.js?v=20260727-traj1";
+  setReplayMode,
+} from "./playback.js?v=20260727-card1s";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -39,7 +40,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260727-traj1";
+} from "./i18n.js?v=20260727-card1s";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -976,6 +977,7 @@ async function tryLoadBakedTrajectory() {
 function stopReplay() {
   replaying = false;
   replayingFromBaked = false;
+  setReplayMode(false);
   replayAgentByEvent = new Map();
   const btn = document.querySelector("#btnReplay");
   if (btn) {
@@ -1071,6 +1073,7 @@ async function startAcceleratedReplay() {
 
   replaying = true;
   replayingFromBaked = fromBaked;
+  setReplayMode(true);
   syncReplayButton();
   ui.toast(
     fromBaked

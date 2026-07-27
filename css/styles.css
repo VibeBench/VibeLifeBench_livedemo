@@ -1650,7 +1650,7 @@ select {
 }
 
 .map-toast-rail .map-pulse-card.is-leaving {
-  animation: map-pulse-leave 0.45s ease forwards;
+  animation: map-pulse-leave calc(0.45s / var(--demo-speed, 1)) ease forwards;
 }
 
 .float-events {
@@ -3513,7 +3513,7 @@ select {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   transform-origin: 50% 100%;
-  animation: map-pulse-enter 0.45s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+  animation: map-pulse-enter calc(0.45s / var(--demo-speed, 1)) cubic-bezier(0.2, 0.9, 0.2, 1) both;
 }
 
 .map-pulse-ring {
@@ -3860,7 +3860,7 @@ select {
 }
 
 .map-event-pulse.is-leaving .map-pulse-card {
-  animation: map-pulse-leave 0.5s ease forwards;
+  animation: map-pulse-leave calc(0.5s / var(--demo-speed, 1)) ease forwards;
 }
 
 .pulse-weather .map-pulse-ring {
@@ -4103,27 +4103,27 @@ select {
 }
 
 .map-hotel-fx.is-book .map-hotel-fx-pin {
-  animation: hotelFxPopIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: hotelFxPopIn calc(0.55s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .map-hotel-fx.is-book .map-hotel-fx-card {
-  animation: hotelFxCardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: hotelFxCardIn calc(0.45s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .map-hotel-fx.is-cancel .map-hotel-fx-pin {
-  animation: hotelFxShakeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: hotelFxShakeIn calc(0.5s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .map-hotel-fx.is-cancel .map-hotel-fx-card {
-  animation: hotelFxCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: hotelFxCardIn calc(0.4s / var(--demo-speed, 1)) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .map-hotel-fx.is-card-out .map-hotel-fx-card {
-  animation: hotelFxCardOut 0.35s ease forwards;
+  animation: hotelFxCardOut calc(0.35s / var(--demo-speed, 1)) ease forwards;
 }
 
 .map-hotel-fx.is-settle .map-hotel-fx-pin {
-  animation: hotelFxSettle 0.45s ease forwards;
+  animation: hotelFxSettle calc(0.45s / var(--demo-speed, 1)) ease forwards;
 }
 
 .map-hotel-fx.is-settle .map-hotel-fx-ring,

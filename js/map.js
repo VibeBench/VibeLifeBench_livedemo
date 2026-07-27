@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-traj1";
-import { playbackMs } from "./playback.js?v=20260727-traj1";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-traj1";
+} from "./routing.js?v=20260727-card1s";
+import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-card1s";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-card1s";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -222,9 +222,10 @@ export function pulseMapEvent({
     .slice(0, 24);
 
   const at = resolvePulseLatLng({ placeId, geoKey, roadId, latlng });
-  const hold = Math.max(2000, Number(holdMs) || 2000);
-  // enter ~400ms + hold + leave ~450ms
-  const totalMs = Math.max(durationMs, hold + 900);
+  const hold = cardDisplayMs(Number(holdMs) || 2000);
+  const tail = isReplayMode() ? cardDisplayMs(450) : 900;
+  // enter + hold + leave — replay caps via cardDisplayMs (~1s)
+  const totalMs = Math.max(cardDisplayMs(durationMs), hold + tail);
 
   // Weather: place bubble tip on the queried location (prefer city center coords).
   if (kindCls === "weather" || /weather/i.test(String(kind || ""))) {
@@ -256,7 +257,7 @@ export function pulseMapEvent({
       /^(email|mail)$/i.test(kindCls) || String(icon || "").includes("✉️");
     return pulseSmsOnUser({
       icon: icon || (isMail ? "✉️" : "💬"),
-      durationMs: Math.min(2800, totalMs),
+      durationMs: Math.min(cardDisplayMs(2800), totalMs),
     });
   }
 
@@ -275,8 +276,8 @@ export function pulseMapEvent({
   }
 
   if (rail !== false) pushToastRail({ icon, head, sub, kindCls, durationMs: totalMs });
-  pulseTinyPin({ icon, durationMs: Math.min(2800, totalMs) });
-  return new Promise((r) => setTimeout(() => r(true), Math.min(2800, totalMs)));
+  pulseTinyPin({ icon, durationMs: Math.min(cardDisplayMs(2800), totalMs) });
+  return new Promise((r) => setTimeout(() => r(true), Math.min(cardDisplayMs(2800), totalMs)));
 }
 
 function clearHotelFx() {
@@ -397,10 +398,12 @@ export function playHotelPinCinematic({
       zIndexOffset: 1800,
     }).addTo(hotelFxLayer);
 
-    // Card hold ~1s, then fade card; pin settles / removes.
-    const cardHold = playbackMs(1000, { min: 420 });
-    const fadeOut = playbackMs(420, { min: 120 });
-    const pinTail = playbackMs(isCancel ? 380 : 520, { min: 100 });
+    // Card hold ~1s live / ≤1s in加速回放, then fade card; pin settles / removes.
+    const cardHold = cardDisplayMs(1000);
+    const fadeOut = isReplayMode() ? cardDisplayMs(280) : playbackMs(420, { min: 120 });
+    const pinTail = isReplayMode()
+      ? cardDisplayMs(isCancel ? 280 : 360)
+      : playbackMs(isCancel ? 380 : 520, { min: 100 });
 
     const tCard = setTimeout(() => {
       if (!isMapSession(session)) return;
@@ -492,7 +495,8 @@ function pushToastRail({ icon, head, sub, kindCls, durationMs }) {
     </span>`;
   rail.appendChild(card);
 
-  const fadeAt = Math.max(1600, durationMs - 500);
+  const total = cardDisplayMs(durationMs);
+  const fadeAt = Math.max(cardDisplayMs(400), total - cardDisplayMs(350));
   const t1 = setTimeout(() => card.classList.add("is-leaving"), fadeAt);
   const t2 = setTimeout(() => {
     try {
@@ -500,7 +504,7 @@ function pushToastRail({ icon, head, sub, kindCls, durationMs }) {
     } catch {
       /* ignore */
     }
-  }, durationMs);
+  }, total);
   pulseTimers.push(t1, t2);
   if (pulseTimers.length > 48) pulseTimers = pulseTimers.slice(-24);
 }
@@ -568,9 +572,11 @@ function pulseWeatherEmoji({ icon = "🌦️", durationMs = 3200, holdMs = 2000,
       zIndexOffset: 1800,
     }).addTo(pulseLayer);
 
-    const hold = Math.max(2000, Number(holdMs) || 2000);
-    const fadeAt = 400 + hold;
-    const total = Math.max(durationMs, fadeAt + 450);
+    const hold = cardDisplayMs(Number(holdMs) || 2000);
+    const enterMs = isReplayMode() ? cardDisplayMs(400) : 400;
+    const leaveMs = isReplayMode() ? cardDisplayMs(450) : 450;
+    const fadeAt = enterMs + hold;
+    const total = Math.max(cardDisplayMs(durationMs), fadeAt + leaveMs);
     const t1 = setTimeout(() => {
       try {
         marker.getElement()?.querySelector(".map-weather-emoji")?.classList.add("is-leaving");
@@ -616,7 +622,7 @@ function pulseSmsOnUser({ icon = "💬", durationMs = 2600 } = {}) {
     }
     const latlng = resolveUserLatLng();
     if (!latlng) {
-      pulseTinyPin({ icon, durationMs: Math.min(2400, durationMs) });
+      pulseTinyPin({ icon, durationMs: Math.min(cardDisplayMs(2400), cardDisplayMs(durationMs)) });
       resolve(true);
       return;
     }
@@ -638,14 +644,14 @@ function pulseSmsOnUser({ icon = "💬", durationMs = 2600 } = {}) {
       zIndexOffset: 2200,
     }).addTo(pulseLayer);
 
-    const total = Math.max(1800, Number(durationMs) || 2600);
+    const total = cardDisplayMs(Number(durationMs) || 2600);
     const t1 = setTimeout(() => {
       try {
         marker.getElement()?.querySelector(".map-sms-ping")?.classList.add("is-leaving");
       } catch {
         /* ignore */
       }
-    }, Math.max(1000, total - 380));
+    }, Math.max(cardDisplayMs(500), total - cardDisplayMs(280)));
     const t2 = setTimeout(() => {
       try {
         pulseLayer?.removeLayer(marker);
@@ -725,11 +731,13 @@ function pulsePlaceBubble({ icon, head, sub, kindCls, latlng, durationMs, holdMs
     }).addTo(pulseLayer);
 
     // Soft ping on the exact place the tip points to
-    pulseTinyPin({ icon: "", durationMs: Math.min(2400, durationMs), latlng });
+    pulseTinyPin({ icon: "", durationMs: Math.min(cardDisplayMs(2400), durationMs), latlng });
 
-    const hold = Math.max(2000, Number(holdMs) || 2000);
-    const fadeAt = 400 + hold; // enter anim ~400ms, then hold ≥2s
-    const total = Math.max(Number(durationMs) || 0, fadeAt + 450);
+    const hold = cardDisplayMs(Number(holdMs) || 2000);
+    const enterMs = isReplayMode() ? cardDisplayMs(400) : 400;
+    const leaveMs = isReplayMode() ? cardDisplayMs(450) : 450;
+    const fadeAt = enterMs + hold;
+    const total = Math.max(Number(durationMs) || 0, fadeAt + leaveMs);
     const t1 = setTimeout(() => {
       try {
         const el = marker
@@ -1618,8 +1626,8 @@ function setAgentPlanBadge(text) {
   el.classList.remove("is-fading");
   el.textContent = text;
   // Toast only — stay markers remain; don't leave this pill stuck after planning.
-  const hold = playbackMs(2600, { min: 800 });
-  const fade = playbackMs(320, { min: 100 });
+  const hold = cardDisplayMs(2600);
+  const fade = cardDisplayMs(320);
   agentPlanBadgeTimer = setTimeout(() => {
     el.classList.add("is-fading");
     agentPlanBadgeTimer = setTimeout(() => {

@@ -22,10 +22,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260727-traj1";
-import { groupLedgerByDate } from "./ledger.js?v=20260727-traj1";
-import { playbackMs, sleepPlayback, getPlaybackSpeed } from "./playback.js?v=20260727-traj1";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-traj1";
+} from "./map.js?v=20260727-card1s";
+import { groupLedgerByDate } from "./ledger.js?v=20260727-card1s";
+import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs } from "./playback.js?v=20260727-card1s";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260727-card1s";
 
 function kindMeta(kind) {
   const base = {
@@ -1127,7 +1127,7 @@ export class UI {
     clearTimeout(wrap._flashTimer);
     wrap._flashTimer = setTimeout(() => {
       wrap.classList.remove("status-chip-val-flash");
-    }, playbackMs(1100, { min: 200 }));
+    }, cardDisplayMs(1100));
     requestAnimationFrame(() => this.armStatusChipMarquees());
   }
 
@@ -1284,13 +1284,13 @@ export class UI {
       clearTimeout(chip._landTimer);
       chip._landTimer = setTimeout(() => {
         chip.classList.remove("status-chip-landed", "status-chip-landed-budget");
-      }, playbackMs(1200, { min: 220 }));
+      }, cardDisplayMs(1200));
 
       const onResize = () => place();
       window.addEventListener("resize", onResize);
 
-      const hold = playbackMs(reduceMotion ? 900 : 2400, { min: 420 });
-      const outMs = playbackMs(280, { min: 80 });
+      const hold = cardDisplayMs(reduceMotion ? 900 : 2400);
+      const outMs = cardDisplayMs(280);
       const done = () => {
         window.removeEventListener("resize", onResize);
         clearTimeout(hideTimer);
@@ -1431,13 +1431,13 @@ export class UI {
       clearTimeout(chip._landTimer);
       chip._landTimer = setTimeout(() => {
         chip.classList.remove("status-chip-landed", "status-chip-landed-visa");
-      }, playbackMs(1200, { min: 220 }));
+      }, cardDisplayMs(1200));
 
       const onResize = () => place();
       window.addEventListener("resize", onResize);
 
-      const hold = playbackMs(reduceMotion ? 1000 : 2600, { min: 480 });
-      const outMs = playbackMs(280, { min: 80 });
+      const hold = cardDisplayMs(reduceMotion ? 1000 : 2600);
+      const outMs = cardDisplayMs(280);
       const done = () => {
         window.removeEventListener("resize", onResize);
         clearTimeout(hideTimer);
@@ -1590,12 +1590,12 @@ export class UI {
       clearTimeout(chip._landTimer);
       chip._landTimer = setTimeout(() => {
         chip.classList.remove("status-chip-landed", landCls);
-      }, playbackMs(1200, { min: 220 }));
+      }, cardDisplayMs(1200));
 
       const onResize = () => place();
       window.addEventListener("resize", onResize);
-      const hold = playbackMs(reduceMotion ? 900 : 2400, { min: 420 });
-      const outMs = playbackMs(280, { min: 80 });
+      const hold = cardDisplayMs(reduceMotion ? 900 : 2400);
+      const outMs = cardDisplayMs(280);
       const done = () => {
         window.removeEventListener("resize", onResize);
         clearTimeout(hideTimer);
@@ -2366,7 +2366,7 @@ export class UI {
             await Promise.resolve(
               focusGeoKey(geo, { label: `${L("工具：天气", "Tool · weather")} · ${place || geo}` })
             );
-            await new Promise((r) => setTimeout(r, 320));
+            await new Promise((r) => setTimeout(r, cardDisplayMs(320)));
           }
           return pulseMapEvent({
             icon: wIcon,
@@ -3002,25 +3002,27 @@ export class UI {
     if (!wrap) return;
     const think = String(thinking || "");
     const answer = String(content || "");
+    const spd = Math.max(getPlaybackSpeed(), 1);
+    // Replay: dump text in 1–2 chunks; live cache-replay still soft-streams a bit.
+    const thinkParts = Math.max(1, Math.min(spd >= 4 ? 2 : 6, Math.ceil(think.length / (120 * spd))));
+    const answerParts = Math.max(1, Math.min(spd >= 4 ? 2 : 5, Math.ceil(answer.length / (90 * spd))));
     if (think) {
-      const parts = Math.max(1, Math.min(6, Math.ceil(think.length / (120 * getPlaybackSpeed()))));
-      for (let i = 1; i <= parts; i++) {
+      for (let i = 1; i <= thinkParts; i++) {
         this.updateAgentTurn(wrap, {
-          thinking: think.slice(0, Math.ceil((think.length * i) / parts)),
+          thinking: think.slice(0, Math.ceil((think.length * i) / thinkParts)),
           phase: "thinking",
         });
-        await sleepPlayback(36, { min: 8 });
+        await sleepPlayback(36, { min: 4, max: 40 });
       }
     }
     if (answer) {
-      const parts = Math.max(1, Math.min(5, Math.ceil(answer.length / (90 * getPlaybackSpeed()))));
-      for (let i = 1; i <= parts; i++) {
+      for (let i = 1; i <= answerParts; i++) {
         this.updateAgentTurn(wrap, {
           thinking: think,
-          content: answer.slice(0, Math.ceil((answer.length * i) / parts)),
+          content: answer.slice(0, Math.ceil((answer.length * i) / answerParts)),
           phase: "answering",
         });
-        await sleepPlayback(28, { min: 6 });
+        await sleepPlayback(28, { min: 4, max: 36 });
       }
     }
   }
