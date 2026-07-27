@@ -6,7 +6,7 @@
  *   onStream({ thinking, content, phase, toolHint })
  *   phase: 'thinking' | 'answering' | 'tool' | 'done'
  */
-import { L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelemoji";
+import { L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelfocus2";
 
 const DEFAULT_BASE = "https://api.deepseek.com";
 const DEFAULT_MODEL = "deepseek-v4-pro";
