@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-langbtn";
-import { playbackMs } from "./playback.js?v=20260727-langbtn";
-import { t, L, getLocale } from "./i18n.js?v=20260727-langbtn";
+} from "./routing.js?v=20260727-tasken";
+import { playbackMs } from "./playback.js?v=20260727-tasken";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-tasken";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -3462,14 +3462,19 @@ function buildMapContext(engine) {
   const places = maps.places || [];
   const roads = maps.roads || [];
   const placeGeo = { ...DEFAULT_PLACE_GEO, ...(maps.place_geo_map || {}) };
-  const state = view.state;
+  // Keep Chinese demo_action for classifyActivity matchers; show localized label on the map.
+  const stateRaw = view.state;
+  const state = localizeUserState(stateRaw) || stateRaw;
   const geo = state?.geo_key || null;
   const planDate = planHorizonDate(engine, view);
   const revealedIds = revealedPlaceIds(engine, planDate);
   const home = resolveHome(view.env);
-  const action = String(state?.demo_action || "");
+  const actionRaw = String(stateRaw?.demo_action || "");
+  const action = String(state?.demo_action || actionRaw);
   // Home/China base map until actually in NZ (not merely "no trip day yet")
   const isHome = Boolean(flags.showShanghaiHome ?? true) && !flags.inNewZealand;
+  const activity = classifyActivity(actionRaw, { isHome });
+  if (action && activity) activity.label = action;
 
   return {
     engine,
@@ -3487,7 +3492,7 @@ function buildMapContext(engine) {
     action,
     isHome,
     flags,
-    activity: classifyActivity(action, { isHome }),
+    activity,
     locations: view.env?.weather?.locations || [],
     activeRoads: (maps.road_events || []).filter((e) => Number(e.active) === 1),
     activeTransit: (maps.transit_events || []).filter((e) => Number(e.active) === 1),
@@ -3583,7 +3588,7 @@ function classifyActivity(action, { isHome = false } = {}) {
   if (/漫步|游览|景点|地热|湖畔休息|市区/.test(a)) return { kind: "sightseeing", emoji: "📸", label: a };
   if (/比较房车|房车/.test(a)) return { kind: "rental", emoji: "🚐", label: a };
   if (
-    /在家|规划|计划|签证|比较|核对|查询|记录|邮件|收尾|整理|准备|天气预警|出发前/.test(
+    /在家|规划|计划|签证|比较|核对|查询|记录|邮件|收尾|整理|准备|天气预警|出发前|planning|checking|comparing|authoriz|review|prep|at home/i.test(
       a
     )
   ) {
