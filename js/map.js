@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260727-routstrip";
-import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-routstrip";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-routstrip";
+} from "./routing.js?v=20260727-hotelmark";
+import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260727-hotelmark";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelmark";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -3668,6 +3668,7 @@ function buildMapContext(engine) {
     activeTransit: (maps.transit_events || []).filter((e) => Number(e.active) === 1),
     herePlaceId: geoKeyToPlaceId(geo, placeGeo),
     hotelsByPlace: hotelsByPlace(view.env?.ledger?.hotels || []),
+    bookedHotels: collectBookedHotels(view.env),
   };
 }
 
@@ -3679,6 +3680,143 @@ function hotelsByPlace(hotels) {
     map[h.place_id].push(h);
   }
   return map;
+}
+
+/** Confirmed bookings from ledger + live env.hotels (agent book_hotel). */
+function collectBookedHotels(env) {
+  const out = [];
+  const seen = new Set();
+  const push = (h) => {
+    if (!h || h.status === "cancelled") return;
+    const checkIn = h.check_in ? String(h.check_in).slice(0, 10) : "";
+    const key = `${h.hotel_id || h.id || h.name || ""}_${checkIn}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(h);
+  };
+  for (const h of env?.ledger?.hotels || []) push(h);
+  for (const h of Object.values(env?.hotels || {})) push(h);
+  return out;
+}
+
+/**
+ * Resolve a booked hotel to map lat/lng.
+ * Prefer city geo (weather / GEO_FALLBACK) over airport place pins so the 🏨
+ * sits at the stay town, not stacked on the D# itinerary marker at CHC/AKL.
+ */
+function resolveHotelLatLng(ctx, hotel) {
+  if (!hotel) return null;
+  const name = hotel.name || hotel.hotel_name || "";
+  const hotelId = hotel.hotel_id || hotel.id || "";
+  const location = hotel.location || "";
+  const geo = resolveHotelGeoKey({
+    geoKey: hotel.geo_key,
+    hotelName: name,
+    hotelId,
+    location,
+  });
+  const placeId = resolveHotelPlaceId({
+    placeId: hotel.place_id,
+    hotelName: name,
+    hotelId,
+    location,
+    geoKey: geo || hotel.geo_key,
+  });
+
+  if (geo) {
+    const loc = (ctx?.locations || []).find(
+      (l) => String(l.geo_key || "").toLowerCase() === String(geo).toLowerCase()
+    );
+    if (loc && Number.isFinite(Number(loc.lat)) && Number.isFinite(Number(loc.lng))) {
+      return { lat: Number(loc.lat), lng: Number(loc.lng), placeId, geoKey: geo };
+    }
+    const fb = GEO_FALLBACK_COORDS[String(geo).toLowerCase()];
+    if (fb) return { lat: fb[0], lng: fb[1], placeId, geoKey: geo };
+  }
+
+  if (placeId) {
+    const placeGeo =
+      DEFAULT_PLACE_GEO[placeId] ||
+      ctx?.placeGeo?.[placeId] ||
+      null;
+    if (placeGeo) {
+      const loc = (ctx?.locations || []).find(
+        (l) => String(l.geo_key || "").toLowerCase() === String(placeGeo).toLowerCase()
+      );
+      if (loc && Number.isFinite(Number(loc.lat)) && Number.isFinite(Number(loc.lng))) {
+        return { lat: Number(loc.lat), lng: Number(loc.lng), placeId, geoKey: placeGeo };
+      }
+      const fb = GEO_FALLBACK_COORDS[String(placeGeo).toLowerCase()];
+      // Prefer town center over airport/place hub so 🏨 ≠ D# pin.
+      if (fb) return { lat: fb[0], lng: fb[1], placeId, geoKey: placeGeo };
+    }
+    const p = ctx?.placeById?.[placeId];
+    if (p?.lat != null && p?.lng != null) {
+      return { lat: Number(p.lat), lng: Number(p.lng), placeId, geoKey: placeGeo || geo };
+    }
+  }
+
+  return null;
+}
+
+/** Persistent 🏨 markers at booked hotel locations (any time after book_hotel). */
+function paintBookedHotelMarks(ctx) {
+  if (!window.L || !leafletLayer) return;
+  const hotels = ctx?.bookedHotels || [];
+  if (!hotels.length) return;
+
+  // Stay pins (D#) sit on place hubs — nudge hotel if it would land on the same spot.
+  const stayPts = [];
+  for (const s of lastAgentPlan?.stays || []) {
+    const p = ctx.placeById?.[s.placeId];
+    if (p?.lat != null) stayPts.push([Number(p.lat), Number(p.lng)]);
+  }
+  if (ctx.herePlaceId && ctx.placeById?.[ctx.herePlaceId]) {
+    const p = ctx.placeById[ctx.herePlaceId];
+    stayPts.push([Number(p.lat), Number(p.lng)]);
+  }
+
+  const painted = new Set();
+  for (const h of hotels) {
+    const at = resolveHotelLatLng(ctx, h);
+    if (!at) continue;
+    let { lat, lng } = at;
+    const dedupe = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+    // Slight east offset when coinciding with a day-stay marker or another hotel.
+    const nearStay = stayPts.some(
+      ([slat, slng]) => Math.abs(slat - lat) < 0.012 && Math.abs(slng - lng) < 0.012
+    );
+    if (nearStay || painted.has(dedupe)) {
+      lng += 0.018;
+    }
+    painted.add(`${lat.toFixed(4)},${lng.toFixed(4)}`);
+
+    const name = h.name || h.hotel_name || L("住宿", "Stay");
+    const checkIn = h.check_in ? String(h.check_in).slice(0, 10) : "";
+    const tip = [name, checkIn, h.refundable ? L("可退", "refundable") : null]
+      .filter(Boolean)
+      .join(" · ");
+
+    window.L.marker([lat, lng], {
+      icon: window.L.divIcon({
+        className: "map-emoji-icon hotel-badge",
+        html: `<span class="hotel-badge-pill" title="${escapeHtml(tip)}">🏨</span>`,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13],
+      }),
+      zIndexOffset: 850,
+      interactive: true,
+    })
+      .addTo(leafletLayer)
+      .bindTooltip(tip, { direction: "top", offset: [0, -10] })
+      .bindPopup(
+        `<strong>🏨 ${escapeHtml(name)}</strong>` +
+          (checkIn ? `<br/>${L("入住", "Check-in")} ${escapeHtml(checkIn)}` : "") +
+          (h.price_nzd != null || h.nightly_price != null
+            ? `<br/>NZ$${escapeHtml(String(h.price_nzd ?? h.nightly_price))}`
+            : "")
+      );
+  }
 }
 
 function resolveHome(env) {
@@ -3830,6 +3968,8 @@ function paintLeafletBase(ctx) {
 
   if (ctx.isHome) {
     paintHomeBase(ctx);
+    // Booked NZ hotels stay on the map at their town coords (visible after pin cinematic).
+    paintBookedHotelMarks(ctx);
     fitLeaflet(ctx);
     setTimeout(() => leafletMap && leafletMap.invalidateSize(), 40);
     return;
@@ -3928,25 +4068,10 @@ function paintLeafletBase(ctx) {
       `<strong>${escapeHtml(p.name)}</strong><br/>${escapeHtml(p.city || "")} · ${escapeHtml(p.category || "")}` +
         (p.rating != null ? `<br/>★ ${p.rating}` : "")
     );
-
-    const stays = ctx.hotelsByPlace?.[p.place_id];
-    if (stays?.length && !(isHere && liveHere)) {
-      const tip = stays.map((h) => `${h.name}${h.refundable ? ` ·${L("可退", "refundable")}` : ""}`).join(" / ");
-      window.L.marker([p.lat, p.lng], {
-        icon: window.L.divIcon({
-          className: "map-emoji-icon hotel-badge",
-          html: `<span class="hotel-badge-pill">🏨</span>`,
-          iconSize: [22, 22],
-          // Sit clear of the D# / date stay pill (same latlng).
-          iconAnchor: [-28, 18],
-        }),
-        zIndexOffset: 400,
-        interactive: true,
-      })
-        .addTo(leafletLayer)
-        .bindTooltip(tip, { direction: "right", offset: [8, 0] });
-    }
   }
+
+  // Dedicated hotel layer at resolved town coords (not glued to place/D# pins).
+  paintBookedHotelMarks(ctx);
 
   fitLeaflet(ctx);
   setTimeout(() => leafletMap && leafletMap.invalidateSize(), 40);

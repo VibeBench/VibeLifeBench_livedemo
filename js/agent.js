@@ -6,7 +6,7 @@
  *   onStream({ thinking, content, phase, toolHint })
  *   phase: 'thinking' | 'answering' | 'tool' | 'done'
  */
-import { L, getLocale, localizeUserState } from "./i18n.js?v=20260727-routstrip";
+import { L, getLocale, localizeUserState } from "./i18n.js?v=20260727-hotelmark";
 
 const DEFAULT_BASE = "https://api.deepseek.com";
 const DEFAULT_MODEL = "deepseek-v4-pro";
@@ -968,13 +968,21 @@ export class TravelAgent {
           resolvePlaceIdFromText(
             `${args.hotel_name || ""} ${args.location || ""} ${args.geo_key || ""} ${hotel_id}`
           );
+        const geo_key =
+          args.geo_key ||
+          env.hotels[key]?.geo_key ||
+          placeIdToGeoKey(place_id) ||
+          resolveGeoKeyFromText(
+            `${args.hotel_name || ""} ${args.location || ""} ${hotel_id}`
+          ) ||
+          null;
         env.hotels[key] = {
           ...(env.hotels[key] || {}),
           hotel_id,
           hotel_name: args.hotel_name,
           name: args.hotel_name,
           place_id: place_id || env.hotels[key]?.place_id || null,
-          geo_key: args.geo_key || env.hotels[key]?.geo_key || null,
+          geo_key,
           location: args.location || env.hotels[key]?.location || null,
           check_in,
           check_out: args.check_out || null,
@@ -1201,6 +1209,55 @@ function resolvePlaceIdFromText(text) {
   ];
   for (const [re, id] of rules) {
     if (re.test(s)) return id;
+  }
+  return null;
+}
+
+const PLACE_ID_TO_GEO = {
+  pl_chc_airport: "christchurch",
+  pl_tekapo: "tekapo",
+  pl_mt_cook: "mt_cook",
+  pl_queenstown: "queenstown",
+  pl_milford: "milford",
+  pl_wanaka: "wanaka",
+  pl_picton: "picton",
+  pl_wellington: "wellington",
+  pl_taupo: "taupo",
+  pl_rotorua: "rotorua",
+  pl_akl_airport: "auckland",
+};
+
+function placeIdToGeoKey(placeId) {
+  return PLACE_ID_TO_GEO[placeId] || null;
+}
+
+/** Extra town names used when place_id is missing (Geraldine / Kaikoura etc.). */
+function resolveGeoKeyFromText(text) {
+  const s = String(text || "");
+  if (!s.trim()) return null;
+  const rules = [
+    [/Geraldine/i, "geraldine"],
+    [/凯库拉|Kaikoura|Kaikōura/i, "kaikoura"],
+    [/Twizel/i, "twizel"],
+    [/Dunedin|达尼丁/i, "dunedin"],
+    [/Nelson|纳尔逊/i, "nelson"],
+    [/Hanmer/i, "hanmer"],
+    [/Frankton/i, "frankton"],
+    [/Te\s*Anau|蒂阿瑙/i, "te_anau"],
+    [/库克山|Mt\.?\s*Cook|Aoraki/i, "mt_cook"],
+    [/蒂卡波|Tekapo/i, "tekapo"],
+    [/皇后镇|Queenstown/i, "queenstown"],
+    [/瓦纳卡|Wanaka/i, "wanaka"],
+    [/米尔福德|Milford/i, "milford"],
+    [/皮克顿|Picton/i, "picton"],
+    [/惠灵顿|Wellington/i, "wellington"],
+    [/陶波|Taup[oō]/i, "taupo"],
+    [/罗托鲁阿|Rotorua/i, "rotorua"],
+    [/奥克兰|Auckland/i, "auckland"],
+    [/基督城|Christchurch|\bCHC\b/i, "christchurch"],
+  ];
+  for (const [re, geo] of rules) {
+    if (re.test(s)) return geo;
   }
   return null;
 }

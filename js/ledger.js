@@ -3,7 +3,7 @@
  * Shape aligns with future MCP writes so UI can stay stable.
  */
 
-import { L, getLocale } from "./i18n.js?v=20260727-routstrip";
+import { L, getLocale } from "./i18n.js?v=20260727-hotelmark";
 
 export function emptyLedger() {
   return {
@@ -405,6 +405,8 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
           id: ledger.hotels[idx].id || h.hotel_id || key,
           name: h.name || h.hotel_name || ledger.hotels[idx].name,
           place_id: h.place_id || ledger.hotels[idx].place_id || null,
+          geo_key: h.geo_key || ledger.hotels[idx].geo_key || null,
+          location: h.location || ledger.hotels[idx].location || null,
         };
       }
       continue;
@@ -415,6 +417,8 @@ export function buildLedger({ revealed = [], meta = {}, env = {}, dateEnd = null
       hotel_id: h.hotel_id || key,
       name: h.name || h.hotel_name || L("住宿", "Stay"),
       place_id: h.place_id || null,
+      geo_key: h.geo_key || null,
+      location: h.location || null,
       check_in: check_in || null,
       check_out: h.check_out || null,
       status: h.status || "confirmed",
