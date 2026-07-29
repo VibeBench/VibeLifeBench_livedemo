@@ -68,7 +68,7 @@ const DICT = {
     "nav.notes": "笔记",
     "nav.settings": "设置",
     "console.onboardTitle": "两步开始自动演示",
-    "console.onboard1": "选择提供商，填写 <strong>API Key</strong>（推荐 DeepSeek）",
+    "console.onboard1": "选择提供商，填写 <strong>API Key</strong>",
     "console.onboard2": "点下方「保存并连接」，回到对话再点 <strong>开始自动演示</strong>",
     "console.onboardNote": "Key 只保存在本机；打开设置时不会回显，避免泄露。",
     "console.hint":
@@ -216,7 +216,7 @@ const DICT = {
     "nav.notes": "Notes",
     "nav.settings": "Settings",
     "console.onboardTitle": "Start auto demo in two steps",
-    "console.onboard1": "Pick a provider and paste your <strong>API Key</strong> (DeepSeek recommended)",
+    "console.onboard1": "Pick a provider and paste your <strong>API Key</strong>",
     "console.onboard2": "Tap <strong>Save & connect</strong>, then go back to Chat and press <strong>Start auto demo</strong>",
     "console.onboardNote": "The key stays on this device only; it is never echoed back when you reopen settings.",
     "console.hint":

@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260727-onecar";
-import { DemoEngine } from "./engine.js?v=20260727-onecar";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260729-defaults";
+import { DemoEngine } from "./engine.js?v=20260729-defaults";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260727-onecar";
-import { Trajectory, isValidRecording } from "./trajectory.js?v=20260727-onecar";
-import { UI } from "./ui.js?v=20260727-onecar";
+} from "./agent.js?v=20260729-defaults";
+import { Trajectory, isValidRecording } from "./trajectory.js?v=20260729-defaults";
+import { UI } from "./ui.js?v=20260729-defaults";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,7 +18,7 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260727-onecar";
+} from "./map.js?v=20260729-defaults";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -26,7 +26,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260727-onecar";
+} from "./playback.js?v=20260729-defaults";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -40,22 +40,14 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260727-onecar";
+} from "./i18n.js?v=20260729-defaults";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
-  deepseek: {
-    label: "DeepSeek",
-    base: "https://api.deepseek.com",
-    models: ["deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"],
-    hintZh: "推荐默认。浏览器直连可能 CORS → Base 改用本地代理 http://127.0.0.1:8787，并保留提供商=DeepSeek。",
-    hintEn: "Recommended default. If the browser hits CORS, set Base to the local proxy http://127.0.0.1:8787 and keep provider=DeepSeek.",
-    thinking: true,
-  },
   openai: {
     label: "OpenAI",
     base: "https://api.openai.com/v1",
-    models: ["gpt-4.1", "gpt-4o", "o3-mini", "o4-mini"],
+    models: ["gpt-4o", "gpt-4.1", "o3-mini", "o4-mini"],
     hintZh: "需可 CORS 的网关或本地代理。o 系列可开 Thinking（reasoning_effort）。",
     hintEn: "Needs a CORS-friendly gateway or local proxy. o-series can enable Thinking (reasoning_effort).",
     thinking: true,
@@ -64,10 +56,10 @@ const PROVIDERS = {
     label: "OpenRouter",
     base: "https://openrouter.ai/api/v1",
     models: [
-      "deepseek/deepseek-r1",
       "openai/gpt-4o",
       "anthropic/claude-sonnet-4",
       "google/gemini-2.5-flash",
+      "deepseek/deepseek-r1",
     ],
     hintZh: "一站式多模型；github.io 上通常比直连各家更方便（仍可能需代理）。",
     hintEn: "One-stop multi-model hub; often easier from github.io than calling vendors directly (proxy may still help).",
@@ -77,7 +69,7 @@ const PROVIDERS = {
     labelZh: "硅基流动 SiliconFlow",
     labelEn: "SiliconFlow",
     base: "https://api.siliconflow.cn/v1",
-    models: ["deepseek-ai/DeepSeek-V3", "Qwen/Qwen2.5-72B-Instruct", "Pro/deepseek-ai/DeepSeek-R1"],
+    models: ["Qwen/Qwen2.5-72B-Instruct", "deepseek-ai/DeepSeek-V3", "Pro/deepseek-ai/DeepSeek-R1"],
     hintZh: "国内常用 OpenAI 兼容网关；模型名以控制台为准。",
     hintEn: "Popular OpenAI-compatible gateway in China; use model IDs from the console.",
     thinking: false,
@@ -95,11 +87,19 @@ const PROVIDERS = {
     labelZh: "本地 CORS 代理",
     labelEn: "Local CORS proxy",
     base: "http://127.0.0.1:8787",
-    models: ["deepseek-v4-pro", "gpt-4o", "deepseek/deepseek-r1"],
-    hintZh: "配合 ./start.sh。请求经代理转发；真实上游由「上游 Base」或默认 DeepSeek 决定。",
-    hintEn: "Use with ./start.sh. Requests are proxied; upstream is set by Upstream Base or defaults to DeepSeek.",
+    models: ["gpt-4o", "gpt-4.1", "deepseek-v4-pro"],
+    hintZh: "配合 ./start.sh。请求经代理转发；真实上游由「上游 Base」决定（可填 OpenAI / DeepSeek 等）。",
+    hintEn: "Use with ./start.sh. Requests are proxied; set Upstream Base to OpenAI / DeepSeek / etc.",
     thinking: true,
-    upstream: "https://api.deepseek.com",
+    upstream: "https://api.openai.com/v1",
+  },
+  deepseek: {
+    label: "DeepSeek",
+    base: "https://api.deepseek.com",
+    models: ["deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"],
+    hintZh: "可选。浏览器直连可能 CORS → Base 改用本地代理 http://127.0.0.1:8787。",
+    hintEn: "Optional. If the browser hits CORS, set Base to the local proxy http://127.0.0.1:8787.",
+    thinking: true,
   },
   custom: {
     labelZh: "自定义 OpenAI 兼容",
@@ -156,8 +156,7 @@ let replayAgentByEvent = new Map();
 /** Raw case events revealed so far (for locale re-render of task history). */
 let revealedEvents = [];
 
-/** Demo default DeepSeek key (same as prior local setup). Override anytime in console. */
-const DEFAULT_DEEPSEEK_API_KEY = ["sk", "15f5ea94061c4fab82a51bfea7d71288"].join("-");
+/** Demo no longer ships a baked-in vendor key — configure in the console. */
 
 const settings = loadSettings();
 
@@ -196,7 +195,7 @@ async function main() {
   fillProviderSelect();
   applySettingsToForm();
   bindProviderUi();
-  setPlaybackSpeed(settings.playbackSpeed || 1);
+  setPlaybackSpeed(settings.playbackSpeed || 2);
   syncSpeedUi();
   syncReplayButton();
   onLocaleChange(() => rerenderForLocale());
@@ -733,7 +732,7 @@ async function stepOnce({ useCache = false } = {}) {
         if (!a) {
           ui.appendChat({
             role: "agent",
-            text: i18nL("（未配置 DeepSeek API Key — 打开演示控制台填入后可继续生成回复）", "(No API Key — open the demo console to continue)"),
+            text: i18nL("（未配置 API Key — 打开演示控制台填入后可继续生成回复）", "(No API Key — open the demo console to continue)"),
             time: t,
           });
         } else {
@@ -872,7 +871,7 @@ async function sendUserChat(text) {
   if (!text || busy) return;
   const a = ensureAgent();
   if (!a) {
-    ui.toast(i18nL("请先在演示控制台配置 DeepSeek API Key", "Configure an API Key in the demo console first"));
+    ui.toast(i18nL("请先在演示控制台配置 API Key", "Configure an API Key in the demo console first"));
     openConsole(true);
     return;
   }
@@ -1070,7 +1069,7 @@ async function startAcceleratedReplay() {
   // Prefer session snapshot when both exist; baked uses a faster default.
   if (!fromBaked) lastRecording = rec;
 
-  let speedSel = Number(document.querySelector("#playbackSpeed")?.value) || settings.playbackSpeed || 1;
+  let speedSel = Number(document.querySelector("#playbackSpeed")?.value) || settings.playbackSpeed || 2;
   if (fromBaked) {
     if (speedSel < 8) speedSel = 8;
   } else if (speedSel <= 1) {
@@ -1317,12 +1316,14 @@ function loadSettings() {
   } catch {
     raw = {};
   }
-  if (!raw.provider) raw.provider = DEFAULT_PROVIDER || "deepseek";
+  if (!raw.provider) raw.provider = DEFAULT_PROVIDER || "openai";
   if (!raw.model) raw.model = DEFAULT_MODEL;
   if (!raw.baseUrl) raw.baseUrl = DEFAULT_BASE;
-  // Restore demo DeepSeek key when missing (after prior one-time wipe / fresh browsers).
-  if (!String(raw.apiKey || "").trim()) {
-    raw.apiKey = DEFAULT_DEEPSEEK_API_KEY;
+  if (raw.playbackSpeed == null || raw.playbackSpeed === "") raw.playbackSpeed = 2;
+  // Drop the old baked-in demo DeepSeek key if still present.
+  const legacyDemoKey = ["sk", "15f5ea94061c4fab82a51bfea7d71288"].join("-");
+  if (String(raw.apiKey || "").trim() === legacyDemoKey) {
+    raw.apiKey = "";
     try {
       localStorage.setItem("vibelifebench_demo_settings", JSON.stringify(raw));
     } catch {
@@ -1444,7 +1445,7 @@ function applySettingsToForm() {
   if (think) think.checked = settings.thinking !== false;
   document.querySelector("#autoplayMs").value = settings.autoplayMs || 1200;
   const speedSel = document.querySelector("#playbackSpeed");
-  if (speedSel) speedSel.value = String(settings.playbackSpeed || 1);
+  if (speedSel) speedSel.value = String(settings.playbackSpeed || 2);
   const upstreamField = document.querySelector("#upstreamField");
   const upstreamInput = document.querySelector("#apiUpstream");
   if (provider === "proxy") {
@@ -1471,7 +1472,7 @@ function saveSettingsFromForm() {
   settings.thinking = Boolean(document.querySelector("#apiThinking")?.checked);
   settings.autoplayMs = Number(document.querySelector("#autoplayMs").value) || 1200;
   settings.playbackSpeed =
-    Number(document.querySelector("#playbackSpeed")?.value) || settings.playbackSpeed || 1;
+    Number(document.querySelector("#playbackSpeed")?.value) || settings.playbackSpeed || 2;
   setPlaybackSpeed(settings.playbackSpeed);
   if (provider === "proxy") {
     settings.upstreamBase =

@@ -6,7 +6,7 @@
  * during加速回放 capped ~1s so cinematic cards don't bottleneck the run.
  */
 
-let speed = 1;
+let speed = 2;
 /** True only while startAcceleratedReplay is running (not live LLM autoplay). */
 let replayMode = false;
 

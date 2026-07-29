@@ -6,11 +6,11 @@
  *   onStream({ thinking, content, phase, toolHint })
  *   phase: 'thinking' | 'answering' | 'tool' | 'done'
  */
-import { L, getLocale, localizeUserState } from "./i18n.js?v=20260727-onecar";
+import { L, getLocale, localizeUserState } from "./i18n.js?v=20260729-defaults";
 
-const DEFAULT_BASE = "https://api.deepseek.com";
-const DEFAULT_MODEL = "deepseek-v4-pro";
-const DEFAULT_PROVIDER = "deepseek";
+const DEFAULT_BASE = "https://api.openai.com/v1";
+const DEFAULT_MODEL = "gpt-4o";
+const DEFAULT_PROVIDER = "openai";
 
 /** Normalize base so `${base}/chat/completions` resolves correctly. */
 export function normalizeBaseUrl(base, provider = "") {
