@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260730-status";
-import { DemoEngine } from "./engine.js?v=20260730-status";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260730-emptycreds";
+import { DemoEngine } from "./engine.js?v=20260730-emptycreds";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260730-status";
-import { Trajectory, isValidRecording } from "./trajectory.js?v=20260730-status";
-import { UI } from "./ui.js?v=20260730-status";
+} from "./agent.js?v=20260730-emptycreds";
+import { Trajectory, isValidRecording } from "./trajectory.js?v=20260730-emptycreds";
+import { UI } from "./ui.js?v=20260730-emptycreds";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,7 +18,7 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260730-status";
+} from "./map.js?v=20260730-emptycreds";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -26,7 +26,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260730-status";
+} from "./playback.js?v=20260730-emptycreds";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -40,7 +40,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260730-status";
+} from "./i18n.js?v=20260730-emptycreds";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -1381,6 +1381,9 @@ function openConsole(show) {
   }
 }
 
+/** Bump to one-shot wipe leftover demo key/model from older builds. */
+const SETTINGS_EPOCH = 2;
+
 function loadSettings() {
   let raw = {};
   try {
@@ -1388,25 +1391,50 @@ function loadSettings() {
   } catch {
     raw = {};
   }
-  if (!raw.provider) raw.provider = DEFAULT_PROVIDER || "openai";
-  // Do not invent a model name — empty means "not filled" (CTA stays disabled).
-  if (raw.model == null) raw.model = "";
-  if (!raw.baseUrl) raw.baseUrl = DEFAULT_BASE;
-  if (raw.playbackSpeed == null || raw.playbackSpeed === "") raw.playbackSpeed = 2;
-  // Drop the old baked-in demo DeepSeek key if still present.
-  const legacyDemoKey = ["sk", "15f5ea94061c4fab82a51bfea7d71288"].join("-");
+  const epoch = Number(raw._epoch) || 0;
   let dirty = false;
-  if (String(raw.apiKey || "").trim() === legacyDemoKey) {
-    raw.apiKey = "";
+
+  // Default contract: no API key, no model name. Provider is only a form preset.
+  if (!raw.provider) {
+    raw.provider = DEFAULT_PROVIDER || "openai";
     dirty = true;
   }
-  // Old demo defaulted to DeepSeek + deepseek-v4-pro; reset when no real key is saved.
-  if (!String(raw.apiKey || "").trim() && (raw.provider === "deepseek" || String(raw.model || "").trim() === "deepseek-v4-pro")) {
-    raw.provider = DEFAULT_PROVIDER || "openai";
-    raw.baseUrl = DEFAULT_BASE;
+  if (raw.model == null) {
     raw.model = "";
     dirty = true;
   }
+  if (!raw.baseUrl) {
+    raw.baseUrl = DEFAULT_BASE;
+    dirty = true;
+  }
+  if (raw.playbackSpeed == null || raw.playbackSpeed === "") {
+    raw.playbackSpeed = 2;
+    dirty = true;
+  }
+
+  if (epoch < SETTINGS_EPOCH) {
+    // Drop any previously baked/auto-filled demo credentials.
+    raw.apiKey = "";
+    raw.model = "";
+    if (raw.provider === "deepseek") {
+      raw.provider = DEFAULT_PROVIDER || "openai";
+      raw.baseUrl = DEFAULT_BASE;
+    }
+    raw._epoch = SETTINGS_EPOCH;
+    dirty = true;
+  } else {
+    // Never keep the old shared demo key even on newer epochs.
+    const legacyDemoKey = ["sk", "15f5ea94061c4fab82a51bfea7d71288"].join("-");
+    if (String(raw.apiKey || "").trim() === legacyDemoKey) {
+      raw.apiKey = "";
+      dirty = true;
+    }
+  }
+
+  // Normalize: empty string, never invent a model.
+  raw.apiKey = String(raw.apiKey || "").trim();
+  raw.model = String(raw.model || "").trim();
+
   if (dirty) {
     try {
       localStorage.setItem("vibelifebench_demo_settings", JSON.stringify(raw));
@@ -1567,6 +1595,7 @@ function saveSettingsFromForm() {
   } else {
     settings.upstreamBase = null;
   }
+  settings._epoch = SETTINGS_EPOCH;
   localStorage.setItem("vibelifebench_demo_settings", JSON.stringify(settings));
 }
 
