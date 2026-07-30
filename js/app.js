@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260730-configbtn";
-import { DemoEngine } from "./engine.js?v=20260730-configbtn";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260730-epochfix";
+import { DemoEngine } from "./engine.js?v=20260730-epochfix";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260730-configbtn";
-import { Trajectory, isValidRecording } from "./trajectory.js?v=20260730-configbtn";
-import { UI } from "./ui.js?v=20260730-configbtn";
+} from "./agent.js?v=20260730-epochfix";
+import { Trajectory, isValidRecording } from "./trajectory.js?v=20260730-epochfix";
+import { UI } from "./ui.js?v=20260730-epochfix";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,7 +18,7 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260730-configbtn";
+} from "./map.js?v=20260730-epochfix";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -26,7 +26,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260730-configbtn";
+} from "./playback.js?v=20260730-epochfix";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -40,7 +40,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260730-configbtn";
+} from "./i18n.js?v=20260730-epochfix";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -157,6 +157,8 @@ let replayAgentByEvent = new Map();
 let revealedEvents = [];
 
 /** Demo no longer ships a baked-in vendor key — configure in the console. */
+/** Bump to one-shot wipe leftover demo key/model from older builds. */
+const SETTINGS_EPOCH = 2;
 
 const settings = loadSettings();
 
