@@ -6,7 +6,7 @@
  *   onStream({ thinking, content, phase, toolHint })
  *   phase: 'thinking' | 'answering' | 'tool' | 'done'
  */
-import { L, getLocale, localizeUserState } from "./i18n.js?v=20260730-epochfix";
+import { L, getLocale, localizeUserState } from "./i18n.js?v=20260730-epochfix2";
 
 const DEFAULT_BASE = "https://api.openai.com/v1";
 const DEFAULT_MODEL = "gpt-4o";

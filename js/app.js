@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260730-epochfix";
-import { DemoEngine } from "./engine.js?v=20260730-epochfix";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260730-epochfix2";
+import { DemoEngine } from "./engine.js?v=20260730-epochfix2";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260730-epochfix";
-import { Trajectory, isValidRecording } from "./trajectory.js?v=20260730-epochfix";
-import { UI } from "./ui.js?v=20260730-epochfix";
+} from "./agent.js?v=20260730-epochfix2";
+import { Trajectory, isValidRecording } from "./trajectory.js?v=20260730-epochfix2";
+import { UI } from "./ui.js?v=20260730-epochfix2";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,7 +18,7 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260730-epochfix";
+} from "./map.js?v=20260730-epochfix2";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -26,7 +26,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260730-epochfix";
+} from "./playback.js?v=20260730-epochfix2";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -40,7 +40,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260730-epochfix";
+} from "./i18n.js?v=20260730-epochfix2";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -1382,9 +1382,6 @@ function openConsole(show) {
     ui.setPhoneTab("chat");
   }
 }
-
-/** Bump to one-shot wipe leftover demo key/model from older builds. */
-const SETTINGS_EPOCH = 2;
 
 function loadSettings() {
   let raw = {};
