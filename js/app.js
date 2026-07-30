@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260730-emptycreds";
-import { DemoEngine } from "./engine.js?v=20260730-emptycreds";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260730-configbtn";
+import { DemoEngine } from "./engine.js?v=20260730-configbtn";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260730-emptycreds";
-import { Trajectory, isValidRecording } from "./trajectory.js?v=20260730-emptycreds";
-import { UI } from "./ui.js?v=20260730-emptycreds";
+} from "./agent.js?v=20260730-configbtn";
+import { Trajectory, isValidRecording } from "./trajectory.js?v=20260730-configbtn";
+import { UI } from "./ui.js?v=20260730-configbtn";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,7 +18,7 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260730-emptycreds";
+} from "./map.js?v=20260730-configbtn";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -26,7 +26,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260730-emptycreds";
+} from "./playback.js?v=20260730-configbtn";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -40,7 +40,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260730-emptycreds";
+} from "./i18n.js?v=20260730-configbtn";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {

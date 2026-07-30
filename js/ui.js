@@ -23,10 +23,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260730-emptycreds";
-import { groupLedgerByDate } from "./ledger.js?v=20260730-emptycreds";
-import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260730-emptycreds";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260730-emptycreds";
+} from "./map.js?v=20260730-configbtn";
+import { groupLedgerByDate } from "./ledger.js?v=20260730-configbtn";
+import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260730-configbtn";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260730-configbtn";
 
 function kindMeta(kind) {
   const base = {
@@ -1993,7 +1993,7 @@ export class UI {
       ${bakedLine}
       <div class="welcome-actions">
         <button type="button" class="welcome-btn ${configured || hasBaked ? "ghost" : "primary"}" data-welcome="configure">
-          ${configured ? L("更改模型", "Change model") : L("配置模型", "Configure model")}
+          ${L("配置模型", "Configure model")}
         </button>
         <button type="button" class="welcome-btn ${configured && !hasBaked ? "primary" : "ghost"}" data-welcome="start" ${
           configured ? "" : "disabled"
