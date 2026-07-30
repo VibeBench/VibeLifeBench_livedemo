@@ -23,10 +23,10 @@ import {
   commitAgentItineraryPlan,
   clearAgentPlan,
   playHotelPinCinematic,
-} from "./map.js?v=20260729-defaults";
-import { groupLedgerByDate } from "./ledger.js?v=20260729-defaults";
-import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260729-defaults";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260729-defaults";
+} from "./map.js?v=20260730-status";
+import { groupLedgerByDate } from "./ledger.js?v=20260730-status";
+import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260730-status";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260730-status";
 
 function kindMeta(kind) {
   const base = {
@@ -1943,7 +1943,12 @@ export class UI {
    * handlers: { onConfigure, onStartDemo, onReplay, onDismiss }
    */
   showWelcomeGuide(
-    { configured = false, providerLabel = "", model = "", hasBaked = false } = {},
+    {
+      configured = false,
+      providerLabel = "",
+      hasBaked = false,
+      missing = "", // "key" | "model" | ""
+    } = {},
     handlers = {}
   ) {
     const host = this.els.chatMessages;
@@ -1952,11 +1957,22 @@ export class UI {
 
     const wrap = document.createElement("div");
     wrap.className = "bubble welcome-guide";
-    const statusLine = configured
-      ? `<div class="welcome-status ok">${L("已连接", "Connected")} · ${escapeHtml(providerLabel || "LLM")} · ${escapeHtml(
-          model || ""
-        )}</div>`
-      : `<div class="welcome-status warn">${L("尚未配置 API Key — Agent 还不能回复", "API Key not set — Agent cannot reply yet")}</div>`;
+    let statusLine;
+    if (configured) {
+      statusLine = `<div class="welcome-status ok">${L("已连接", "Connected")} · ${escapeHtml(
+        providerLabel || "LLM"
+      )}</div>`;
+    } else if (missing === "model") {
+      statusLine = `<div class="welcome-status warn">${L(
+        "尚未填写模型 — Agent 还不能回复",
+        "Model not set — Agent cannot reply yet"
+      )}</div>`;
+    } else {
+      statusLine = `<div class="welcome-status warn">${L(
+        "尚未配置 API Key — Agent 还不能回复",
+        "API Key not set — Agent cannot reply yet"
+      )}</div>`;
+    }
     const bakedLine = hasBaked
       ? `<div class="welcome-status ok">${L("已加载预录 Trajectory · 可直接快速 Replay（不调 LLM）", "Baked trajectory ready · fast replay without LLM")}</div>`
       : "";
@@ -1966,7 +1982,7 @@ export class UI {
       <ol class="welcome-steps">
         <li class="${configured ? "done" : "active"}">
           <span class="ws-num">1</span>
-          <span>${L("填写模型信息（提供商 + API Key）", "Enter model info (provider + API Key)")}</span>
+          <span>${L("填写模型信息（提供商 + API Key + 模型）", "Enter model info (provider + API Key + model)")}</span>
         </li>
         <li class="${configured ? "active" : ""}">
           <span class="ws-num">2</span>

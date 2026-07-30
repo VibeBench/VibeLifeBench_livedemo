@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260729-defaults";
-import { DemoEngine } from "./engine.js?v=20260729-defaults";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260730-status";
+import { DemoEngine } from "./engine.js?v=20260730-status";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260729-defaults";
-import { Trajectory, isValidRecording } from "./trajectory.js?v=20260729-defaults";
-import { UI } from "./ui.js?v=20260729-defaults";
+} from "./agent.js?v=20260730-status";
+import { Trajectory, isValidRecording } from "./trajectory.js?v=20260730-status";
+import { UI } from "./ui.js?v=20260730-status";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,7 +18,7 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260729-defaults";
+} from "./map.js?v=20260730-status";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -26,7 +26,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260729-defaults";
+} from "./playback.js?v=20260730-status";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -40,7 +40,7 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260729-defaults";
+} from "./i18n.js?v=20260730-status";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -332,26 +332,56 @@ function hasApiKeyConfigured() {
   return Boolean((settings.apiKey || "").trim());
 }
 
+function hasModelConfigured() {
+  return Boolean(String(settings.model || "").trim());
+}
+
+/** Ready for live LLM autoplay (key + explicit model). */
+function isLlmReady() {
+  return hasApiKeyConfigured() && hasModelConfigured();
+}
+
+function syncAgentStatusBar() {
+  const provider = settings.provider || DEFAULT_PROVIDER;
+  const tag = providerLabel(provider) || provider;
+  if (!hasApiKeyConfigured()) {
+    ui.setAgentStatus(i18nL("Offline · 需配置 API Key", "Offline · API Key required"), false);
+    return;
+  }
+  if (!hasModelConfigured()) {
+    ui.setAgentStatus(i18nL("Offline · 需填写模型", "Offline · Model required"), false);
+    return;
+  }
+  ui.setAgentStatus(`Online · ${tag}`, true);
+}
+
 function showEntryGuide() {
   const provider = settings.provider || DEFAULT_PROVIDER;
-  // Don't construct agent just to probe — key presence is enough for the CTA state.
-  const configured = hasApiKeyConfigured();
+  const configured = isLlmReady();
+  const missing = !hasApiKeyConfigured() ? "key" : !hasModelConfigured() ? "model" : "";
   const hasBaked = isValidRecording(bakedRecording, caseData?.meta?.case_id);
+  syncAgentStatusBar();
+  syncAutoplayButtonLabel();
   ui.showWelcomeGuide(
     {
       configured,
       providerLabel: providerLabel(provider) || provider,
-      model: settings.model || DEFAULT_MODEL,
       hasBaked,
+      missing,
     },
     {
       onConfigure: () => {
         openConsole(true);
-        document.querySelector("#apiKey")?.focus();
+        if (!hasApiKeyConfigured()) document.querySelector("#apiKey")?.focus();
+        else document.querySelector("#apiModel")?.focus();
       },
       onStartDemo: () => {
-        if (!hasApiKeyConfigured() || !ensureAgent()) {
-          ui.toast(i18nL("请先配置 API Key", "Please configure an API Key first"));
+        if (!isLlmReady() || !ensureAgent()) {
+          ui.toast(
+            !hasApiKeyConfigured()
+              ? i18nL("请先配置 API Key", "Please configure an API Key first")
+              : i18nL("请先填写模型名称", "Please enter a model name first")
+          );
           openConsole(true);
           return;
         }
@@ -402,8 +432,19 @@ function syncConsoleOnboard() {
 function syncAutoplayButtonLabel() {
   const btn = document.querySelector("#btnAutoplay");
   if (!btn) return;
-  if (autoplay) btn.textContent = i18nT("top.autoplayStop");
-  else if (engine?.progress?.done) btn.textContent = i18nT("top.autoplay");
+  if (autoplay) {
+    btn.disabled = false;
+    btn.textContent = i18nT("top.autoplayStop");
+    return;
+  }
+  const ready = isLlmReady();
+  btn.disabled = !ready;
+  btn.title = ready
+    ? ""
+    : !hasApiKeyConfigured()
+      ? i18nL("请先配置 API Key", "Configure an API Key first")
+      : i18nL("请先填写模型名称", "Enter a model name first");
+  if (engine?.progress?.done) btn.textContent = i18nT("top.autoplay");
   else btn.textContent = i18nT("top.autoplayStart");
 }
 
@@ -469,13 +510,16 @@ function ensureAgent({ allowOfflineTools = false } = {}) {
   const allowEmptyKey = provider === "ollama" || allowOfflineTools;
   if (!key && !allowEmptyKey) {
     agent = null;
-    ui.setAgentStatus(
-      i18nL("Offline · 需配置 API Key", "Offline · API Key required"),
-      false
-    );
+    syncAgentStatusBar();
     return null;
   }
-  const model = settings.model || DEFAULT_MODEL;
+  const typedModel = String(settings.model || "").trim();
+  if (!typedModel && !allowOfflineTools) {
+    agent = null;
+    syncAgentStatusBar();
+    return null;
+  }
+  const model = typedModel || DEFAULT_MODEL;
   let baseUrl = settings.baseUrl || PROVIDERS[provider]?.base || DEFAULT_BASE;
   // When using local CORS proxy, still call proxy host; real upstream goes via header.
   const upstreamBase =
@@ -592,8 +636,7 @@ function ensureAgent({ allowOfflineTools = false } = {}) {
     },
   });
   if (upstreamBase) agent.upstreamBase = normalizeBaseUrl(upstreamBase, detectProvider(upstreamBase));
-  const tag = providerLabel(provider) || provider;
-  ui.setAgentStatus(`Online · ${tag} · ${model}`, true);
+  syncAgentStatusBar();
   return agent;
 }
 
@@ -915,10 +958,23 @@ async function sendUserChat(text) {
 }
 
 function startAutoplay() {
+  if (!isLlmReady() || !ensureAgent()) {
+    ui.toast(
+      !hasApiKeyConfigured()
+        ? i18nL("请先配置 API Key", "Please configure an API Key first")
+        : i18nL("请先填写模型名称", "Please enter a model name first")
+    );
+    openConsole(true);
+    return;
+  }
   if (replaying) stopReplay();
   autoplay = true;
-  document.querySelector("#btnAutoplay").classList.add("active");
-  document.querySelector("#btnAutoplay").textContent = i18nL("自动播放中", "Autoplaying");
+  const btn = document.querySelector("#btnAutoplay");
+  if (btn) {
+    btn.disabled = false;
+    btn.classList.add("active");
+    btn.textContent = i18nL("自动播放中", "Autoplaying");
+  }
   syncReplayButton();
   tickAutoplay();
 }
@@ -927,8 +983,7 @@ function stopAutoplay() {
   autoplay = false;
   clearTimeout(autoplayTimer);
   document.querySelector("#btnAutoplay")?.classList.remove("active");
-  document.querySelector("#btnAutoplay") &&
-    (document.querySelector("#btnAutoplay").textContent = i18nT("top.autoplay"));
+  syncAutoplayButtonLabel();
   syncReplayButton();
 }
 
@@ -1138,7 +1193,14 @@ function bindChrome() {
   });
   document.querySelector("#btnAutoplay").addEventListener("click", () => {
     if (autoplay) stopAutoplay();
-    else startAutoplay();
+    else if (!isLlmReady()) {
+      ui.toast(
+        !hasApiKeyConfigured()
+          ? i18nL("请先配置 API Key", "Please configure an API Key first")
+          : i18nL("请先填写模型名称", "Please enter a model name first")
+      );
+      openConsole(true);
+    } else startAutoplay();
   });
   document.querySelector("#btnReplay")?.addEventListener("click", () => {
     startAcceleratedReplay();
@@ -1161,13 +1223,23 @@ function bindChrome() {
     const a = ensureAgent();
     syncConsoleOnboard();
     applySettingsToForm();
-    if (!a) {
+    syncAutoplayButtonLabel();
+    showEntryGuide();
+    if (!hasApiKeyConfigured()) {
       ui.toast(i18nL("请填写 API Key 后再保存", "Enter an API Key before saving"));
       document.querySelector("#apiKey")?.focus();
       return;
     }
+    if (!hasModelConfigured()) {
+      ui.toast(i18nL("请填写模型名称后再保存", "Enter a model name before saving"));
+      document.querySelector("#apiModel")?.focus();
+      return;
+    }
+    if (!a) {
+      ui.toast(i18nL("连接失败，请检查配置", "Connection failed — check your settings"));
+      return;
+    }
     openConsole(false);
-    showEntryGuide();
     pulseAutoplayButton();
     ui.toast(i18nL("已连接 · 点「开始自动演示」或顶部自动播放", "Connected · tap Start auto demo or Autoplay"));
   });
@@ -1317,13 +1389,25 @@ function loadSettings() {
     raw = {};
   }
   if (!raw.provider) raw.provider = DEFAULT_PROVIDER || "openai";
-  if (!raw.model) raw.model = DEFAULT_MODEL;
+  // Do not invent a model name — empty means "not filled" (CTA stays disabled).
+  if (raw.model == null) raw.model = "";
   if (!raw.baseUrl) raw.baseUrl = DEFAULT_BASE;
   if (raw.playbackSpeed == null || raw.playbackSpeed === "") raw.playbackSpeed = 2;
   // Drop the old baked-in demo DeepSeek key if still present.
   const legacyDemoKey = ["sk", "15f5ea94061c4fab82a51bfea7d71288"].join("-");
+  let dirty = false;
   if (String(raw.apiKey || "").trim() === legacyDemoKey) {
     raw.apiKey = "";
+    dirty = true;
+  }
+  // Old demo defaulted to DeepSeek + deepseek-v4-pro; reset when no real key is saved.
+  if (!String(raw.apiKey || "").trim() && (raw.provider === "deepseek" || String(raw.model || "").trim() === "deepseek-v4-pro")) {
+    raw.provider = DEFAULT_PROVIDER || "openai";
+    raw.baseUrl = DEFAULT_BASE;
+    raw.model = "";
+    dirty = true;
+  }
+  if (dirty) {
     try {
       localStorage.setItem("vibelifebench_demo_settings", JSON.stringify(raw));
     } catch {
@@ -1440,7 +1524,7 @@ function applySettingsToForm() {
   }
   document.querySelector("#apiBase").value =
     settings.baseUrl || PROVIDERS[provider]?.base || DEFAULT_BASE;
-  document.querySelector("#apiModel").value = settings.model || DEFAULT_MODEL;
+  document.querySelector("#apiModel").value = settings.model || "";
   const think = document.querySelector("#apiThinking");
   if (think) think.checked = settings.thinking !== false;
   document.querySelector("#autoplayMs").value = settings.autoplayMs || 1200;
@@ -1468,7 +1552,7 @@ function saveSettingsFromForm() {
   // Empty input keeps the previously saved key (field is intentionally blank).
   if (typedKey) settings.apiKey = typedKey;
   settings.baseUrl = document.querySelector("#apiBase").value.trim() || PROVIDERS[provider]?.base || DEFAULT_BASE;
-  settings.model = document.querySelector("#apiModel").value.trim() || DEFAULT_MODEL;
+  settings.model = document.querySelector("#apiModel").value.trim();
   settings.thinking = Boolean(document.querySelector("#apiThinking")?.checked);
   settings.autoplayMs = Number(document.querySelector("#autoplayMs").value) || 1200;
   settings.playbackSpeed =
