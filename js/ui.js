@@ -3077,11 +3077,13 @@ export class UI {
 
     const streamBlock = async (text, phase) => {
       if (!text) return;
-      // Replay: ~10–20 steps over ~0.7–1.4s. Live soft-replay: fewer steps.
-      const targetSteps = replay ? Math.min(20, Math.max(10, Math.ceil(text.length / 48))) : Math.min(8, Math.max(3, Math.ceil(text.length / (90 * spd))));
+      // Slower typewriter: more steps, longer per-step delay so streaming stays readable at 2×.
+      const targetSteps = replay
+        ? Math.min(36, Math.max(16, Math.ceil(text.length / 28)))
+        : Math.min(14, Math.max(5, Math.ceil(text.length / (70 * spd))));
       const stepDelay = replay
-        ? { base: 56, min: 22, max: 70 }
-        : { base: 32, min: 6, max: 40 };
+        ? { base: 90, min: 36, max: 110 }
+        : { base: 48, min: 12, max: 60 };
       for (let i = 1; i <= targetSteps; i++) {
         const slice = text.slice(0, Math.ceil((text.length * i) / targetSteps));
         if (phase === "thinking") {
@@ -3119,8 +3121,8 @@ export class UI {
     if (!wrap || !name) return;
     this.appendToolCall(wrap, { name, args, result: null, status: "pending" });
     this._scrollChatToBottom();
-    const spinMs = isReplayMode() ? 320 : 120;
-    await sleepPlayback(spinMs, { min: isReplayMode() ? 140 : 40, max: isReplayMode() ? 420 : 200 });
+    const spinMs = isReplayMode() ? 480 : 160;
+    await sleepPlayback(spinMs, { min: isReplayMode() ? 200 : 50, max: isReplayMode() ? 600 : 240 });
     this.appendToolCall(wrap, { name, args, result, status: "done" });
     this._scrollChatToBottom();
   }

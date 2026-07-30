@@ -3,7 +3,7 @@
  * Shape aligns with future MCP writes so UI can stay stable.
  */
 
-import { L, getLocale } from "./i18n.js?v=20260730-epochfix2";
+import { L, getLocale } from "./i18n.js?v=20260730-replay2x";
 
 export function emptyLedger() {
   return {
