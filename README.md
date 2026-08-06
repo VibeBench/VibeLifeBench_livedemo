@@ -1,6 +1,9 @@
 # VibeLifeBench Live Demo
 
-Interactive AI Travel Agent demo (NZ campervan case) for [VibeLifeBench](https://github.com/VibeBench).
+Interactive demos for [VibeLifeBench](https://github.com/VibeBench):
+
+1. **旅行 NZ** — AI Travel Agent (campervan case, map + phone)
+2. **挂耳电商** — full-chain commerce cockpit (20 stages / ~146-step bake: QC fail, pack reject, quality spike, note takedown, factory delay, price war, livestream, P&L+SOP)
 
 ## Live site
 

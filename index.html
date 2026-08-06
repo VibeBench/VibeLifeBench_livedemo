@@ -3,24 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>VibeLifeBench | AI Travel Agent</title>
+    <title>VibeLifeBench | Live Demo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./css/styles.css?v=20260730-replay2x" />
+    <link rel="stylesheet" href="./css/styles.css?v=20260807-editor" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   </head>
-  <body>
+  <body data-scenario="travel">
     <div class="app">
       <header class="topbar">
-        <div class="brand" id="caseTitle">VibeLifeBench</div>
+        <div class="brand-block">
+          <div class="brand" id="caseTitle">VibeLifeBench</div>
+          <div class="scenario-switch" id="scenarioSwitch" role="group" aria-label="场景">
+            <button type="button" class="scenario-btn is-active" data-scenario="travel" id="btnScenarioTravel" data-i18n="scenario.travel">
+              旅行 NZ
+            </button>
+            <button type="button" class="scenario-btn" data-scenario="ecom" id="btnScenarioEcom" data-i18n="scenario.ecom">
+              挂耳电商
+            </button>
+          </div>
+        </div>
         <div class="top-actions">
           <span class="progress-pill" id="progressLabel">0 / 0</span>
           <div class="lang-switch" role="group" aria-label="语言">
@@ -274,10 +284,110 @@
           </div>
         </div>
       </aside>
+
+      <!-- Ecommerce · Manus-style: dynamic bar + chat + playground -->
+      <section class="ecom-cockpit" id="ecomCockpit" hidden aria-hidden="true">
+        <aside class="ecom-side-rail" aria-label="工作台导航">
+          <button type="button" class="is-active"><span>▦</span><small>工作台</small></button>
+          <button type="button"><span>▱</span><small>项目</small></button>
+          <button type="button"><span>◫</span><small>知识库</small></button>
+          <button type="button"><span>♙</span><small>数据看板</small></button>
+          <button type="button"><span>⚙</span><small>设置</small></button>
+          <button type="button" class="ecom-rail-collapse"><span>‹‹</span></button>
+        </aside>
+        <header class="ecom-top">
+          <div class="ecom-brand-block">
+            <div class="ecom-brand-mark" aria-hidden="true">V</div>
+            <div class="ecom-brand-text">
+              <div class="ecom-brand-name">VibeLifeBench</div>
+              <div class="ecom-brand-sub" id="ecomProjectName">—</div>
+            </div>
+          </div>
+          <div class="ecom-dyn-rail" id="ecomDynRail" aria-label="dynamic monitors">
+            <div class="ecom-top-kpis" id="ecomTopKpis"></div>
+            <div class="ecom-monitors" id="ecomMonitors"></div>
+          </div>
+          <div class="ecom-top-right">
+            <span class="ecom-stage-chip" id="ecomAgentEta">—</span>
+            <label class="ecom-auto-toggle" title="自动执行">
+              <input type="checkbox" id="ecomAutoExec" checked />
+              <i></i>
+            </label>
+            <button type="button" class="ecom-icon-btn" id="ecomNotifyBtn" aria-label="通知">
+              <span class="ecom-bell" aria-hidden="true"></span>
+              <span class="ecom-badge" id="ecomNotifyBadge" hidden>0</span>
+            </button>
+            <button type="button" class="ecom-btn-ghost" id="ecomBtnConfigure" data-i18n="ecom.addTask">配置模型</button>
+            <button type="button" class="ecom-btn-primary" id="ecomBtnReplay" data-i18n="ecom.genPlan">Replay</button>
+          </div>
+        </header>
+
+        <div class="ecom-body ecom-body-manus">
+          <main class="ecom-chat">
+            <div class="ecom-chat-head">
+              <div class="ecom-agent-bar">
+                <span class="ecom-live-dot" id="ecomLiveDot" aria-hidden="true"></span>
+                <div>
+                  <strong data-i18n="ecom.agentWorking">AI Agent</strong>
+                  <span id="ecomAgentTask">—</span>
+                  <span class="ecom-agent-activity is-idle" id="ecomAgentActivity">
+                    <i aria-hidden="true"></i><em>观察</em>
+                  </span>
+                </div>
+              </div>
+              <div class="ecom-chat-mode-tabs">
+                <span class="is-active">统一任务对话</span>
+              </div>
+            </div>
+            <div class="ecom-stream-wrap">
+              <div class="ecom-welcome" id="ecomWelcome"></div>
+              <div class="ecom-messages" id="ecomMessages"></div>
+            </div>
+            <form class="ecom-composer" id="ecomComposer">
+              <input id="ecomChatInput" type="text" data-i18n-placeholder="ecom.composerPh" placeholder="给 Agent 下指令…" autocomplete="off" />
+              <button type="submit" class="ecom-btn-primary" data-i18n="ecom.send">发送</button>
+            </form>
+          </main>
+
+          <aside class="ecom-playground">
+            <header class="ecom-play-head">
+              <div>
+                <span class="ecom-play-kicker" data-i18n="ecom.playTitle">Playground</span>
+                <h2 id="ecomPlayTitle">—</h2>
+              </div>
+              <nav class="ecom-bench-strip" id="ecomBenchTabs" role="tablist" aria-label="工具台">
+                <button type="button" class="is-active" data-bench="comms" title="协作消息">✦</button>
+                <button type="button" data-bench="phone" title="打电话" data-i18n-title="ecom.bench.phone">☎</button>
+                <button type="button" data-bench="sheet" title="库存定价" data-i18n-title="ecom.bench.sheet">▦</button>
+                <button type="button" data-bench="pack" title="包装设计" data-i18n-title="ecom.bench.pack">◇</button>
+                <button type="button" data-bench="edit" title="剪视频" data-i18n-title="ecom.bench.edit">▶</button>
+              </nav>
+            </header>
+            <div class="ecom-play-stage" id="ecomPlayground"></div>
+            <footer class="ecom-play-foot">
+              <div class="ecom-wall" id="ecomWall"></div>
+            </footer>
+          </aside>
+        </div>
+
+        <!-- legacy hooks -->
+        <div id="ecomSkuCard" hidden></div>
+        <div id="ecomTaskFlow" hidden></div>
+        <div id="ecomFlowGoal" hidden></div>
+        <div id="ecomProjectId" hidden></div>
+        <div id="ecomSnapshot" hidden></div>
+        <div id="ecomBenchStage" hidden></div>
+        <div id="ecomThreads" hidden></div>
+        <div id="ecomChatHead" hidden></div>
+        <div id="ecomKpi" hidden></div>
+        <div id="ecomStageRail" hidden></div>
+        <span id="ecomBenchTitle" hidden></span>
+        <span id="ecomBenchSub" hidden></span>
+      </section>
     </div>
 
     <div class="toast" id="toast" hidden></div>
 
-    <script type="module" src="./js/app.js?v=20260730-replay2x"></script>
+    <script type="module" src="./js/app.js?v=20260807-editor"></script>
   </body>
 </html>

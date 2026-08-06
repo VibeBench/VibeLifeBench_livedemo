@@ -1,0 +1,101 @@
+{
+  "project": {
+    "name_zh": "咖啡工坊",
+    "name_en": "Coffee Workshop",
+    "id": "PRJ-COFFEE-002",
+    "icon": "assets/ecom/sku_hero_ai.webp"
+  },
+  "sku": {
+    "id": "drip-yunnan-12",
+    "name_zh": "云南日晒挂耳 · 12 杯盒",
+    "name_en": "Yunnan Natural Drip · 12 sachets",
+    "thumb": "assets/ecom/sku_hero_ai.webp"
+  },
+  "media": {
+    "sku_hero": "assets/ecom/sku_hero_ai.webp",
+    "pack_v1": "assets/ecom/pack_v1_ai.webp",
+    "pack_v2": "assets/ecom/pack_v2_ai.webp",
+    "note_v1": "assets/ecom/note_v1_cover_ai.webp",
+    "note_v2": "assets/ecom/note_v2_cover_ai.webp",
+    "video_poster": "assets/ecom/video_poster_ai.webp",
+    "quote_sheet": "assets/ecom/docs/quote_sheet.webp",
+    "po": "assets/ecom/docs/po_b080.webp",
+    "cupping": "assets/ecom/docs/cupping_qc.webp",
+    "qc_incident": "assets/ecom/docs/qc_incident.webp",
+    "scam_mail": "assets/ecom/docs/scam_mail.webp"
+  },
+  "kpi": {
+    "unitCost": 0,
+    "unitPrice": 0,
+    "stock": 0,
+    "sold": 0,
+    "revenue": 0,
+    "cogs": 0,
+    "profit": 0,
+    "orders": 0,
+    "marginPct": 0,
+    "refunds": 0,
+    "airFreight": 0,
+    "currency": "CNY",
+    "salesDelta": 0,
+    "profitDelta": 0,
+    "marginDelta": 0,
+    "ordersDelta": 0,
+    "budgetTotal": 30000,
+    "budgetSpent": 0
+  },
+  "goal_zh": "28 天内把挂耳咖啡在小红书卖出去，扰动后仍要利润为正，并留下可复用 SOP",
+  "goal_en": "In 28 days: sell drip coffee on XHS, stay profitable after disruptions, leave a reusable SOP",
+  "suppliers": [
+    {
+      "id": "bean_a",
+      "thread": "bean_a",
+      "name_zh": "云南豆商 A",
+      "name_en": "Yunnan Bean A",
+      "quote_per_kg": 68,
+      "moq_kg": 50,
+      "lead_days": 7,
+      "rating": 3,
+      "qc": "fail"
+    },
+    {
+      "id": "bean_b",
+      "thread": "bean_b",
+      "name_zh": "云南豆商 B",
+      "name_en": "Yunnan Bean B",
+      "quote_per_kg": 60,
+      "moq_kg": 80,
+      "lead_days": 10,
+      "rating": 5,
+      "qc": "pass"
+    },
+    {
+      "id": "bean_c",
+      "thread": "bean_c",
+      "name_zh": "保山合作社",
+      "name_en": "Baoshan Co-op",
+      "quote_per_kg": 65,
+      "moq_kg": 60,
+      "lead_days": 8,
+      "rating": 4,
+      "qc": "pass"
+    }
+  ],
+  "threads": [
+    { "id": "boss", "name_zh": "老板", "name_en": "Boss", "role": "owner", "avatar": "老", "avatar_img": "assets/ecom/avatars/boss.webp", "tab": "ops" },
+    { "id": "bean_a", "name_zh": "云南豆商 A", "name_en": "Yunnan Bean A", "role": "supplier", "avatar": "A", "avatar_img": "assets/ecom/avatars/bean_a.webp", "tab": "supplier" },
+    { "id": "bean_b", "name_zh": "云南豆商 B", "name_en": "Yunnan Bean B", "role": "supplier", "avatar": "B", "avatar_img": "assets/ecom/avatars/bean_b.webp", "tab": "supplier" },
+    { "id": "bean_c", "name_zh": "保山合作社", "name_en": "Baoshan Co-op", "role": "supplier", "avatar": "C", "avatar_img": "assets/ecom/avatars/bean_c.webp", "tab": "supplier" },
+    { "id": "pack_factory", "name_zh": "包装厂", "name_en": "Pack Factory", "role": "factory", "avatar": "包", "avatar_img": "assets/ecom/avatars/pack_factory.webp", "tab": "supplier" },
+    { "id": "design", "name_zh": "设计协作", "name_en": "Design Desk", "role": "design", "avatar": "设", "avatar_img": "assets/ecom/avatars/design.webp", "tab": "design" },
+    { "id": "xhs_ops", "name_zh": "小红书运营", "name_en": "XHS Ops", "role": "ops", "avatar": "红", "avatar_img": "assets/ecom/avatars/xhs_ops.webp", "tab": "marketing" },
+    { "id": "cs", "name_zh": "客服工单", "name_en": "Support desk", "role": "cs", "avatar": "客", "avatar_img": "assets/ecom/avatars/cs.webp", "tab": "ops" },
+    { "id": "kol", "name_zh": "达人小鹿", "name_en": "KOL Xiaolu", "role": "kol", "avatar": "播", "avatar_img": "assets/ecom/avatars/kol.webp", "tab": "marketing" },
+    { "id": "finance", "name_zh": "财务", "name_en": "Finance", "role": "finance", "avatar": "财", "avatar_img": "assets/ecom/avatars/finance.webp", "tab": "ops" }
+  ],
+  "sheet": {
+    "headers_zh": ["SKU", "进货价", "售价", "库存", "已售", "退款", "毛利率"],
+    "headers_en": ["SKU", "Cost", "Price", "Stock", "Sold", "Refunds", "Margin"],
+    "rows": [["drip-yunnan-12", "—", "—", "0", "0", "0", "—"]]
+  }
+}
