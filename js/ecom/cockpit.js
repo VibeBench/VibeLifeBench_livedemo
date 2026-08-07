@@ -2,11 +2,11 @@
  * SaaS-style ecommerce full-chain cockpit.
  */
 
-import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260807-event-ui";
-import { EcomIm } from "./im.js?v=20260807-event-ui";
-import { EcomBenches } from "./benches.js?v=20260807-event-ui";
-import { EcomScriptPlayer, ecomProgressLabel } from "./script.js?v=20260807-event-ui";
-import { createEcomTools } from "./tools.js?v=20260807-event-ui";
+import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260807-event-ui2";
+import { EcomIm } from "./im.js?v=20260807-event-ui2";
+import { EcomBenches } from "./benches.js?v=20260807-event-ui2";
+import { EcomScriptPlayer, ecomProgressLabel } from "./script.js?v=20260807-event-ui2";
+import { createEcomTools } from "./tools.js?v=20260807-event-ui2";
 
 function esc(s) {
   return String(s ?? "")
@@ -1267,20 +1267,6 @@ export class EcomCockpit {
     if (!st) return;
     const en = getLocale() === "en";
     const label = en ? st.en : st.zh;
-    const acts = [
-      { id: "brief", zh: "立项", en: "Brief", ids: ["brief", "research"] },
-      { id: "source", zh: "寻源", en: "Source", ids: ["sourcing", "sample_qc", "call"] },
-      { id: "pack", zh: "包装", en: "Pack", ids: ["pack_v1", "pack_reject", "pack_v2"] },
-      { id: "launch", zh: "上架", en: "Launch", ids: ["factory", "pricing", "soft_launch", "sell_w1"] },
-      { id: "disrupt", zh: "扰动", en: "Shock", ids: ["disrupt_quality", "disrupt_takedown", "disrupt_delay", "recover"] },
-      { id: "growth", zh: "增长", en: "Growth", ids: ["promo_war", "livestream", "sell_w2", "heartbeat"] },
-      { id: "close", zh: "收尾", en: "Close", ids: ["scam_mail", "scam_check", "scam_dispose", "disrupt_ledger", "profit", "sop_close"] },
-    ];
-    const actIdx = Math.max(
-      0,
-      acts.findIndex((a) => a.ids.includes(this.stageId))
-    );
-    const actName = acts[actIdx] ? (en ? acts[actIdx].en : acts[actIdx].zh) : "";
     const live = Boolean(this.player?.running);
     const strip = document.querySelector("#ecomPlanStrip");
     if (!strip) return;
@@ -1301,11 +1287,13 @@ export class EcomCockpit {
       eta.classList.toggle("is-warn", watch.level === "warn");
       eta.dataset.beat = live ? this._activityBeat(mode) : "";
       eta.title = watch.text || label;
-      eta.innerHTML = live
-        ? `${this._beatRailHtml(mode, { className: "ecom-stage-beat" })}<b>${esc(
-            actName || label
-          )}</b><em>${esc(label)}</em><i>${esc(L("双轨", "Dual"))}</i>`
-        : `<em>${esc(actName ? `${actName} · ${label}` : label || L("待命", "Idle"))}</em>`;
+      eta.innerHTML = `<em>${esc(
+        live
+          ? watch.level === "warn"
+            ? L("关注", "Watch")
+            : L("执行中", "Running")
+          : L("待命", "Idle")
+      )}</em>`;
     }
     const replayBtn = document.querySelector("#ecomBtnReplay");
     if (replayBtn) {
