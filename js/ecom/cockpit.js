@@ -2,11 +2,11 @@
  * SaaS-style ecommerce full-chain cockpit.
  */
 
-import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260807-event-ui2";
-import { EcomIm } from "./im.js?v=20260807-event-ui2";
-import { EcomBenches } from "./benches.js?v=20260807-event-ui2";
-import { EcomScriptPlayer, ecomProgressLabel } from "./script.js?v=20260807-event-ui2";
-import { createEcomTools } from "./tools.js?v=20260807-event-ui2";
+import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260807-ecom-load-fix";
+import { EcomIm } from "./im.js?v=20260807-ecom-load-fix";
+import { EcomBenches } from "./benches.js?v=20260807-ecom-load-fix";
+import { EcomScriptPlayer, ecomProgressLabel } from "./script.js?v=20260807-ecom-load-fix";
+import { createEcomTools } from "./tools.js?v=20260807-ecom-load-fix";
 
 function esc(s) {
   return String(s ?? "")
@@ -1267,6 +1267,19 @@ export class EcomCockpit {
     if (!st) return;
     const en = getLocale() === "en";
     const label = en ? st.en : st.zh;
+    const acts = [
+      { zh: "立项", en: "Brief", ids: ["brief", "research"] },
+      { zh: "寻源", en: "Source", ids: ["sourcing", "sample_qc", "call"] },
+      { zh: "包装", en: "Pack", ids: ["pack_v1", "pack_reject", "pack_v2"] },
+      { zh: "上架", en: "Launch", ids: ["factory", "pricing", "soft_launch", "sell_w1"] },
+      { zh: "扰动", en: "Shock", ids: ["disrupt_quality", "disrupt_takedown", "disrupt_delay", "recover"] },
+      { zh: "增长", en: "Growth", ids: ["promo_war", "livestream", "sell_w2", "heartbeat"] },
+      { zh: "收尾", en: "Close", ids: ["scam_mail", "scam_check", "scam_dispose", "disrupt_ledger", "profit", "sop_close"] },
+    ];
+    const actIdx = Math.max(
+      0,
+      acts.findIndex((a) => a.ids.includes(this.stageId))
+    );
     const live = Boolean(this.player?.running);
     const strip = document.querySelector("#ecomPlanStrip");
     if (!strip) return;

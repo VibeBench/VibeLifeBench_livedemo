@@ -2,7 +2,7 @@
  * Mock OpenClaw / agent workspace stream (center column).
  */
 
-import { L, getLocale } from "../i18n.js?v=20260807-event-ui2";
+import { L, getLocale } from "../i18n.js?v=20260807-ecom-load-fix";
 
 function esc(s) {
   return String(s ?? "")
