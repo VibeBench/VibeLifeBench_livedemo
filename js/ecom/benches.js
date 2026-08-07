@@ -2,8 +2,8 @@
  * Playground benches — call streaming transcript + agentic pack/video editing.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260807-stable-ui2";
-import { sleepPlayback } from "../playback.js?v=20260807-stable-ui2";
+import { L, getLocale } from "../i18n.js?v=20260807-event-ui";
+import { sleepPlayback } from "../playback.js?v=20260807-event-ui";
 
 function esc(s) {
   return String(s ?? "")

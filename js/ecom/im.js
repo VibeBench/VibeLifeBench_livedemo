@@ -2,7 +2,7 @@
  * Mock OpenClaw / agent workspace stream (center column).
  */
 
-import { L, getLocale } from "../i18n.js?v=20260807-stable-ui2";
+import { L, getLocale } from "../i18n.js?v=20260807-event-ui";
 
 function esc(s) {
   return String(s ?? "")
@@ -307,6 +307,7 @@ export class EcomIm {
       </div>`;
       return;
     }
+    const eventKinds = new Set(["world", "notify", "discovery", "mutation", "stage"]);
     this.messagesEl.innerHTML = list
       .map((m) => {
         const mine = m.from === "agent";
@@ -327,17 +328,23 @@ export class EcomIm {
           : `<span class="ecom-stream-avatar is-letter">${esc(avatarLetter)}</span>`;
         const whoMeta = `${avatarHtml}<span>${esc(who)}</span>`;
         if (m.deliverableId) {
-          return `<article class="ecom-stream-item ${kindClass} ${mine ? "mine" : ""} ${arrive} ${
-            "is-output"
-          }">
-            <div class="ecom-stream-who">${whoMeta}</div>
-            <div class="ecom-msg-card is-simple">
-              <div class="ecom-msg-card-body">${esc(
-                L(`已完成：${m.text}`, `Done: ${m.text}`)
-              )}</div>
-              <button type="button" class="ecom-msg-card-btn" data-deliv-btn="${esc(m.deliverableId || "")}">${esc(
+          return `<article class="ecom-stream-item ecom-stream-output ${kindClass} ${arrive}">
+            <span class="ecom-output-icon" aria-hidden="true">✓</span>
+            <div class="ecom-output-copy">
+              <span>${esc(L("交付物已完成", "Output ready"))}</span>
+              <strong>${esc(m.text)}</strong>
+            </div>
+            <button type="button" class="ecom-msg-card-btn" data-deliv-btn="${esc(m.deliverableId || "")}">${esc(
                 L("查看", "Open")
               )}</button>
+          </article>`;
+        }
+        if (eventKinds.has(kind)) {
+          return `<article class="ecom-stream-item ecom-stream-event ${kindClass} ${arrive}">
+            <span class="ecom-event-marker" aria-hidden="true"></span>
+            <div class="ecom-event-copy">
+              <strong>${esc(this._streamKindTag(kind) || L("动态", "Update"))}</strong>
+              <p>${esc(m.text)}</p>
             </div>
           </article>`;
         }
