@@ -1005,6 +1005,18 @@
     }
   },
   "phrases": {
+    "wedding": {
+      "婚礼筹备": "Wedding planning",
+      "婚期不可改": "Date is immutable",
+      "五轨总览": "Five-track overview",
+      "预算账本": "Budget ledger",
+      "合同差异": "Contract diff",
+      "档期证据": "Booking evidence",
+      "日历试穿": "Calendar and fittings",
+      "需当次授权": "Explicit approval required",
+      "不可退": "Non-refundable",
+      "联系人已脱敏": "Contacts masked"
+    },
     "locations": {
       "上海·家中": "Shanghai · Home",
       "上海浦东机场 T1": "Shanghai Pudong Airport T1",

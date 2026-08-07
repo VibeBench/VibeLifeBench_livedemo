@@ -1,0 +1,951 @@
+{
+  "case_id": "wedding_fixed_date_167d_v1",
+  "title_zh": "不可改婚期 · 五轨婚礼筹备",
+  "title_en": "Fixed-date wedding · five-track planning",
+  "subtitle_zh": "36 阶段 · 167 天 · 五轨 · 七把锁 · 扰动恢复",
+  "subtitle_en": "36 stages · 167 days · 5 tracks · 7 locks · disruption recovery",
+  "fixed_date": "2026-10-03",
+  "start_date": "2026-04-20",
+  "days_total": 167,
+  "budget_total_cny": 250000,
+  "benchmark_case": "wedding_fixed_date_167d_v1",
+  "benchmark_event_range": {
+    "first": "e000",
+    "last": "e121",
+    "count": 122
+  },
+  "benchmark_mutation_ids": [
+    "m01",
+    "m02",
+    "m03",
+    "m04",
+    "m05",
+    "m06",
+    "m07",
+    "m08",
+    "m09",
+    "m10",
+    "m11",
+    "m12",
+    "m13",
+    "m14",
+    "m15",
+    "m16",
+    "m17",
+    "m18",
+    "m19",
+    "m20",
+    "m21",
+    "m22",
+    "m23",
+    "m24",
+    "m25",
+    "m26",
+    "m27",
+    "m28"
+  ],
+  "tracks": [
+    {
+      "id": "A",
+      "zh": "场地与餐饮",
+      "en": "Venue & catering"
+    },
+    {
+      "id": "B",
+      "zh": "宾客回执与请柬",
+      "en": "RSVP & invites"
+    },
+    {
+      "id": "C",
+      "zh": "摄影摄像",
+      "en": "Photo & video"
+    },
+    {
+      "id": "D",
+      "zh": "婚纱礼服",
+      "en": "Gown & fittings"
+    },
+    {
+      "id": "E",
+      "zh": "仪式执行与预算",
+      "en": "Ceremony & budget"
+    }
+  ],
+  "acts": [
+    {
+      "id": "act_date",
+      "zh": "钉期",
+      "en": "Date locked",
+      "video_sec": "0-6",
+      "target_ms": 6000,
+      "stage_ids": [
+        "kickoff",
+        "hard_constraints",
+        "ledger_bootstrap",
+        "parallel_plan"
+      ]
+    },
+    {
+      "id": "act_deposit",
+      "zh": "定金前",
+      "en": "Before deposit",
+      "video_sec": "6-14",
+      "target_ms": 8000,
+      "stage_ids": [
+        "venue_shortlist",
+        "venue_capacity",
+        "guest_range_v0",
+        "venue_contract_v1",
+        "deposit_gate",
+        "venue_authorization",
+        "venue_lock"
+      ]
+    },
+    {
+      "id": "act_drift",
+      "zh": "状态失真",
+      "en": "State drift",
+      "video_sec": "14-22",
+      "target_ms": 8000,
+      "stage_ids": [
+        "photo_shortlist",
+        "photo_hold",
+        "photo_hold_release",
+        "photo_recovery",
+        "photo_lock",
+        "venue_attachment_drift",
+        "venue_terms_preserved",
+        "photo_lead_change"
+      ]
+    },
+    {
+      "id": "act_postlock",
+      "zh": "锁后扰动",
+      "en": "Post-lock shocks",
+      "video_sec": "22-30",
+      "target_ms": 8000,
+      "stage_ids": [
+        "dress_contract",
+        "dress_lock",
+        "ceremony_compare",
+        "mc_lock",
+        "menu_v1",
+        "rsvp_open",
+        "fleet_lock",
+        "invitation_proof",
+        "print_lock",
+        "half_rsvp_dietary",
+        "menu_reopen",
+        "rsvp_close",
+        "invites_dispatch",
+        "dress_delay"
+      ]
+    },
+    {
+      "id": "act_auth",
+      "zh": "权限",
+      "en": "Auth & privacy",
+      "video_sec": "30-36",
+      "target_ms": 6000,
+      "stage_ids": [
+        "scam_and_jewelry"
+      ]
+    },
+    {
+      "id": "act_merge",
+      "zh": "五轨汇合",
+      "en": "Five-track merge",
+      "video_sec": "36-40",
+      "target_ms": 4000,
+      "stage_ids": [
+        "cross_track_freeze",
+        "wedding_day"
+      ]
+    }
+  ],
+  "stages": [
+    {
+      "id": "kickoff",
+      "idx": 0,
+      "date": "2026-04-20",
+      "track": "ALL",
+      "zh": "启动立项",
+      "en": "Kickoff",
+      "benchmark_events": [
+        "e000",
+        "e001",
+        "e002",
+        "e003"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "启动立项"
+      ],
+      "subs_en": [
+        "Kickoff"
+      ]
+    },
+    {
+      "id": "hard_constraints",
+      "idx": 1,
+      "date": "2026-04-21",
+      "track": "ALL",
+      "zh": "硬约束汇总",
+      "en": "Hard constraints",
+      "benchmark_events": [
+        "e004",
+        "e005",
+        "e006",
+        "e007"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "硬约束汇总"
+      ],
+      "subs_en": [
+        "Hard constraints"
+      ]
+    },
+    {
+      "id": "ledger_bootstrap",
+      "idx": 2,
+      "date": "2026-04-22",
+      "track": "E",
+      "zh": "账本初始化",
+      "en": "Ledger bootstrap",
+      "benchmark_events": [
+        "e008",
+        "e009",
+        "e010",
+        "e011"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "账本初始化"
+      ],
+      "subs_en": [
+        "Ledger bootstrap"
+      ]
+    },
+    {
+      "id": "parallel_plan",
+      "idx": 3,
+      "date": "2026-04-24",
+      "track": "ALL",
+      "zh": "五轨并行计划",
+      "en": "Parallel plan",
+      "benchmark_events": [
+        "e012",
+        "e013",
+        "e014",
+        "e015"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "五轨并行计划"
+      ],
+      "subs_en": [
+        "Parallel plan"
+      ]
+    },
+    {
+      "id": "venue_shortlist",
+      "idx": 4,
+      "date": "2026-04-28",
+      "track": "A",
+      "zh": "场地短名单",
+      "en": "Venue shortlist",
+      "benchmark_events": [
+        "e016",
+        "e017",
+        "e018",
+        "e019"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "场地短名单"
+      ],
+      "subs_en": [
+        "Venue shortlist"
+      ]
+    },
+    {
+      "id": "venue_capacity",
+      "idx": 5,
+      "date": "2026-05-03",
+      "track": "A/B",
+      "zh": "容量与最低消费",
+      "en": "Capacity & min spend",
+      "benchmark_events": [
+        "e020",
+        "e021",
+        "e022",
+        "e023"
+      ],
+      "benchmark_mutations": [
+        "m01"
+      ],
+      "subs_zh": [
+        "容量与最低消费"
+      ],
+      "subs_en": [
+        "Capacity & min spend"
+      ]
+    },
+    {
+      "id": "guest_range_v0",
+      "idx": 6,
+      "date": "2026-05-10",
+      "track": "B→A",
+      "zh": "宾客区间 v0",
+      "en": "Guest range v0",
+      "benchmark_events": [
+        "e024",
+        "e025",
+        "e026",
+        "e027"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "宾客区间 v0"
+      ],
+      "subs_en": [
+        "Guest range v0"
+      ]
+    },
+    {
+      "id": "venue_contract_v1",
+      "idx": 7,
+      "date": "2026-05-18",
+      "track": "A",
+      "zh": "场地合同 v1",
+      "en": "Venue contract v1",
+      "benchmark_events": [
+        "e028",
+        "e029",
+        "e030",
+        "e031"
+      ],
+      "benchmark_mutations": [
+        "m02"
+      ],
+      "subs_zh": [
+        "场地合同 v1"
+      ],
+      "subs_en": [
+        "Venue contract v1"
+      ]
+    },
+    {
+      "id": "deposit_gate",
+      "idx": 8,
+      "date": "2026-05-25",
+      "track": "A/B/E",
+      "zh": "定金门禁",
+      "en": "Deposit gate",
+      "benchmark_events": [
+        "e032",
+        "e033",
+        "e034",
+        "e035"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "定金门禁"
+      ],
+      "subs_en": [
+        "Deposit gate"
+      ]
+    },
+    {
+      "id": "venue_authorization",
+      "idx": 9,
+      "date": "2026-05-28",
+      "track": "A/E",
+      "zh": "场地授权",
+      "en": "Venue authorization",
+      "benchmark_events": [
+        "e036",
+        "e037",
+        "e038",
+        "e039"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "场地授权"
+      ],
+      "subs_en": [
+        "Venue authorization"
+      ]
+    },
+    {
+      "id": "venue_lock",
+      "idx": 10,
+      "date": "2026-05-31",
+      "track": "A/E",
+      "zh": "场地锁定 L1",
+      "en": "Venue lock L1",
+      "benchmark_events": [
+        "e040",
+        "e041",
+        "e042",
+        "e043"
+      ],
+      "benchmark_mutations": [
+        "m03"
+      ],
+      "subs_zh": [
+        "场地锁定 L1"
+      ],
+      "subs_en": [
+        "Venue lock L1"
+      ]
+    },
+    {
+      "id": "photo_shortlist",
+      "idx": 11,
+      "date": "2026-06-01",
+      "track": "C",
+      "zh": "摄影短名单",
+      "en": "Photo shortlist",
+      "benchmark_events": [
+        "e044",
+        "e045",
+        "e046",
+        "e047"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "摄影短名单"
+      ],
+      "subs_en": [
+        "Photo shortlist"
+      ]
+    },
+    {
+      "id": "photo_hold",
+      "idx": 12,
+      "date": "2026-06-02",
+      "track": "C",
+      "zh": "摄影 hold",
+      "en": "Photo hold",
+      "benchmark_events": [
+        "e048",
+        "e049",
+        "e050",
+        "e051"
+      ],
+      "benchmark_mutations": [
+        "m07"
+      ],
+      "subs_zh": [
+        "摄影 hold"
+      ],
+      "subs_en": [
+        "Photo hold"
+      ]
+    },
+    {
+      "id": "photo_hold_release",
+      "idx": 13,
+      "date": "2026-06-03",
+      "track": "C",
+      "zh": "hold 释放",
+      "en": "Hold released",
+      "benchmark_events": [
+        "e052",
+        "e053",
+        "e054",
+        "e055"
+      ],
+      "benchmark_mutations": [
+        "m08"
+      ],
+      "subs_zh": [
+        "hold 释放"
+      ],
+      "subs_en": [
+        "Hold released"
+      ]
+    },
+    {
+      "id": "photo_recovery",
+      "idx": 14,
+      "date": "2026-06-04",
+      "track": "C/E",
+      "zh": "摄影恢复",
+      "en": "Photo recovery",
+      "benchmark_events": [
+        "e056",
+        "e057",
+        "e058"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "摄影恢复"
+      ],
+      "subs_en": [
+        "Photo recovery"
+      ]
+    },
+    {
+      "id": "photo_lock",
+      "idx": 15,
+      "date": "2026-06-05",
+      "track": "C/E",
+      "zh": "摄影锁定 L2",
+      "en": "Photo lock L2",
+      "benchmark_events": [
+        "e059",
+        "e060",
+        "e061"
+      ],
+      "benchmark_mutations": [
+        "m09"
+      ],
+      "subs_zh": [
+        "摄影锁定 L2"
+      ],
+      "subs_en": [
+        "Photo lock L2"
+      ]
+    },
+    {
+      "id": "dress_contract",
+      "idx": 16,
+      "date": "2026-06-08",
+      "track": "D/E",
+      "zh": "婚纱合同",
+      "en": "Dress contract",
+      "benchmark_events": [
+        "e062",
+        "e063",
+        "e064"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "婚纱合同"
+      ],
+      "subs_en": [
+        "Dress contract"
+      ]
+    },
+    {
+      "id": "dress_lock",
+      "idx": 17,
+      "date": "2026-06-12",
+      "track": "D/E",
+      "zh": "婚纱锁定 L3",
+      "en": "Dress lock L3",
+      "benchmark_events": [
+        "e065",
+        "e066",
+        "e067"
+      ],
+      "benchmark_mutations": [
+        "m12",
+        "m13"
+      ],
+      "subs_zh": [
+        "婚纱锁定 L3"
+      ],
+      "subs_en": [
+        "Dress lock L3"
+      ]
+    },
+    {
+      "id": "ceremony_compare",
+      "idx": 18,
+      "date": "2026-06-15",
+      "track": "E",
+      "zh": "仪式比价",
+      "en": "Ceremony compare",
+      "benchmark_events": [
+        "e068",
+        "e069",
+        "e070"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "仪式比价"
+      ],
+      "subs_en": [
+        "Ceremony compare"
+      ]
+    },
+    {
+      "id": "mc_lock",
+      "idx": 19,
+      "date": "2026-06-20",
+      "track": "E",
+      "zh": "司仪锁定 L5",
+      "en": "MC lock L5",
+      "benchmark_events": [
+        "e071",
+        "e072",
+        "e073"
+      ],
+      "benchmark_mutations": [
+        "m21"
+      ],
+      "subs_zh": [
+        "司仪锁定 L5"
+      ],
+      "subs_en": [
+        "MC lock L5"
+      ]
+    },
+    {
+      "id": "menu_v1",
+      "idx": 20,
+      "date": "2026-06-26",
+      "track": "A/B/E",
+      "zh": "菜单 v1",
+      "en": "Menu v1",
+      "benchmark_events": [
+        "e074",
+        "e075",
+        "e076"
+      ],
+      "benchmark_mutations": [
+        "m04"
+      ],
+      "subs_zh": [
+        "菜单 v1"
+      ],
+      "subs_en": [
+        "Menu v1"
+      ]
+    },
+    {
+      "id": "rsvp_open",
+      "idx": 21,
+      "date": "2026-07-01",
+      "track": "B/A",
+      "zh": "回执开启",
+      "en": "RSVP open",
+      "benchmark_events": [
+        "e077",
+        "e078",
+        "e079"
+      ],
+      "benchmark_mutations": [
+        "m16"
+      ],
+      "subs_zh": [
+        "回执开启"
+      ],
+      "subs_en": [
+        "RSVP open"
+      ]
+    },
+    {
+      "id": "fleet_lock",
+      "idx": 22,
+      "date": "2026-07-05",
+      "track": "E",
+      "zh": "车队锁定 L6",
+      "en": "Fleet lock L6",
+      "benchmark_events": [
+        "e080",
+        "e081",
+        "e082"
+      ],
+      "benchmark_mutations": [
+        "m22"
+      ],
+      "subs_zh": [
+        "车队锁定 L6"
+      ],
+      "subs_en": [
+        "Fleet lock L6"
+      ]
+    },
+    {
+      "id": "invitation_proof",
+      "idx": 23,
+      "date": "2026-07-10",
+      "track": "B",
+      "zh": "请柬校样",
+      "en": "Invitation proof",
+      "benchmark_events": [
+        "e083",
+        "e084",
+        "e085"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "请柬校样"
+      ],
+      "subs_en": [
+        "Invitation proof"
+      ]
+    },
+    {
+      "id": "print_lock",
+      "idx": 24,
+      "date": "2026-07-16",
+      "track": "B/E",
+      "zh": "印刷锁定 L4",
+      "en": "Print lock L4",
+      "benchmark_events": [
+        "e086",
+        "e087",
+        "e088"
+      ],
+      "benchmark_mutations": [
+        "m17"
+      ],
+      "subs_zh": [
+        "印刷锁定 L4"
+      ],
+      "subs_en": [
+        "Print lock L4"
+      ]
+    },
+    {
+      "id": "half_rsvp_dietary",
+      "idx": 25,
+      "date": "2026-07-17",
+      "track": "B→A",
+      "zh": "半数回执·忌口",
+      "en": "Half RSVP · dietary",
+      "benchmark_events": [
+        "e089",
+        "e090",
+        "e091"
+      ],
+      "benchmark_mutations": [
+        "m18",
+        "m19"
+      ],
+      "subs_zh": [
+        "半数回执·忌口"
+      ],
+      "subs_en": [
+        "Half RSVP · dietary"
+      ]
+    },
+    {
+      "id": "menu_reopen",
+      "idx": 26,
+      "date": "2026-07-18",
+      "track": "A/B/E",
+      "zh": "菜单重开",
+      "en": "Menu reopen",
+      "benchmark_events": [
+        "e092",
+        "e093",
+        "e094"
+      ],
+      "benchmark_mutations": [
+        "m25"
+      ],
+      "subs_zh": [
+        "菜单重开"
+      ],
+      "subs_en": [
+        "Menu reopen"
+      ]
+    },
+    {
+      "id": "rsvp_close",
+      "idx": 27,
+      "date": "2026-07-31",
+      "track": "B/A",
+      "zh": "回执截止",
+      "en": "RSVP close",
+      "benchmark_events": [
+        "e095",
+        "e096",
+        "e097"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "回执截止"
+      ],
+      "subs_en": [
+        "RSVP close"
+      ]
+    },
+    {
+      "id": "invites_dispatch",
+      "idx": 28,
+      "date": "2026-08-03",
+      "track": "B",
+      "zh": "请柬寄出",
+      "en": "Invites dispatched",
+      "benchmark_events": [
+        "e098",
+        "e099",
+        "e100"
+      ],
+      "benchmark_mutations": [
+        "m20"
+      ],
+      "subs_zh": [
+        "请柬寄出"
+      ],
+      "subs_en": [
+        "Invites dispatched"
+      ]
+    },
+    {
+      "id": "venue_attachment_drift",
+      "idx": 29,
+      "date": "2026-08-05",
+      "track": "A/E",
+      "zh": "附件漂移",
+      "en": "Attachment drift",
+      "benchmark_events": [
+        "e101",
+        "e102",
+        "e103"
+      ],
+      "benchmark_mutations": [
+        "m05",
+        "m26"
+      ],
+      "subs_zh": [
+        "附件漂移"
+      ],
+      "subs_en": [
+        "Attachment drift"
+      ]
+    },
+    {
+      "id": "venue_terms_preserved",
+      "idx": 30,
+      "date": "2026-08-06",
+      "track": "A/E",
+      "zh": "条款争议",
+      "en": "Terms disputed",
+      "benchmark_events": [
+        "e104",
+        "e105",
+        "e106"
+      ],
+      "benchmark_mutations": [
+        "m06"
+      ],
+      "subs_zh": [
+        "条款争议"
+      ],
+      "subs_en": [
+        "Terms disputed"
+      ]
+    },
+    {
+      "id": "photo_lead_change",
+      "idx": 31,
+      "date": "2026-08-10",
+      "track": "C/E",
+      "zh": "主摄更换",
+      "en": "Lead photographer change",
+      "benchmark_events": [
+        "e107",
+        "e108",
+        "e109"
+      ],
+      "benchmark_mutations": [
+        "m10",
+        "m11"
+      ],
+      "subs_zh": [
+        "主摄更换"
+      ],
+      "subs_en": [
+        "Lead photographer change"
+      ]
+    },
+    {
+      "id": "dress_delay",
+      "idx": 32,
+      "date": "2026-08-15",
+      "track": "D→C/E",
+      "zh": "婚纱延期",
+      "en": "Dress delay",
+      "benchmark_events": [
+        "e110",
+        "e111",
+        "e112"
+      ],
+      "benchmark_mutations": [
+        "m14",
+        "m15",
+        "m27"
+      ],
+      "subs_zh": [
+        "婚纱延期"
+      ],
+      "subs_en": [
+        "Dress delay"
+      ]
+    },
+    {
+      "id": "scam_and_jewelry",
+      "idx": 33,
+      "date": "2026-08-20",
+      "track": "E",
+      "zh": "骗局与四金",
+      "en": "Scam & jewelry",
+      "benchmark_events": [
+        "e113",
+        "e114",
+        "e115"
+      ],
+      "benchmark_mutations": [
+        "m23",
+        "m24"
+      ],
+      "subs_zh": [
+        "骗局与四金"
+      ],
+      "subs_en": [
+        "Scam & jewelry"
+      ]
+    },
+    {
+      "id": "cross_track_freeze",
+      "idx": 34,
+      "date": "2026-09-20",
+      "track": "ALL",
+      "zh": "五轨冻结",
+      "en": "Cross-track freeze",
+      "benchmark_events": [
+        "e116",
+        "e117",
+        "e118"
+      ],
+      "benchmark_mutations": [
+        "m28"
+      ],
+      "subs_zh": [
+        "五轨冻结"
+      ],
+      "subs_en": [
+        "Cross-track freeze"
+      ]
+    },
+    {
+      "id": "wedding_day",
+      "idx": 35,
+      "date": "2026-10-03",
+      "track": "ALL",
+      "zh": "婚礼当日",
+      "en": "Wedding day",
+      "benchmark_events": [
+        "e119",
+        "e120",
+        "e121"
+      ],
+      "benchmark_mutations": [],
+      "subs_zh": [
+        "婚礼当日"
+      ],
+      "subs_en": [
+        "Wedding day"
+      ]
+    }
+  ]
+}

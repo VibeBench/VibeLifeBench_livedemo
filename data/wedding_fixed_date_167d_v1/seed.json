@@ -1,0 +1,327 @@
+{
+  "project": {
+    "name_zh": "林乔 · 周屿婚礼",
+    "name_en": "Lin Qiao · Zhou Yu Wedding",
+    "id": "WED-20261003",
+    "icon": "assets/wedding/hero_calendar.webp",
+    "wedding_date": "2026-10-03",
+    "start_date": "2026-04-20"
+  },
+  "couple": {
+    "bride": {
+      "id": "lin_qiao",
+      "name_zh": "林乔",
+      "name_en": "Lin Qiao",
+      "role": "user"
+    },
+    "groom": {
+      "id": "zhou_yu",
+      "name_zh": "周屿",
+      "name_en": "Zhou Yu",
+      "role": "partner"
+    }
+  },
+  "goal_zh": "167 天内五轨准时汇入 2026-10-03；每一笔不可退定金前摊开未知与损失；总承诺 ≤ ¥250,000",
+  "goal_en": "In 167 days merge five tracks to 2026-10-03; surface unknowns before every nonrefundable deposit; committed total ≤ ¥250,000",
+  "kpi": {
+    "weddingDate": "2026-10-03",
+    "daysLeft": 167,
+    "tableLow": 0,
+    "tableExpected": 0,
+    "tableHigh": 0,
+    "rsvpPct": 0,
+    "budgetTotal": 250000,
+    "committedTotal": 0,
+    "authorizedPending": 0,
+    "worstCaseExposure": 0,
+    "reserveRemaining": 20000,
+    "menuSurcharge": 0,
+    "locksPaid": 0,
+    "locksTotal": 7,
+    "currency": "CNY"
+  },
+  "budget_lines": [
+    {
+      "category_zh": "场地与餐饮",
+      "category_en": "Venue & catering",
+      "planned": 108000,
+      "track": "A"
+    },
+    {
+      "category_zh": "摄影与摄像",
+      "category_en": "Photo & video",
+      "planned": 22000,
+      "track": "C"
+    },
+    {
+      "category_zh": "婚纱礼服与造型",
+      "category_en": "Gown & styling",
+      "planned": 24000,
+      "track": "D"
+    },
+    {
+      "category_zh": "宾客请柬与伴手礼",
+      "category_en": "RSVP & favors",
+      "planned": 9000,
+      "track": "B"
+    },
+    {
+      "category_zh": "司仪与车队",
+      "category_en": "MC & fleet",
+      "planned": 22000,
+      "track": "E"
+    },
+    {
+      "category_zh": "四金",
+      "category_en": "Jewelry",
+      "planned": 45000,
+      "track": "E"
+    },
+    {
+      "category_zh": "扰动预备金",
+      "category_en": "Disruption reserve",
+      "planned": 20000,
+      "track": "E"
+    }
+  ],
+  "locks": [
+    {
+      "id": "L1",
+      "track": "A",
+      "vendor_id": "venue_yunting",
+      "label_zh": "场地定金",
+      "label_en": "Venue deposit",
+      "amount": 30000,
+      "status": "planned",
+      "refundable": false,
+      "due": "2026-05-31"
+    },
+    {
+      "id": "L2",
+      "track": "C",
+      "vendor_id": "photo_beian",
+      "label_zh": "摄影定金",
+      "label_en": "Photo deposit",
+      "amount": 8000,
+      "status": "planned",
+      "refundable": false,
+      "due": "2026-06-03"
+    },
+    {
+      "id": "L3",
+      "track": "D",
+      "vendor_id": "dress_baizhi",
+      "label_zh": "婚纱定金",
+      "label_en": "Gown deposit",
+      "amount": 6000,
+      "status": "planned",
+      "refundable": false,
+      "due": "2026-06-12"
+    },
+    {
+      "id": "L4",
+      "track": "B",
+      "vendor_id": "invite_zhijian",
+      "label_zh": "请柬印刷",
+      "label_en": "Invite print",
+      "amount": 2400,
+      "status": "planned",
+      "refundable": false,
+      "due": "2026-07-16"
+    },
+    {
+      "id": "L5",
+      "track": "E",
+      "vendor_id": "mc_weiyang",
+      "label_zh": "司仪定金",
+      "label_en": "MC deposit",
+      "amount": 4000,
+      "status": "planned",
+      "refundable": false,
+      "due": "2026-06-20"
+    },
+    {
+      "id": "L6",
+      "track": "E",
+      "vendor_id": "fleet_anchi",
+      "label_zh": "车队定金",
+      "label_en": "Fleet deposit",
+      "amount": 3000,
+      "status": "planned",
+      "refundable": false,
+      "due": "2026-07-05"
+    },
+    {
+      "id": "L7",
+      "track": "E",
+      "vendor_id": "jewelry_jinyi",
+      "label_zh": "四金预付款",
+      "label_en": "Jewelry prepay",
+      "amount": 12000,
+      "status": "planned",
+      "refundable": false,
+      "due": "2026-08-20"
+    }
+  ],
+  "vendors": [
+    {
+      "id": "venue_yunting",
+      "thread": "venue_yunting",
+      "track": "A",
+      "name_zh": "云庭宴会中心",
+      "name_en": "Yunting Banquet",
+      "min_tables_v1": 20,
+      "min_tables_attachment": 25,
+      "capacity": 26,
+      "deposit": 30000
+    },
+    {
+      "id": "photo_beian",
+      "thread": "photo_beian",
+      "track": "C",
+      "name_zh": "北岸影像",
+      "name_en": "Beian Studio",
+      "lead_photographer_v1": "Chen Wei",
+      "lead_photographer_current": "Li Hao"
+    },
+    {
+      "id": "dress_baizhi",
+      "thread": "dress_baizhi",
+      "track": "D",
+      "name_zh": "白栀婚纱",
+      "name_en": "Baizhi Bridal",
+      "lead_days": 45,
+      "fittings": 2
+    },
+    {
+      "id": "invite_zhijian",
+      "thread": "invite_zhijian",
+      "track": "B",
+      "name_zh": "纸间请柬",
+      "name_en": "Zhijian Invites",
+      "print_days": 12
+    },
+    {
+      "id": "mc_weiyang",
+      "thread": "mc_weiyang",
+      "track": "E",
+      "name_zh": "司仪魏阳",
+      "name_en": "MC Weiyang"
+    },
+    {
+      "id": "fleet_anchi",
+      "thread": "fleet_anchi",
+      "track": "E",
+      "name_zh": "安驰车队",
+      "name_en": "Anchi Fleet"
+    },
+    {
+      "id": "jewelry_jinyi",
+      "thread": "jewelry_jinyi",
+      "track": "E",
+      "name_zh": "金艺珠宝",
+      "name_en": "Jinyi Jewelry"
+    },
+    {
+      "id": "scam_yitiaolong",
+      "thread": "scam_yitiaolong",
+      "track": "E",
+      "name_zh": "陌生婚庆一条龙",
+      "name_en": "Unknown planner",
+      "trusted": false
+    }
+  ],
+  "threads": [
+    {
+      "id": "lin_qiao",
+      "name_zh": "林乔",
+      "name_en": "Lin Qiao",
+      "role": "user",
+      "avatar": "乔",
+      "tab": "main"
+    },
+    {
+      "id": "zhou_yu",
+      "name_zh": "周屿",
+      "name_en": "Zhou Yu",
+      "role": "partner",
+      "avatar": "屿",
+      "tab": "main"
+    },
+    {
+      "id": "venue_yunting",
+      "name_zh": "云庭宴会中心",
+      "name_en": "Yunting Banquet",
+      "role": "vendor",
+      "avatar": "场",
+      "tab": "venue"
+    },
+    {
+      "id": "photo_beian",
+      "name_zh": "北岸影像",
+      "name_en": "Beian Studio",
+      "role": "vendor",
+      "avatar": "摄",
+      "tab": "photo"
+    },
+    {
+      "id": "dress_baizhi",
+      "name_zh": "白栀婚纱",
+      "name_en": "Baizhi Bridal",
+      "role": "vendor",
+      "avatar": "纱",
+      "tab": "dress"
+    },
+    {
+      "id": "invite_zhijian",
+      "name_zh": "纸间请柬",
+      "name_en": "Zhijian Invites",
+      "role": "vendor",
+      "avatar": "柬",
+      "tab": "guest"
+    },
+    {
+      "id": "finance",
+      "name_zh": "婚礼账本",
+      "name_en": "Wedding ledger",
+      "role": "finance",
+      "avatar": "账",
+      "tab": "ledger"
+    }
+  ],
+  "media": {
+    "calendar_fixed": "assets/wedding/calendar_1003.webp",
+    "table_range": "assets/wedding/table_range.webp",
+    "contract_v1": "assets/wedding/contract_v1_20.webp",
+    "contract_attach_25": "assets/wedding/contract_attach_25.webp",
+    "photo_hold_ui": "assets/wedding/photo_locked_badge.webp",
+    "photo_hold_backend": "assets/wedding/photo_released_backend.webp",
+    "dress_timeline": "assets/wedding/dress_45_60.webp",
+    "scam_message": "assets/wedding/scam_yitiaolong.webp",
+    "runbook": "assets/wedding/runbook_ready.webp",
+    "constraint_matrix": "assets/wedding/constraint_matrix.webp"
+  },
+  "ledger_sheet": {
+    "headers_zh": [
+      "科目",
+      "轨道",
+      "Vendor",
+      "金额",
+      "状态",
+      "可退",
+      "授权",
+      "风险"
+    ],
+    "headers_en": [
+      "Category",
+      "Track",
+      "Vendor",
+      "Amount",
+      "Status",
+      "Refundable",
+      "Auth",
+      "Risk"
+    ],
+    "rows": []
+  }
+}

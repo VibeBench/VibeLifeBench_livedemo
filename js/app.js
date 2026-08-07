@@ -40,8 +40,10 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260807-loop21";
+} from "./i18n.js?v=20260807-wedding-align2";
 import { EcomCockpit } from "./ecom/cockpit.js?v=20260807-topbar-fix";
+import { WeddingCockpit } from "./wedding/cockpit.js?v=20260807-wedding-mini-workbenches";
+import { createScriptedScenarioRegistry } from "./scenarios.js?v=20260807-wedding-v1";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -157,12 +159,28 @@ let replayAgentByEvent = new Map();
 /** Raw case events revealed so far (for locale re-render of task history). */
 let revealedEvents = [];
 
-/** Active demo scenario: travel (NZ map) | ecom (drip-coffee cockpit). */
+/** Active demo scenario: travel (NZ map) | scripted cockpit. */
 let currentScenario = "travel";
-/** @type {EcomCockpit|null} */
-let ecomCockpit = null;
-let ecomLoading = null;
-let ecomPlaying = false;
+const scriptedScenarios = createScriptedScenarioRegistry(
+  {
+    ecom: {
+      create: () => new EcomCockpit(),
+      dataBase: "./data/ecom_drip_coffee",
+      labelZh: "挂耳电商",
+      labelEn: "Drip commerce",
+    },
+    wedding: {
+      create: () => new WeddingCockpit(),
+      dataBase: "./data/wedding_fixed_date_167d_v1",
+      labelZh: "婚礼筹备",
+      labelEn: "Wedding planning",
+    },
+  },
+  {
+    onReplay: (id) => startScriptedReplay(id),
+    onConfigure: () => openConsole(true),
+  }
+);
 
 /** Demo no longer ships a baked-in vendor key — configure in the console. */
 /** Bump to one-shot wipe leftover demo key/model from older builds. */
@@ -195,27 +213,9 @@ function rerenderForLocale() {
   syncReplayButton();
   // Welcome card is hard-rendered HTML — rebuild so EN/ZH buttons & tips update.
   if (currentScenario === "travel" && document.querySelector(".welcome-guide")) showEntryGuide();
-  if (currentScenario === "ecom") ecomCockpit?.rerenderLocale();
+  if (scriptedScenarios.has(currentScenario)) scriptedScenarios.rerenderLocale(currentScenario);
   syncScenarioChrome();
   ui.toast(i18nT(getLocale() === "en" ? "lang.toast.en" : "lang.toast.zh"));
-}
-
-async function ensureEcomCockpit() {
-  if (ecomCockpit?.ready) return ecomCockpit;
-  if (ecomLoading) return ecomLoading;
-  ecomLoading = (async () => {
-    const c = new EcomCockpit();
-    c.onReplay = () => startEcomReplay();
-    c.onConfigure = () => openConsole(true);
-    await c.load("./data/ecom_drip_coffee");
-    ecomCockpit = c;
-    return c;
-  })();
-  try {
-    return await ecomLoading;
-  } finally {
-    ecomLoading = null;
-  }
 }
 
 function syncScenarioChrome() {
@@ -230,33 +230,42 @@ function syncScenarioChrome() {
 }
 
 async function setScenario(next) {
-  if (next !== "travel" && next !== "ecom") return;
+  if (next !== "travel" && !scriptedScenarios.has(next)) return;
   if (next === currentScenario) return;
 
-  if (next === "ecom") {
+  if (scriptedScenarios.has(next)) {
     stopAutoplay();
     if (replaying) stopReplay();
-    currentScenario = "ecom";
+    scriptedScenarios.stopAll();
+    scriptedScenarios.hideAll();
+    currentScenario = next;
     document.querySelector(".phone-col")?.classList.remove("is-ecom-console");
     try {
-      await ensureEcomCockpit();
-      ecomCockpit.show();
-      ecomCockpit.reset();
+      await scriptedScenarios.ensure(next);
+      scriptedScenarios.show(next);
+      scriptedScenarios.reset(next);
       syncScenarioChrome();
-      ui.toast(i18nL("已切换到挂耳电商驾驶舱", "Switched to drip-commerce cockpit"));
+      ui.toast(
+        next === "wedding"
+          ? i18nL("已切换到婚礼筹备驾驶舱", "Switched to wedding-planning cockpit")
+          : i18nL("已切换到挂耳电商驾驶舱", "Switched to drip-commerce cockpit")
+      );
     } catch (err) {
       currentScenario = "travel";
       console.error(err);
-      ui.toast(i18nL("电商场景加载失败：", "Failed to load ecom scenario: ") + (err.message || err));
+      ui.toast(
+        (next === "wedding"
+          ? i18nL("婚礼场景加载失败：", "Failed to load wedding scenario: ")
+          : i18nL("电商场景加载失败：", "Failed to load ecom scenario: ")) + (err.message || err)
+      );
       syncScenarioChrome();
     }
     return;
   }
 
   // back to travel
-  ecomCockpit?.player?.stop();
-  ecomPlaying = false;
-  ecomCockpit?.hide();
+  scriptedScenarios.stopAll();
+  scriptedScenarios.hideAll();
   document.querySelector(".phone-col")?.classList.remove("is-ecom-console");
   currentScenario = "travel";
   syncScenarioChrome();
@@ -265,25 +274,25 @@ async function setScenario(next) {
   ui.toast(i18nL("已切换到旅行 NZ", "Switched to Travel NZ"));
 }
 
-async function startEcomReplay() {
-  if (currentScenario !== "ecom") await setScenario("ecom");
-  const c = await ensureEcomCockpit();
-  if (ecomPlaying) {
-    c.player.stop();
-    ecomPlaying = false;
+async function startScriptedReplay(id = currentScenario) {
+  if (!scriptedScenarios.has(id)) return;
+  if (currentScenario !== id) await setScenario(id);
+  if (scriptedScenarios.isPlaying(id)) {
+    scriptedScenarios.stop(id);
     syncReplayButton();
     syncAutoplayButtonLabel();
     return;
   }
-  ecomPlaying = true;
   syncReplayButton();
   syncAutoplayButtonLabel();
   try {
-    await c.startReplay({
+    const replay = scriptedScenarios.play(id, {
       onToast: (msg) => ui.toast(msg),
     });
+    syncReplayButton();
+    syncAutoplayButtonLabel();
+    await replay;
   } finally {
-    ecomPlaying = false;
     syncReplayButton();
     syncAutoplayButtonLabel();
   }
@@ -294,6 +303,7 @@ function readScenarioFromUrl() {
     const q = new URLSearchParams(window.location.search);
     const s = (q.get("scenario") || q.get("case") || "").toLowerCase();
     if (s === "ecom" || s === "ecommerce" || s === "coffee" || s === "drip") return "ecom";
+    if (s === "wedding" || s === "wedding_fixed_date_167d_v1" || s === "marriage") return "wedding";
     if (s === "travel" || s === "nz") return "travel";
   } catch {
     /* ignore */
@@ -313,8 +323,9 @@ async function main() {
   syncReplayButton();
   syncScenarioChrome();
   onLocaleChange(() => rerenderForLocale());
-  // Prefetch ecom pack so scenario switch is instant.
-  ensureEcomCockpit().catch((err) => console.warn("ecom prefetch", err));
+  // Prefetch deterministic cockpit packs so scenario switches stay instant.
+  scriptedScenarios.ensure("ecom").catch((err) => console.warn("ecom prefetch", err));
+  scriptedScenarios.ensure("wedding").catch((err) => console.warn("wedding prefetch", err));
   const bootScenario = readScenarioFromUrl();
   try {
     caseData = await loadDefaultCase("./data");
@@ -323,9 +334,13 @@ async function main() {
     showEntryGuide();
     syncReplayButton();
     syncScenarioChrome();
-    if (bootScenario === "ecom") {
-      await setScenario("ecom");
-      ui.toast(i18nL("本地调试 · 挂耳电商场景", "Local debug · drip-commerce scenario"));
+    if (scriptedScenarios.has(bootScenario)) {
+      await setScenario(bootScenario);
+      ui.toast(
+        bootScenario === "wedding"
+          ? i18nL("本地调试 · 婚礼筹备场景", "Local debug · wedding-planning scenario")
+          : i18nL("本地调试 · 挂耳电商场景", "Local debug · drip-commerce scenario")
+      );
     } else {
       ui.toast(i18nL("已加载 newzealand_drive_30d_v3", "Loaded newzealand_drive_30d_v3"));
       if (bootScenario !== "travel") maybeAutoOpenConsole();
@@ -555,10 +570,13 @@ function syncConsoleOnboard() {
 function syncAutoplayButtonLabel() {
   const btn = document.querySelector("#btnAutoplay");
   if (!btn) return;
-  if (currentScenario === "ecom") {
+  if (scriptedScenarios.has(currentScenario)) {
     btn.disabled = false;
-    btn.title = i18nL("播放挂耳电商预录全链路", "Play drip-commerce baked full chain");
-    btn.textContent = ecomPlaying
+    btn.title =
+      currentScenario === "wedding"
+        ? i18nL("播放婚礼筹备完整 36 阶段事件流", "Play the complete 36-stage wedding-planning flow")
+        : i18nL("播放挂耳电商预录全链路", "Play drip-commerce baked full chain");
+    btn.textContent = scriptedScenarios.isPlaying(currentScenario)
       ? i18nL("停止演示", "Stop demo")
       : i18nT("top.autoplayStart");
     return;
@@ -581,17 +599,23 @@ function syncAutoplayButtonLabel() {
 
 /** Clear chat / agent memory / trajectory and rewind env playback to stage 0. */
 function clearAndRewind({ confirm: needConfirm = true, skipGuide = false } = {}) {
-  if (currentScenario === "ecom") {
-    if (needConfirm && (ecomPlaying || (ecomCockpit?.deliverables?.length || 0) > 0)) {
+  if (scriptedScenarios.has(currentScenario)) {
+    if (
+      needConfirm &&
+      (scriptedScenarios.isPlaying(currentScenario) || scriptedScenarios.hasProgress(currentScenario))
+    ) {
       const ok = window.confirm(i18nT("confirm.rewind"));
       if (!ok) return;
     }
-    ecomCockpit?.player?.stop();
-    ecomPlaying = false;
-    ecomCockpit?.reset();
+    scriptedScenarios.stop(currentScenario);
+    scriptedScenarios.reset(currentScenario);
     syncReplayButton();
     syncAutoplayButtonLabel();
-    ui.toast(i18nL("电商驾驶舱已重置", "Commerce cockpit reset"));
+    ui.toast(
+      currentScenario === "wedding"
+        ? i18nL("婚礼驾驶舱已重置", "Wedding cockpit reset")
+        : i18nL("电商驾驶舱已重置", "Commerce cockpit reset")
+    );
     return;
   }
   if (!caseData) return;
@@ -1102,8 +1126,8 @@ async function sendUserChat(text) {
 }
 
 function startAutoplay() {
-  if (currentScenario === "ecom") {
-    startEcomReplay();
+  if (scriptedScenarios.has(currentScenario)) {
+    startScriptedReplay(currentScenario);
     return;
   }
   if (!isLlmReady() || !ensureAgent()) {
@@ -1215,10 +1239,15 @@ function stopReplay() {
 function syncReplayButton() {
   const btn = document.querySelector("#btnReplay");
   if (!btn) return;
-  if (currentScenario === "ecom") {
+  if (scriptedScenarios.has(currentScenario)) {
     btn.disabled = false;
-    btn.setAttribute("title", i18nL("快速 Replay 挂耳电商预录轨迹", "Fast-replay drip-commerce bake"));
-    if (ecomPlaying) {
+    btn.setAttribute(
+      "title",
+      currentScenario === "wedding"
+        ? i18nL("Replay 婚礼筹备完整 36 阶段轨迹", "Replay the complete 36-stage wedding-planning flow")
+        : i18nL("快速 Replay 挂耳电商预录轨迹", "Fast-replay drip-commerce bake")
+    );
+    if (scriptedScenarios.isPlaying(currentScenario)) {
       btn.classList.add("active");
       btn.textContent = i18nL(`回放中 ${playbackSpeedLabel()}`, `Replaying ${playbackSpeedLabel()}`);
     } else {
@@ -1253,8 +1282,8 @@ function syncSpeedUi() {
 }
 
 async function startAcceleratedReplay() {
-  if (currentScenario === "ecom") {
-    await startEcomReplay();
+  if (scriptedScenarios.has(currentScenario)) {
+    await startScriptedReplay(currentScenario);
     return;
   }
   if (replaying) {
@@ -1356,8 +1385,8 @@ function bindChrome() {
     btn.addEventListener("click", () => setScenario(btn.dataset.scenario));
   });
   document.querySelector("#btnAutoplay").addEventListener("click", () => {
-    if (currentScenario === "ecom") {
-      startEcomReplay();
+    if (scriptedScenarios.has(currentScenario)) {
+      startScriptedReplay(currentScenario);
       return;
     }
     if (autoplay) stopAutoplay();
@@ -1545,7 +1574,7 @@ function openConsole(show) {
     applySettingsToForm();
     syncConsoleOnboard();
     ui.setPhoneTab("settings");
-    if (currentScenario === "ecom") phoneCol?.classList.add("is-ecom-console");
+    if (scriptedScenarios.has(currentScenario)) phoneCol?.classList.add("is-ecom-console");
   } else {
     ui.setPhoneTab("chat");
     phoneCol?.classList.remove("is-ecom-console");
