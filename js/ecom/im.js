@@ -2,7 +2,7 @@
  * Mock OpenClaw / agent workspace stream (center column).
  */
 
-import { L, getLocale } from "../i18n.js?v=20260807-simple-chat";
+import { L, getLocale } from "../i18n.js?v=20260807-stable-ui";
 
 function esc(s) {
   return String(s ?? "")

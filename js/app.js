@@ -41,7 +41,7 @@ import {
   onLocaleChange,
   applyDomI18n,
 } from "./i18n.js?v=20260807-loop21";
-import { EcomCockpit } from "./ecom/cockpit.js?v=20260807-simple-chat";
+import { EcomCockpit } from "./ecom/cockpit.js?v=20260807-stable-ui";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {

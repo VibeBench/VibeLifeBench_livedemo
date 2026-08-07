@@ -6825,7 +6825,9 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 8px 12px;
   box-shadow: var(--ecom-shadow-lg);
   flex: 0 0 auto;
-  min-height: 58px;
+  height: 62px;
+  min-height: 62px;
+  max-height: 62px;
   overflow: hidden;
 }
 
@@ -6941,6 +6943,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   border-radius: 12px;
   border: 1px solid var(--ecom-line);
   overflow: hidden;
+  height: 44px;
 }
 
 .ecom-top-kpis.is-dual {
@@ -6953,16 +6956,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-kpi-dual-cue {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-bottom: 1px solid #d1fadf;
-  background: #ecfdf3;
-  color: #027a48;
-  font-size: 10px;
-  font-weight: 600;
+  display: none;
 }
 
 .ecom-kpi-beat {
@@ -7204,26 +7198,27 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-dyn-rail {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  align-items: center;
   min-width: 0;
   flex: 1 1 auto;
+  height: 44px;
   border-radius: 10px;
-  transition: background 0.25s ease;
+  overflow: hidden;
 }
 
 .ecom-dyn-rail.is-kpi-tick {
-  background: linear-gradient(90deg, rgba(239, 248, 255, 0.9), rgba(255, 255, 255, 0));
-  animation: ecomDynTick 0.7s ease-out;
+  background: transparent;
+  animation: none;
 }
 
 .ecom-dyn-rail.is-sense {
-  background: linear-gradient(90deg, rgba(255, 250, 235, 0.95), rgba(239, 248, 255, 0.35), rgba(255, 255, 255, 0));
-  animation: ecomDynSense 0.65s ease-out;
+  background: transparent;
+  animation: none;
 }
 
 .ecom-rail-watch {
-  display: flex;
+  display: none !important;
   align-items: center;
   gap: 6px;
   min-width: 0;
@@ -7343,7 +7338,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-monitors {
-  display: flex;
+  display: none;
   flex-wrap: nowrap;
   gap: 2px;
   min-height: 0;
@@ -8507,16 +8502,17 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-play-status {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px 6px;
+  display: block;
   margin-top: 3px;
   color: #667085;
   font-size: 11px;
-  line-height: 1.35;
+  line-height: 16px;
+  height: 16px;
   max-width: 380px;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ecom-play-status-text {
@@ -8611,7 +8607,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-play-status.is-tick {
   color: #175cd3;
-  animation: ecomStatusTick 0.65s ease-out;
+  animation: none;
 }
 
 .ecom-bench-strip button.is-next-hint {
@@ -8666,6 +8662,17 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   background:
     radial-gradient(900px 320px at 10% -10%, #eef3ff 0%, transparent 60%),
     #f7f8fa;
+}
+
+#ecomPlayground .ecom-card-beat-row,
+#ecomPlayground .ecom-stage-dual,
+#ecomPlayground .ecom-sheet-beat,
+#ecomPlayground .ecom-sheet-dual,
+#ecomPlayground .ecom-comms-beat,
+#ecomPlayground .ecom-comms-dual,
+#ecomPlayground .ecom-agentic-beat,
+#ecomPlayground .ecom-agentic-dual {
+  display: none !important;
 }
 
 .ecom-play-empty {
@@ -11028,6 +11035,41 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 2px;
 }
 
+.ecom-call-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  margin: 8px 0;
+  padding: 7px 9px;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #475467;
+  font-size: 11px;
+}
+
+.ecom-call-summary span,
+.ecom-call-summary b {
+  font-weight: 700;
+}
+
+.ecom-call-summary em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+}
+
+.ecom-call-summary.is-live span {
+  color: #175cd3;
+}
+
+.ecom-call-summary.is-done span {
+  color: #027a48;
+}
+
 .ecom-call-beat {
   display: flex;
   align-items: center;
@@ -11506,7 +11548,9 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-stream-log {
-  max-height: 260px;
+  height: 190px;
+  min-height: 190px;
+  max-height: 190px;
   overflow: auto;
   padding: 12px;
   display: flex;
@@ -11567,6 +11611,14 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-call-speaking {
   color: #175cd3;
+  min-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ecom-call-speaking.is-idle {
+  color: #98a2b3;
 }
 
 .ecom-call-intent {

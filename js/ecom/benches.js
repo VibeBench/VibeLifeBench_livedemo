@@ -2,8 +2,8 @@
  * Playground benches — call streaming transcript + agentic pack/video editing.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260807-simple-chat";
-import { sleepPlayback } from "../playback.js?v=20260807-simple-chat";
+import { L, getLocale } from "../i18n.js?v=20260807-stable-ui";
+import { sleepPlayback } from "../playback.js?v=20260807-stable-ui";
 
 function esc(s) {
   return String(s ?? "")
@@ -103,70 +103,12 @@ export class EcomBenches {
     const next = String(text || "");
     const el = document.querySelector("#ecomPlayStatus");
     if (el) {
-      const ctx = this.getStandbyContext?.() || {};
-      const live = Boolean(ctx.live);
-      const acting = this._callLive() || Boolean(this._packState?.busy) || Boolean(this._editState?.busy);
-      const beat = this._statusBeat({ acting });
-      const watchKey = live ? `${ctx.level || ""}:${String(ctx.watch || "").slice(0, 24)}` : "";
-      const signature = `${next}|${live ? 1 : 0}|${acting ? 1 : 0}|${beat}|${watchKey}|${ctx.nextBench || ""}|${this.active || ""}`;
-      if (el.dataset.sig !== signature) {
-        el.dataset.sig = signature;
+      if (el.dataset.sig !== next) {
+        el.dataset.sig = next;
         el.hidden = !next;
-        el.classList.toggle("is-live", live);
-        el.classList.toggle("is-acting", acting);
-        el.dataset.beat = live ? beat : "";
-        if (!next) {
-          el.innerHTML = "";
-        } else {
-          const nextBenchLabel = {
-            phone: L("下一拍 · 通话", "Next · call"),
-            pack: L("下一拍 · 包装", "Next · pack"),
-            edit: L("下一拍 · 剪辑", "Next · edit"),
-            sheet: L("下一拍 · 账表", "Next · sheet"),
-            comms: L("下一拍 · 协作", "Next · comms"),
-          }[ctx.nextBench];
-          const pill = live
-            ? acting
-              ? L("执行中", "Acting")
-              : L("双轨", "Dual")
-            : "";
-          const en = getLocale() === "en";
-          const beatSteps = [
-            { id: "sense", zh: "感", en: "S" },
-            { id: "think", zh: "想", en: "T" },
-            { id: "act", zh: "做", en: "A" },
-          ];
-          const order = { sense: 0, think: 1, act: 2, check: 3, hold: -1 };
-          const cur = order[beat] ?? -1;
-          const beatHtml =
-            live
-              ? `<span class="ecom-play-status-beat" aria-hidden="true">${beatSteps
-                  .map((s, i) => {
-                    const state =
-                      beat === "check" || i < cur ? "is-done" : i === cur ? "is-on" : "";
-                    return `<b class="${state}">${esc(en ? s.en : s.zh)}</b>`;
-                  })
-                  .join("<i></i>")}</span>`
-              : "";
-          const watchHtml =
-            live && ctx.watch && (ctx.level === "warn" || this.active === "idle" || !acting)
-              ? `<em class="ecom-play-status-watch is-${esc(ctx.level || "info")}" title="${esc(
-                  ctx.watch
-                )}">${esc(L("盯", "W"))}</em>`
-              : "";
-          el.innerHTML = `${beatHtml}<span class="ecom-play-status-text">${esc(next)}</span>${
-            pill ? `<b class="ecom-play-status-pill">${esc(pill)}</b>` : ""
-          }${watchHtml}${
-            live && nextBenchLabel && (this.active === "idle" || !acting)
-              ? `<em class="ecom-play-status-next">${esc(nextBenchLabel)}</em>`
-              : ""
-          }`;
-          el.classList.remove("is-tick");
-          void el.offsetWidth;
-          el.classList.add("is-tick");
-          window.clearTimeout(this._statusTick);
-          this._statusTick = window.setTimeout(() => el.classList.remove("is-tick"), 650);
-        }
+        el.className = "ecom-play-status";
+        el.textContent = next;
+        el.title = next;
       }
     }
     if (next) this.onStatus?.(next);
@@ -848,49 +790,15 @@ export class EcomBenches {
     const locked = ["price", "qty", "lead", "qc"].filter((k) => Boolean(ex[k]) || (k === "price" && c.agreedPrice != null))
       .length;
     const dualLive = Boolean(this.getStandbyContext?.()?.live);
-    const en = getLocale() === "en";
-    const beat = live ? "act" : "check";
-    const beatSteps = [
-      { id: "sense", zh: "感", en: "S" },
-      { id: "think", zh: "想", en: "T" },
-      { id: "act", zh: "做", en: "A" },
-    ];
-    const order = { sense: 0, think: 1, act: 2, check: 3 };
-    const cur = order[beat] ?? 2;
-    const beatHtml = dualLive
-      ? `<p class="ecom-call-beat" aria-hidden="true">${beatSteps
-          .map((s, i) => {
-            const state =
-              beat === "check" || i < cur ? "is-done" : i === cur ? "is-on" : "";
-            return `<b class="${state}">${esc(en ? s.en : s.zh)}</b>`;
-          })
-          .join("<i></i>")}<em>${esc(
-          live
-            ? L(`感→想→做：边听边锁条款 ${locked}/4`, `S→T→A: locking terms live ${locked}/4`)
-            : L("感→想→做：条款已校验归档", "S→T→A: terms verified and archived")
-        )}</em></p>`
-      : "";
     return `<div class="ecom-call-surface ${dualLive ? "is-dual" : ""} ${live ? "is-live" : "is-done"}">
       ${this._callCardHtml(c)}
-      ${beatHtml}
-      <p class="ecom-call-dual ${live ? "is-live" : "is-done"}"><i></i><em>${esc(
+      <p class="ecom-call-summary ${live ? "is-live" : "is-done"}"><span>${esc(
+        live ? L("Agent 代办", "Agent handling") : L("通话完成", "Call complete")
+      )}</span><em>${esc(
         live
-          ? L("双轨：锁价通话由我主持 · 你继续门店", "Dual-track: I run the lock-price call · you stay on the floor")
-          : L("双轨：条款已锁定 · 门店事务可继续", "Dual-track: terms locked · floor work can continue")
-      )}</em><b>${esc(
-        live
-          ? L(`条款 ${locked}/4`, `Terms ${locked}/4`)
-          : L("已归档", "Archived")
-      )}</b></p>
-      ${
-        !live
-          ? `<p class="ecom-next-action ecom-call-next">${esc(
-              L("下一步：写回定价表 · 同步财务预留预算", "Next: write price sheet · reserve finance budget")
-            )}</p>`
-          : `<p class="ecom-next-action ecom-call-next">${esc(
-              L("下一步：听完四条款 → 生成锁单纪要", "Next: finish four terms → draft the lock memo")
-            )}</p>`
-      }
+          ? L("边听边锁条款", "Locking terms live")
+          : L("条款已校验归档", "Terms verified and archived")
+      )}</em><b>${esc(live ? `${locked}/4` : L("已归档", "Archived"))}</b></p>
       <div class="ecom-stream-panel">
         <div class="ecom-stream-panel-head">
           <span class="ecom-pill ${live ? "is-live" : "is-done"}">${esc(
@@ -979,34 +887,19 @@ export class EcomBenches {
       </div>
       <div class="ecom-wave ${streamingLine ? `is-speak-${esc(streamingLine.role || "peer")}` : ""}" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
       ${
-        live
-          ? `<p class="ecom-call-intent"><span>${esc(L("意图", "Why"))}</span>${esc(
-              L("边通话边抽取可写回条款，忙门店也不丢锁价", "Extract writable terms live so floor work never misses the lock")
-            )}</p>`
-          : ""
-      }
-      ${
         live && topic
           ? `<p class="ecom-call-topic"><span>${esc(L("议题", "Topic"))}</span>${esc(topic)}</p>`
           : ""
       }
-      ${
-        speaking
-          ? `<p class="ecom-call-speaking is-live">${esc(speaking)}</p>`
-          : ""
-      }
+      <p class="ecom-call-speaking ${speaking ? "is-live" : "is-idle"}">${esc(
+        speaking || L("正在监听…", "Listening…")
+      )}</p>
       ${
         live
           ? `<p class="ecom-call-asr"><span>${esc(L("ASR 置信", "ASR conf"))}</span><i style="--c:${confPct}%"></i><em>${confPct}%</em></p>`
           : ""
       }
       ${this._callExtractHtml(ex, { live, agreedPrice })}
-      ${this._digestBeatHtml(
-        live
-          ? L("感→想→做：边通话边锁条款 · 门店优先", "S→T→A: lock terms live · floor first")
-          : L("感→想→做：条款已校验归档", "S→T→A: terms verified and archived"),
-        { mode: live ? "acting" : "verified" }
-      )}
       ${
         phase === "ended"
           ? `<p class="ecom-call-note muted">${esc(
@@ -1015,11 +908,7 @@ export class EcomBenches {
              <p class="ecom-next-action">${esc(
                L("下一步：写回定价表 · 同步财务预留预算", "Next: write price sheet · reserve finance budget")
              )}</p>`
-          : live
-            ? `<p class="ecom-call-note muted">${esc(
-                L("你继续门店；我会把确认项实时落成锁单要素", "Stay on the floor — I'll turn confirmations into lock terms")
-              )}</p>`
-            : ""
+          : ""
       }
     </div>`;
   }
@@ -1035,15 +924,16 @@ export class EcomBenches {
     const line = state?.streamingLine;
     if (speak) {
       if (line) {
-        speak.hidden = false;
         speak.textContent =
           line.role === "agent"
             ? L(`Agent 正在确认条款 · ${line.who || "AI"}`, `Agent confirming terms · ${line.who || "AI"}`)
             : L(`对方发言中 · ${line.who || state.name || ""}`, `Counterparty speaking · ${line.who || state.name || ""}`);
         speak.classList.add("is-live");
+        speak.classList.remove("is-idle");
       } else {
-        speak.hidden = true;
+        speak.textContent = L("正在监听…", "Listening…");
         speak.classList.remove("is-live");
+        speak.classList.add("is-idle");
       }
     }
     if (wave) {
