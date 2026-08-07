@@ -2,8 +2,8 @@
  * Playground benches — call streaming transcript + agentic pack/video editing.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260807-ecom-load-fix";
-import { sleepPlayback } from "../playback.js?v=20260807-ecom-load-fix";
+import { L, getLocale } from "../i18n.js?v=20260807-topbar-fix";
+import { sleepPlayback } from "../playback.js?v=20260807-topbar-fix";
 
 function esc(s) {
   return String(s ?? "")

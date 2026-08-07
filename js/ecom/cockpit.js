@@ -2,11 +2,11 @@
  * SaaS-style ecommerce full-chain cockpit.
  */
 
-import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260807-ecom-load-fix";
-import { EcomIm } from "./im.js?v=20260807-ecom-load-fix";
-import { EcomBenches } from "./benches.js?v=20260807-ecom-load-fix";
-import { EcomScriptPlayer, ecomProgressLabel } from "./script.js?v=20260807-ecom-load-fix";
-import { createEcomTools } from "./tools.js?v=20260807-ecom-load-fix";
+import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260807-topbar-fix";
+import { EcomIm } from "./im.js?v=20260807-topbar-fix";
+import { EcomBenches } from "./benches.js?v=20260807-topbar-fix";
+import { EcomScriptPlayer, ecomProgressLabel } from "./script.js?v=20260807-topbar-fix";
+import { createEcomTools } from "./tools.js?v=20260807-topbar-fix";
 
 function esc(s) {
   return String(s ?? "")

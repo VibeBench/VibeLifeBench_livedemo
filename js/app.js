@@ -41,7 +41,7 @@ import {
   onLocaleChange,
   applyDomI18n,
 } from "./i18n.js?v=20260807-loop21";
-import { EcomCockpit } from "./ecom/cockpit.js?v=20260807-ecom-load-fix";
+import { EcomCockpit } from "./ecom/cockpit.js?v=20260807-topbar-fix";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
