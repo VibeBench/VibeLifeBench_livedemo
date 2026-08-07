@@ -1,5 +1,5 @@
-import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260807-editor";
-import { DemoEngine } from "./engine.js?v=20260807-editor";
+import { loadDefaultCase, loadCaseFromFile } from "./loader.js?v=20260807-loop21";
+import { DemoEngine } from "./engine.js?v=20260807-loop21";
 import {
   TravelAgent,
   DEFAULT_MODEL,
@@ -7,9 +7,9 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260807-editor";
-import { Trajectory, isValidRecording } from "./trajectory.js?v=20260807-editor";
-import { UI } from "./ui.js?v=20260807-editor";
+} from "./agent.js?v=20260807-loop21";
+import { Trajectory, isValidRecording } from "./trajectory.js?v=20260807-loop21";
+import { UI } from "./ui.js?v=20260807-loop21";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,7 +18,7 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260807-editor";
+} from "./map.js?v=20260807-loop21";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -26,7 +26,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260807-editor";
+} from "./playback.js?v=20260807-loop21";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -40,8 +40,8 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260807-editor";
-import { EcomCockpit } from "./ecom/cockpit.js?v=20260807-editor";
+} from "./i18n.js?v=20260807-loop21";
+import { EcomCockpit } from "./ecom/cockpit.js?v=20260807-simple-chat";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
