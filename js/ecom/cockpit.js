@@ -2,11 +2,11 @@
  * SaaS-style ecommerce full-chain cockpit.
  */
 
-import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260807-stable-ui";
-import { EcomIm } from "./im.js?v=20260807-stable-ui";
-import { EcomBenches } from "./benches.js?v=20260807-stable-ui";
-import { EcomScriptPlayer, ecomProgressLabel } from "./script.js?v=20260807-stable-ui";
-import { createEcomTools } from "./tools.js?v=20260807-stable-ui";
+import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260807-stable-ui2";
+import { EcomIm } from "./im.js?v=20260807-stable-ui2";
+import { EcomBenches } from "./benches.js?v=20260807-stable-ui2";
+import { EcomScriptPlayer, ecomProgressLabel } from "./script.js?v=20260807-stable-ui2";
+import { createEcomTools } from "./tools.js?v=20260807-stable-ui2";
 
 function esc(s) {
   return String(s ?? "")
@@ -508,81 +508,9 @@ export class EcomCockpit {
   }
 
   _syncComposerHint(agentLabel = "") {
-    const hint = document.querySelector("#ecomComposerHint");
-    if (!hint || hint.hidden || hint.classList.contains("is-done")) return;
-    const agent = hint.querySelector(".ecom-composer-hint-agent em");
-    const human = hint.querySelector(".ecom-composer-hint-human em");
-    const humanSrc = document
-      .querySelector("#ecomParallelStrip .ecom-parallel-human em")
-      ?.textContent?.trim();
-    if (human && humanSrc) {
-      const humanChanged = human.textContent !== humanSrc;
-      human.textContent = humanSrc;
-      if (humanChanged) {
-        hint.classList.remove("is-human-tick");
-        void hint.offsetWidth;
-        hint.classList.add("is-human-tick");
-        window.clearTimeout(this._composerHumanTickTimer);
-        this._composerHumanTickTimer = window.setTimeout(
-          () => hint.classList.remove("is-human-tick"),
-          560
-        );
-      }
-    }
-    if (agent && agentLabel) {
-      agent.textContent = agentLabel;
-      hint.classList.remove("is-tick");
-      void hint.offsetWidth;
-      hint.classList.add("is-tick");
-      window.clearTimeout(this._composerTickTimer);
-      this._composerTickTimer = window.setTimeout(() => hint.classList.remove("is-tick"), 520);
-    }
-    const mode =
-      this._activityMode || this._modeFromStepType(this._replayProgress?.type) || "idle";
-    const modeEl = hint.querySelector(".ecom-composer-hint-mode");
-    if (modeEl) {
-      modeEl.className = `ecom-composer-hint-mode is-${mode}`;
-      modeEl.textContent = this._activityModeLabel(mode);
-    }
-    const beatEl = hint.querySelector(".ecom-composer-hint-beat");
-    if (beatEl) {
-      const nextBeat = this._beatRailHtml(mode, { className: "ecom-composer-hint-beat" });
-      if (beatEl.outerHTML !== nextBeat) beatEl.outerHTML = nextBeat;
-    }
-    const stageChip = document.querySelector("#ecomAgentEta")?.textContent?.trim();
-    let stageMeta = hint.querySelector(".ecom-composer-hint-meta > em");
-    const metaHost = hint.querySelector(".ecom-composer-hint-meta");
-    if (stageChip && metaHost) {
-      if (!stageMeta) {
-        stageMeta = document.createElement("em");
-        const modeNode = hint.querySelector(".ecom-composer-hint-mode");
-        if (modeNode?.nextSibling) metaHost.insertBefore(stageMeta, modeNode.nextSibling);
-        else metaHost.appendChild(stageMeta);
-      }
-      stageMeta.textContent = stageChip;
-    }
-    const ctx = this._standbyContext?.() || {};
-    const nextBenchLabel = {
-      phone: L("下一拍 · 通话", "Next · call"),
-      pack: L("下一拍 · 包装", "Next · pack"),
-      edit: L("下一拍 · 剪辑", "Next · edit"),
-      sheet: L("下一拍 · 账表", "Next · sheet"),
-      comms: L("下一拍 · 协作", "Next · comms"),
-    }[ctx.nextBench];
-    let nextEl = hint.querySelector(".ecom-composer-hint-next");
-    if (nextBenchLabel && metaHost) {
-      if (!nextEl) {
-        nextEl = document.createElement("i");
-        nextEl.className = "ecom-composer-hint-next";
-        metaHost.appendChild(nextEl);
-      }
-      nextEl.textContent = nextBenchLabel;
-    } else {
-      nextEl?.remove();
-    }
     const input = document.querySelector("#ecomChatInput");
-    if (input?.disabled && stageChip) {
-      input.placeholder = L(`无人值守 · ${stageChip}`, `Hands-free · ${stageChip}`);
+    if (input?.disabled) {
+      input.placeholder = L("回放进行中…", "Replay in progress…");
     }
   }
 
