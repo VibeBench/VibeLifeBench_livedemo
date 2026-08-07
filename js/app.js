@@ -308,7 +308,7 @@ function readScenarioFromUrl() {
   } catch {
     /* ignore */
   }
-  return null;
+  return "wedding";
 }
 
 async function main() {
