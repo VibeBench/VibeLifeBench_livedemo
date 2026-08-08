@@ -1,24 +1,23 @@
 {
   "project": {
-    "name_zh": "山酲咖啡",
-    "name_en": "Shanxing Coffee",
+    "name_zh": "咖啡工坊",
+    "name_en": "Coffee Workshop",
     "id": "PRJ-COFFEE-002",
-    "icon": "assets/ecom/shanxing_logo.png"
+    "icon": "assets/ecom/sku_hero_ai.webp"
   },
   "sku": {
     "id": "drip-yunnan-12",
-    "name_zh": "山酲 · 云南日晒挂耳 · 12 杯盒",
-    "name_en": "Shanxing Yunnan Natural Drip · 12 sachets",
-    "thumb": "assets/ecom/product_samples.png"
+    "name_zh": "云南日晒挂耳 · 12 杯盒",
+    "name_en": "Yunnan Natural Drip · 12 sachets",
+    "thumb": "assets/ecom/sku_hero_ai.webp"
   },
   "media": {
-    "brand_logo": "assets/ecom/shanxing_logo.png",
-    "sku_hero": "assets/ecom/product_samples.png",
+    "sku_hero": "assets/ecom/sku_hero_ai.webp",
     "pack_v1": "assets/ecom/pack_v1_ai.webp",
-    "pack_v2": "assets/ecom/product_samples.png",
+    "pack_v2": "assets/ecom/pack_v2_ai.webp",
     "note_v1": "assets/ecom/note_v1_cover_ai.webp",
     "note_v2": "assets/ecom/note_v2_cover_ai.webp",
-    "video_poster": "assets/ecom/product_samples.png",
+    "video_poster": "assets/ecom/video_poster_ai.webp",
     "quote_sheet": "assets/ecom/docs/quote_sheet.webp",
     "po": "assets/ecom/docs/po_b080.webp",
     "cupping": "assets/ecom/docs/cupping_qc.webp",
