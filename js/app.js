@@ -7,7 +7,7 @@ import {
   DEFAULT_PROVIDER,
   normalizeBaseUrl,
   detectProvider,
-} from "./agent.js?v=20260807-loop21";
+} from "./agent.js?v=20260808-travel-persona";
 import { Trajectory, isValidRecording } from "./trajectory.js?v=20260807-loop21";
 import { UI } from "./ui.js?v=20260807-loop21";
 import {
