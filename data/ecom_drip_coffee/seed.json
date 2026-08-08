@@ -9,17 +9,16 @@
     "id": "drip-yunnan-12",
     "name_zh": "山酲 · 云南日晒挂耳 · 12 杯盒",
     "name_en": "Shanxing Yunnan Natural Drip · 12 sachets",
-    "thumb": "assets/ecom/sku_hero_ai.webp?v=20260808-shanxing"
+    "thumb": "assets/ecom/product_samples.png"
   },
   "media": {
     "brand_logo": "assets/ecom/shanxing_logo.png",
-    "product_samples": "assets/ecom/product_samples.png",
-    "sku_hero": "assets/ecom/sku_hero_ai.webp?v=20260808-shanxing",
+    "sku_hero": "assets/ecom/product_samples.png",
     "pack_v1": "assets/ecom/pack_v1_ai.webp",
-    "pack_v2": "assets/ecom/pack_v2_ai.webp?v=20260808-shanxing",
+    "pack_v2": "assets/ecom/product_samples.png",
     "note_v1": "assets/ecom/note_v1_cover_ai.webp",
     "note_v2": "assets/ecom/note_v2_cover_ai.webp",
-    "video_poster": "assets/ecom/video_poster_ai.webp?v=20260808-shanxing",
+    "video_poster": "assets/ecom/product_samples.png",
     "quote_sheet": "assets/ecom/docs/quote_sheet.webp",
     "po": "assets/ecom/docs/po_b080.webp",
     "cupping": "assets/ecom/docs/cupping_qc.webp",
