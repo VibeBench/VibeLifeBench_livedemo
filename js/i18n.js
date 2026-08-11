@@ -22,6 +22,7 @@ const DICT = {
     "lang.toast.zh": "界面语言：中文",
     "lang.toast.en": "Language · English",
     "lang.btnTitle": "语言",
+    "scenario.aria": "场景",
     "scenario.travel": "旅行 NZ",
     "scenario.ecom": "挂耳电商",
     "scenario.wedding": "婚礼筹备",
@@ -36,6 +37,15 @@ const DICT = {
     "wedding.tabs.booking": "档期",
     "wedding.tabs.calendar": "日历",
     "wedding.archived": "已归档",
+    "wedding.standby": "待命",
+    "wedding.replay": "完整 Replay",
+    "wedding.replayTitle": "按 36 阶段播放完整事件流",
+    "wedding.agentSub": "Dots Note",
+    "wedding.kpiAria": "婚礼关键状态",
+    "wedding.tracksAria": "五轨进度",
+    "wedding.projectFallback": "固定婚期 · 五轨筹备",
+    "wedding.brandMark": "囍",
+    "phone.agentTitle": "小林 · 旅行助理",
     "ecom.autoExec": "自动执行",
     "ecom.owner": "店主",
     "ecom.deskTitle": "VibeLifeBench",
@@ -52,12 +62,29 @@ const DICT = {
     "ecom.tab.marketing": "营销",
     "ecom.tab.ops": "运营",
     "ecom.agentWorking": "AI Agent",
+    "ecom.agentSub": "Dots Note",
+    "ecom.observe": "观察",
+    "ecom.chatTab": "对话",
     "ecom.composerPh": "给 Agent 下指令…",
     "ecom.send": "发送",
+    "ecom.notify": "通知",
+    "ecom.planAria": "任务进度",
+    "ecom.benchAria": "工具台",
+    "ecom.railNav": "工作台导航",
+    "ecom.rail.bench": "工作台",
+    "ecom.rail.project": "项目",
+    "ecom.rail.knowledge": "知识库",
+    "ecom.rail.dashboard": "数据看板",
+    "ecom.rail.settings": "设置",
+    "ecom.rail.focusDemo": "本 demo 聚焦经营工作台",
+    "ecom.rail.pin": "固定展开",
+    "ecom.parallelHuman": "你在打理门店",
+    "ecom.parallelAgent": "Agent 在后台推进任务",
     "ecom.imTitle": "OpenClaw IM",
     "ecom.imSub": "消息 · 交付 · 动态切换",
     "ecom.benchTitle": "工作台",
     "ecom.benchSub": "模型正在前台持续作业",
+    "ecom.bench.comms": "协作消息",
     "ecom.bench.phone": "打电话",
     "ecom.bench.pack": "包装设计",
     "ecom.bench.sheet": "库存定价",
@@ -214,6 +241,7 @@ const DICT = {
     "lang.toast.zh": "界面语言：中文",
     "lang.toast.en": "Language · English",
     "lang.btnTitle": "Language",
+    "scenario.aria": "Scenario",
     "scenario.travel": "Travel NZ",
     "scenario.ecom": "Drip commerce",
     "scenario.wedding": "Wedding planning",
@@ -228,6 +256,15 @@ const DICT = {
     "wedding.tabs.booking": "Booking",
     "wedding.tabs.calendar": "Calendar",
     "wedding.archived": "Archived",
+    "wedding.standby": "Standby",
+    "wedding.replay": "Full Replay",
+    "wedding.replayTitle": "Play the complete 36-stage event flow",
+    "wedding.agentSub": "Dots Note",
+    "wedding.kpiAria": "Wedding key status",
+    "wedding.tracksAria": "Five-track progress",
+    "wedding.projectFallback": "Fixed date · five-track planning",
+    "wedding.brandMark": "W",
+    "phone.agentTitle": "Xiao Lin · Travel agent",
     "ecom.autoExec": "Auto-run",
     "ecom.owner": "Owner",
     "ecom.deskTitle": "VibeLifeBench",
@@ -244,12 +281,29 @@ const DICT = {
     "ecom.tab.marketing": "Marketing",
     "ecom.tab.ops": "Ops",
     "ecom.agentWorking": "AI Agent",
+    "ecom.agentSub": "Dots Note",
+    "ecom.observe": "Observe",
+    "ecom.chatTab": "Chat",
     "ecom.composerPh": "Message the agent…",
     "ecom.send": "Send",
+    "ecom.notify": "Notifications",
+    "ecom.planAria": "Task progress",
+    "ecom.benchAria": "Tool benches",
+    "ecom.railNav": "Workbench navigation",
+    "ecom.rail.bench": "Workbench",
+    "ecom.rail.project": "Projects",
+    "ecom.rail.knowledge": "Knowledge",
+    "ecom.rail.dashboard": "Dashboard",
+    "ecom.rail.settings": "Settings",
+    "ecom.rail.focusDemo": "This demo focuses on the ops workbench",
+    "ecom.rail.pin": "Keep expanded",
+    "ecom.parallelHuman": "You're running the shop",
+    "ecom.parallelAgent": "Agent advances tasks in background",
     "ecom.imTitle": "OpenClaw IM",
     "ecom.imSub": "Messages · delivers · switch",
     "ecom.benchTitle": "Workbench",
     "ecom.benchSub": "Model working in the foreground",
+    "ecom.bench.comms": "Team chat",
     "ecom.bench.phone": "Phone",
     "ecom.bench.pack": "Pack design",
     "ecom.bench.sheet": "Pricing",
@@ -626,9 +680,20 @@ export function setLocale(next, { silent = false } = {}) {
   return locale;
 }
 
-/** Always start in Chinese; ignore / clear any prior vibe.locale preference. */
+/**
+ * Default Chinese. Honor ?lang=en|zh on first load; ignore / clear prior vibe.locale.
+ */
 export function initLocaleFromStorage() {
-  locale = "zh";
+  let next = "zh";
+  try {
+    const q = new URLSearchParams(window.location.search);
+    const lang = String(q.get("lang") || q.get("locale") || "").toLowerCase();
+    if (lang === "en" || lang.startsWith("en-")) next = "en";
+    else if (lang === "zh" || lang.startsWith("zh")) next = "zh";
+  } catch {
+    /* ignore */
+  }
+  locale = next;
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {

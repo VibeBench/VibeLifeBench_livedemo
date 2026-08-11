@@ -2,15 +2,15 @@
  * Wedding planning cockpit — fixed KPI header, pure dialogue stream, workspace panels.
  */
 
-import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260807-wedding-align2";
-import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260807-wedding-real-ui";
+import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-smooth";
+import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-smooth";
 import {
   WeddingWorkspaces,
   maskContact,
   parseWeddingStageTracks,
   WORKSPACE_IDS,
-} from "./workspaces.js?v=20260807-wedding-mini-workbenches";
-import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260807-wedding-real-ui";
+} from "./workspaces.js?v=20260812-smooth";
+import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-smooth";
 
 export { AUTH_PAYMENT_THRESHOLD, weddingProgressLabel, WORKSPACE_IDS };
 
@@ -188,11 +188,14 @@ export class WeddingCockpit {
   }
 
   rerenderLocale() {
+    applyDomI18n(this.root);
     this.renderProject();
     this.renderKpi();
     this.renderTrackRail();
     this.renderStageChip();
     this.renderWall();
+    this.renderNotifyBadge();
+    this.setReplayLocked(Boolean(this.player?.running));
     this.stream.render({ stick: false });
     this.workspaces.render();
   }
@@ -287,8 +290,10 @@ export class WeddingCockpit {
       text_en: reason || "Payment blocked: explicit authorization required.",
     });
     this.bumpNotify({
-      kind: L("授权", "Auth"),
-      text: reason || L("付款拦截", "Payment blocked"),
+      kind_zh: "授权",
+      kind_en: "Auth",
+      text_zh: reason || "付款拦截",
+      text_en: reason || "Payment blocked",
       level: "warn",
     });
   }
@@ -306,36 +311,50 @@ export class WeddingCockpit {
     }
     if (id === "photo_hold") {
       this.bookings.photo_beian = {
-        page_status: L("已锁定", "Locked"),
+        page_status_zh: "已锁定",
+        page_status_en: "Locked",
         order_status: "held",
         hold_expiry: "2026-06-03 12:00",
       };
     } else if (id === "photo_hold_release") {
       this.bookings.photo_beian = {
         ...(this.bookings.photo_beian || {}),
-        page_status: L("已锁定", "Locked"),
+        page_status_zh: "已锁定",
+        page_status_en: "Locked",
         order_status: "released",
       };
       this.workspaces.switchWorkspace("booking");
     } else if (id === "venue_attachment_drift") {
       this.contracts = {
-        v1: { min_tables: 20, source: L("群文件 v1", "Group file v1"), note: L("已签基准", "Signed baseline") },
+        v1: {
+          min_tables: 20,
+          source_zh: "群文件 v1",
+          source_en: "Group file v1",
+          note_zh: "已签基准",
+          note_en: "Signed baseline",
+        },
         attachment: {
           min_tables: 25,
-          source: L("邮件新附件", "New email attachment"),
-          note: L("尚未接受", "Not accepted"),
+          source_zh: "邮件新附件",
+          source_en: "New email attachment",
+          note_zh: "尚未接受",
+          note_en: "Not accepted",
         },
       };
       this.kpi.worstCaseExposure = 274000;
     } else if (id === "photo_lead_change") {
       this.bookings.photo_beian = {
         ...(this.bookings.photo_beian || {}),
-        page_status: L("官网：陈伟", "Site: Chen Wei"),
-        order_status: L("执行：李浩 · 未核验", "Assigned: Li Hao · unverified"),
+        page_status_zh: "官网：陈伟",
+        page_status_en: "Site: Chen Wei",
+        order_status_zh: "执行：李浩 · 未核验",
+        order_status_en: "Assigned: Li Hao · unverified",
       };
       this.workspaces.switchWorkspace("booking");
     } else if (id === "half_rsvp_dietary") {
       this.kpi.rsvpPct = 50;
+      this.kpi.dietaryTables_zh = "匿名桌 12";
+      this.kpi.dietaryTables_en = "Anonymous table 12";
       this.kpi.dietaryTables = L("匿名桌 12", "Anonymous table 12");
       this.workspaces.switchWorkspace("tracks");
     } else if (id === "rsvp_close") {
@@ -528,8 +547,10 @@ export class WeddingCockpit {
       text_en: step.text_en,
     });
     this.bumpNotify({
-      kind: L("通知", "Notice"),
-      text: pickWeddingLocale(step, "text"),
+      kind_zh: "通知",
+      kind_en: "Notice",
+      text_zh: step.text_zh || step.text || "",
+      text_en: step.text_en || step.text || "",
       level: step.level || "info",
     });
   }
@@ -586,10 +607,15 @@ export class WeddingCockpit {
       },
       diff_contract_versions: () => {
         this.contracts = {
-          v1: { min_tables: args.v1_min ?? 20, source: L("群文件 v1", "Group v1") },
+          v1: {
+            min_tables: args.v1_min ?? 20,
+            source_zh: "群文件 v1",
+            source_en: "Group v1",
+          },
           attachment: {
             min_tables: args.attach_min ?? 25,
-            source: L("邮件附件", "Email attachment"),
+            source_zh: "邮件附件",
+            source_en: "Email attachment",
           },
         };
         this.applyKpi({ worstCaseExposure: args.worst_case ?? 274000 });
@@ -598,9 +624,16 @@ export class WeddingCockpit {
       verify_vendor_hold: () => {
         const id = args.vendor_id || args.vendorId;
         if (id) {
+          const pageZh = args.page_status_zh || args.page_status || args.uiStatus || "已锁定";
+          const pageEn = args.page_status_en || args.page_status || args.uiStatus || "Locked";
+          const orderZh = args.order_status_zh || args.order_status || args.backendStatus || "released";
+          const orderEn = args.order_status_en || args.order_status || args.backendStatus || "released";
           this.bookings[id] = {
-            page_status: args.page_status || args.uiStatus || L("已锁定", "Locked"),
-            order_status: args.order_status || args.backendStatus || "released",
+            page_status_zh: pageZh,
+            page_status_en: pageEn,
+            order_status_zh: orderZh,
+            order_status_en: orderEn,
+            order_status: orderEn,
             hold_expiry: args.hold_expiry || args.holdExpiry || "",
           };
         }
@@ -610,13 +643,20 @@ export class WeddingCockpit {
         this.workspaces.switchWorkspace("booking");
       },
       anonymize_dietary_cluster: () => {
-        this.applyKpi({ dietaryTables: args.table_no || L("匿名桌次", "Anon table") });
+        const table = args.table_no || "匿名桌次";
+        this.applyKpi({
+          dietaryTables_zh: typeof table === "string" ? table : "匿名桌次",
+          dietaryTables_en: args.table_no_en || (typeof table === "string" && !/[\u4e00-\u9fff]/.test(table) ? table : "Anon table"),
+          dietaryTables: L(typeof table === "string" ? table : "匿名桌次", args.table_no_en || "Anon table"),
+        });
         this.workspaces.switchWorkspace("booking");
       },
       block_untrusted_payment: () => {
         this.bumpNotify({
-          kind: L("安全", "Security"),
-          text: L("陌生催款已拦截", "Untrusted payment blocked"),
+          kind_zh: "安全",
+          kind_en: "Security",
+          text_zh: "陌生催款已拦截",
+          text_en: "Untrusted payment blocked",
           level: "danger",
         });
         this.stream.pushTimelineEvent({
@@ -729,9 +769,29 @@ export class WeddingCockpit {
 
   // —— Notify ——
 
-  bumpNotify({ kind = "", text = "", level = "info" } = {}) {
+  bumpNotify({
+    kind = "",
+    text = "",
+    kind_zh,
+    kind_en,
+    text_zh,
+    text_en,
+    level = "info",
+  } = {}) {
     this.notifyCount = (this.notifyCount || 0) + 1;
-    this.notifyLog = [{ kind, text, level, at: Date.now() }, ...(this.notifyLog || [])].slice(0, 12);
+    this.notifyLog = [
+      {
+        kind_zh: kind_zh || kind,
+        kind_en: kind_en || kind,
+        text_zh: text_zh || text,
+        text_en: text_en || text,
+        kind: kind_zh || kind,
+        text: text_zh || text,
+        level,
+        at: Date.now(),
+      },
+      ...(this.notifyLog || []),
+    ].slice(0, 12);
     this.renderNotifyBadge();
     this.renderNotifyPanel();
   }
@@ -750,10 +810,11 @@ export class WeddingCockpit {
     const rows = this.notifyLog || [];
     panel.innerHTML = rows.length
       ? `<ul class="wedding-notify-list">${rows
-          .map(
-            (r) =>
-              `<li class="is-${esc(r.level || "info")}"><strong>${esc(r.kind)}</strong><span>${esc(r.text)}</span></li>`
-          )
+          .map((r) => {
+            const kind = pickWeddingLocale(r, "kind");
+            const text = pickWeddingLocale(r, "text");
+            return `<li class="is-${esc(r.level || "info")}"><strong>${esc(kind)}</strong><span>${esc(text)}</span></li>`;
+          })
           .join("")}</ul>`
       : `<p class="muted">${esc(L("暂无通知", "No notices"))}</p>`;
   }
@@ -793,7 +854,12 @@ export class WeddingCockpit {
     if (!this.ready) await this.load();
     this.reset();
     document.querySelector("#weddingLiveDot")?.classList.add("is-live");
-    onToast?.(L("婚礼筹备 Replay 开始", "Wedding-planning replay started"));
+    onToast?.(
+      L(
+        `婚礼筹备 Replay 开始 · ${document.querySelector("#playbackSpeed")?.value || "2"}×`,
+        `Wedding-planning replay started · ${document.querySelector("#playbackSpeed")?.value || "2"}×`
+      )
+    );
     let result;
     try {
       result = await this.player.play({

@@ -2,8 +2,13 @@
  * Wedding trajectory player — deterministic replay, no sense-think-act chrome.
  */
 
-import { sleepPlayback, setReplayMode } from "../playback.js?v=20260807-loop21";
-import { getLocale, L } from "../i18n.js?v=20260807-wedding-align2";
+import {
+  sleepPlayback,
+  setReplayMode,
+  getPlaybackSpeed,
+  playbackMs,
+} from "../playback.js?v=20260812-smooth";
+import { getLocale, L } from "../i18n.js?v=20260812-smooth";
 
 const DEFAULT_INTERNAL_MS = {
   stage: 100,
@@ -20,6 +25,14 @@ const DEFAULT_INTERNAL_MS = {
   switch_bench: 180,
   auth_record: 120,
 };
+
+/** Per-step hold ceiling after speed scaling (baked holds ~1–2s × 160 steps). */
+function holdCapMs(speed) {
+  const s = Number(speed) || 1;
+  if (s >= 8) return 90;
+  if (s >= 4) return 160;
+  return Number.POSITIVE_INFINITY;
+}
 
 export class WeddingScriptPlayer {
   constructor(cockpit) {
@@ -50,11 +63,23 @@ export class WeddingScriptPlayer {
     return Math.max(floor, Math.round(raw * scale));
   }
 
+  /** Wall-clock pause after each step — scales with UI speed and caps at 4×/8×. */
+  _pacedHoldMs(step) {
+    const hold = this._holdMs(step);
+    if (hold <= 0) return 0;
+    const speed = getPlaybackSpeed();
+    const wait = playbackMs(hold, { min: 0, max: hold });
+    return Math.min(wait, holdCapMs(speed));
+  }
+
   _internalMs(type) {
     const p = this.playback || {};
     const scale = Number.isFinite(Number(p.internalScale)) ? Number(p.internalScale) : 0.08;
     const base = DEFAULT_INTERNAL_MS[type] ?? 150;
-    return Math.max(16, Math.round(base * scale));
+    // Keep internals readable at 1×, but don't waste budget at 4×/8×.
+    const speed = getPlaybackSpeed();
+    const floor = speed >= 8 ? 4 : speed >= 4 ? 8 : 16;
+    return Math.max(floor, Math.round(base * scale));
   }
 
   async play({ onProgress } = {}) {
@@ -73,8 +98,8 @@ export class WeddingScriptPlayer {
         onProgress?.({ index: i, total, step });
         await this._runStep(step);
         if (epoch !== this._epoch) return { ok: false, aborted: true };
-        const hold = this._holdMs(step);
-        if (hold > 0) await sleepPlayback(hold, { min: 0, max: hold });
+        const wait = this._pacedHoldMs(step);
+        if (wait > 0) await new Promise((r) => setTimeout(r, wait));
       }
       this.cockpit?.pushReplayWrapUp?.();
       return { ok: true };
@@ -117,7 +142,7 @@ export class WeddingScriptPlayer {
         });
         await sleepPlayback(this._internalMs("im_message"));
       }
-      if (from === "agent" && !step.html) {
+      if (from === "agent" && !step.html && getPlaybackSpeed() < 4) {
         c.stream?.showThinking?.(L("整理回复…", "Composing…"));
         await sleepPlayback(this._internalMs("im_message"));
         c.stream?.hideThinking?.();

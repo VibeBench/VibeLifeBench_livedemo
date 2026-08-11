@@ -2,10 +2,10 @@
  * Ecom trajectory player — Manus pacing (slower holds + tool visibility).
  */
 
-import { sleepPlayback, setReplayMode } from "../playback.js?v=20260807-topbar-fix";
-import { getLocale, L } from "../i18n.js?v=20260807-topbar-fix";
+import { sleepPlayback, setReplayMode } from "../playback.js?v=20260812-smooth";
+import { getLocale, L } from "../i18n.js?v=20260812-smooth";
 
-/** Slow factor vs baked holdMs (user asked not too fast). */
+/** Slow factor vs baked holdMs at 1× (still readable; 4×/8× scale via playbackMs). */
 const HOLD_SCALE = 2.2;
 const HOLD_FLOOR = 700;
 

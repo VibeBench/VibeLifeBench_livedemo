@@ -3,7 +3,7 @@
  * Fixed-height rendering; masked contacts; no contract signing UI.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260807-wedding-align2";
+import { L, getLocale } from "../i18n.js?v=20260812-smooth";
 
 export const WORKSPACE_IDS = ["tracks", "ledger", "contracts", "booking", "calendar"];
 
@@ -23,10 +23,55 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
+function htmlSig(html) {
+  const s = String(html ?? "");
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return `${s.length}:${h}`;
+}
+
 function fmt(n) {
   const v = Number(n);
   if (!Number.isFinite(v)) return "—";
   return v.toLocaleString(getLocale() === "en" ? "en-US" : "zh-CN");
+}
+
+/** Pick bilingual field written as key_zh/key_en (or plain string fallback). */
+function pickStored(obj, key) {
+  if (!obj) return "";
+  if (typeof obj === "string") return localizeMaybe(obj);
+  const zh = obj[`${key}_zh`] ?? obj[key];
+  const en = obj[`${key}_en`] ?? obj[key];
+  if (zh && typeof zh === "object") return pickStored(zh, "text") || pickStored(zh, "label");
+  return getLocale() === "en" ? localizeMaybe(en || zh || "") : localizeMaybe(zh || en || "");
+}
+
+/** Last-resort map for status strings baked before bilingual storage. */
+function localizeMaybe(value) {
+  const s = String(value ?? "");
+  if (!s) return "";
+  if (getLocale() !== "en" || !/[\u4e00-\u9fff]/.test(s)) return s;
+  const map = {
+    已锁定: "Locked",
+    保留中: "Held",
+    待核验: "Verifying",
+    "群文件 v1": "Group file v1",
+    群文件: "Group file",
+    邮件新附件: "New email attachment",
+    邮件附件: "Email attachment",
+    已签基准: "Signed baseline",
+    尚未接受: "Not accepted",
+    "官网：陈伟": "Site: Chen Wei",
+    "执行：李浩 · 未核验": "Assigned: Li Hao · unverified",
+    "匿名桌 12": "Anonymous table 12",
+    匿名桌次: "Anon table",
+    页面已锁: "UI locked",
+    后台释放: "backend released",
+  };
+  if (map[s]) return map[s];
+  let out = s;
+  for (const [zh, en] of Object.entries(map)) out = out.split(zh).join(en);
+  return out;
 }
 
 /** Mask elder / private contact fields for vendor-facing views. */
@@ -120,6 +165,8 @@ export class WeddingWorkspaces {
   render() {
     if (!this.stageEl) return;
     const state = this.getState() || {};
+    if (this.active === "tracks" && this._patchTracks(state)) return;
+
     const html =
       {
         tracks: this._renderTracks(state),
@@ -130,6 +177,67 @@ export class WeddingWorkspaces {
       }[this.active] || this._renderEmpty();
 
     this.stageEl.innerHTML = `<div class="wedding-workspace-panel">${html}</div>`;
+  }
+
+  /** Update track windows in place — avoids remount flicker on focus/KPI ticks. */
+  _patchTracks(state = {}) {
+    const root = this.stageEl.querySelector(".wedding-parallel-windows");
+    if (!root) return false;
+    const en = getLocale() === "en";
+    const meta = state.meta || {};
+    const kpi = state.kpi || {};
+    const tracks = state.tracks || [];
+    const list = tracks.length ? tracks : meta.tracks || [];
+    if (!list.length) return false;
+    const stageId = stateStage(state);
+    const activeTracks = parseWeddingStageTracks(meta, stageId);
+    const parallelStarted = stageHasParallelWork(meta, stageId);
+    const fullState = { ...state, vendorMessages: this._vendorMessages };
+
+    for (const t of list) {
+      const el = root.querySelector(`[data-track="${String(t.id).replace(/"/g, "")}"]`);
+      if (!el) return false;
+      const model = trackWindowModel(t.id, fullState);
+      const focus = activeTracks.has(t.id);
+      const done = trackComplete(kpi, t.id);
+      const running = parallelStarted && !done;
+      const alert = Boolean(model.alert);
+
+      el.classList.toggle("is-focus", focus);
+      el.classList.toggle("is-done", done);
+      el.classList.toggle("is-running", running);
+      el.classList.toggle("is-alert", alert);
+
+      const status = el.querySelector(".wedding-window-bar > em");
+      if (status) {
+        const label = done
+          ? L("就绪", "Ready")
+          : focus
+            ? L("并行处理", "Parallel")
+            : L("后台跟进", "Background");
+        if (status.dataset.sig !== label) {
+          status.dataset.sig = label;
+          status.innerHTML = `<i></i>${esc(label)}`;
+        }
+      }
+
+      const title = el.querySelector(".wedding-window-bar > b");
+      if (title) {
+        const name = en ? t.en || t.zh : t.zh || t.en;
+        const next = name || t.id;
+        if (title.textContent !== next) title.textContent = next;
+      }
+
+      const body = el.querySelector(".wedding-mini-workbench");
+      if (!body) return false;
+      const bodyHtml = renderTrackMiniWorkbench(t.id, fullState, model);
+      const sig = htmlSig(bodyHtml);
+      if (body.dataset.sig !== sig) {
+        body.dataset.sig = sig;
+        body.innerHTML = bodyHtml;
+      }
+    }
+    return true;
   }
 
   _renderEmpty() {
@@ -153,13 +261,19 @@ export class WeddingWorkspaces {
             const done = trackComplete(kpi, t.id) ? "is-done" : "";
             const running = parallelStarted && !done ? "is-running" : "";
             const alert = model.alert ? "is-alert" : "";
+            const status = done
+              ? L("就绪", "Ready")
+              : focus
+                ? L("并行处理", "Parallel")
+                : L("后台跟进", "Background");
+            const bodyHtml = renderTrackMiniWorkbench(t.id, state, model);
             return `<article class="wedding-track-window ${focus} ${done} ${running} ${alert}" data-track="${esc(t.id)}">
               <header class="wedding-window-bar">
-                <span class="wedding-window-controls" aria-hidden="true"><i></i><i></i><i></i></span>
-                <b>${esc(t.id)} · ${esc(label || t.id)}</b>
-                <em><i></i>${esc(done ? L("就绪", "Ready") : focus ? L("并行处理", "Parallel") : L("后台跟进", "Background"))}</em>
+                <span class="wedding-window-mark" aria-hidden="true">${esc(t.id)}</span>
+                <b>${esc(label || t.id)}</b>
+                <em data-sig="${esc(status)}"><i></i>${esc(status)}</em>
               </header>
-              <div class="wedding-window-body wedding-mini-workbench">${renderTrackMiniWorkbench(t.id, state, model)}</div>
+              <div class="wedding-window-body wedding-mini-workbench" data-sig="${esc(htmlSig(bodyHtml))}">${bodyHtml}</div>
             </article>`;
           })
           .join("")}
@@ -209,13 +323,23 @@ export class WeddingWorkspaces {
   }
 
   _renderContracts({ contracts = {}, kpi = {} } = {}) {
-    const v1 = contracts.v1 || { min_tables: 20, version: "v1", source: L("群文件", "Group file") };
+    const v1 = contracts.v1 || {
+      min_tables: 20,
+      version: "v1",
+      source_zh: "群文件",
+      source_en: "Group file",
+    };
     const attach = contracts.attachment || {
       min_tables: v1.min_tables,
       version: "pending",
-      source: L("新附件尚未到达", "No new attachment yet"),
+      source_zh: "新附件尚未到达",
+      source_en: "No new attachment yet",
     };
     const changed = Boolean(contracts.attachment) && v1.min_tables !== attach.min_tables;
+    const v1Source = pickStored(v1, "source") || "v1";
+    const attachSource = pickStored(attach, "source") || L("新附件", "New attachment");
+    const v1Note = pickStored(v1, "note") || L("已签基准", "Signed baseline");
+    const attachNote = pickStored(attach, "note") || L("待用户决定", "Awaiting user decision");
     return `<div class="wedding-contracts-board">
       <header class="wedding-panel-head">
         <strong>${esc(L("合同版本比对", "Contract diff"))}</strong>
@@ -223,14 +347,14 @@ export class WeddingWorkspaces {
       </header>
       <div class="wedding-contract-columns">
         <article class="wedding-contract-col">
-          <h3>${esc(v1.source || "v1")}</h3>
+          <h3>${esc(v1Source)}</h3>
           <p>${esc(L("最低消费", "Min spend"))}: <b>${esc(String(v1.min_tables))}</b> ${esc(L("桌", "tables"))}</p>
-          <p class="muted">${esc(v1.note || L("已签基准", "Signed baseline"))}</p>
+          <p class="muted">${esc(v1Note)}</p>
         </article>
         <article class="wedding-contract-col ${changed ? "is-changed" : ""}">
-          <h3>${esc(attach.source || L("新附件", "New attachment"))}</h3>
+          <h3>${esc(attachSource)}</h3>
           <p>${esc(L("最低消费", "Min spend"))}: <b>${esc(String(attach.min_tables))}</b> ${esc(L("桌", "tables"))}</p>
-          <p class="muted">${esc(attach.note || L("待用户决定", "Awaiting user decision"))}</p>
+          <p class="muted">${esc(attachNote)}</p>
         </article>
       </div>
       ${
@@ -262,11 +386,13 @@ export class WeddingWorkspaces {
           .map((v) => {
             const name = en ? v.name_en || v.name_zh : v.name_zh || v.name_en;
             const b = bookings[v.id] || v.booking || {};
-            const ui = b.page_status || b.uiStatus || L("—", "—");
-            const backend = b.order_status || b.backendStatus || L("—", "—");
+            const ui = pickStored(b, "page_status") || pickStored(b, "uiStatus") || L("—", "—");
+            const backend = pickStored(b, "order_status") || pickStored(b, "backendStatus") || L("—", "—");
             const mismatch = /released|unverified|释放|未核验/i.test(String(backend));
             const msgs = this._vendorMessages[v.id] || [];
-            const preview = msgs.length ? msgs[msgs.length - 1].text : v.preview || "";
+            const preview = msgs.length
+              ? pickStored(msgs[msgs.length - 1], "text")
+              : pickStored(v, "preview") || v.preview || "";
             return `<li class="wedding-booking-row ${mismatch ? "is-mismatch" : ""}">
               <div class="wedding-booking-vendor">
                 <strong>${esc(name || v.id)}</strong>
@@ -412,7 +538,9 @@ function trackWindowModel(trackId, state = {}) {
     C: {
       title: photoMismatch ? L("档期 / 主摄状态冲突", "Slot / lead mismatch") : L("摄影摄像", "Photo & video"),
       detail: photoMismatch
-        ? L(`${photo.page_status || "页面已锁"} ≠ ${photo.order_status || "后台释放"}`, `${photo.page_status || "UI locked"} ≠ ${photo.order_status || "backend released"}`)
+        ? `${pickStored(photo, "page_status") || L("页面已锁", "UI locked")} ≠ ${
+            pickStored(photo, "order_status") || L("后台释放", "backend released")
+          }`
         : L("国庆档 · 保留期持续核验", "Holiday slot · hold continuously verified"),
       action: photoMismatch ? L("查后台订单与主摄作品归属", "Verify backend order and lead authorship") : L("盯保留时限与主摄身份", "Watch hold expiry and lead identity"),
       evidence: L("作品集与执行主摄交叉核验", "Portfolio vs assigned lead verification"),
@@ -484,8 +612,9 @@ function renderTrackMiniWorkbench(trackId, state = {}, model = {}) {
 
   if (trackId === "C") {
     const photo = bookings.photo_beian || {};
-    const ui = photo.page_status || photo.uiStatus || L("保留中", "Held");
-    const backend = photo.order_status || photo.backendStatus || L("待核验", "Verifying");
+    const ui = pickStored(photo, "page_status") || pickStored(photo, "uiStatus") || L("保留中", "Held");
+    const backend =
+      pickStored(photo, "order_status") || pickStored(photo, "backendStatus") || L("待核验", "Verifying");
     const mismatch = /released|unverified|释放|未核验/i.test(`${backend}`);
     return `${appHeader("◉", L("摄影档期后台", "Photo booking"), mismatch ? L("状态冲突", "Mismatch") : L("持续核验", "Verifying"))}
       <div class="wedding-mini-photo">

@@ -25,8 +25,8 @@ import {
   playHotelPinCinematic,
 } from "./map.js?v=20260807-loop21";
 import { groupLedgerByDate } from "./ledger.js?v=20260807-loop21";
-import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260807-loop21";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260807-loop21";
+import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260812-smooth";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260812-smooth";
 
 function kindMeta(kind) {
   const base = {

@@ -2,7 +2,8 @@
  * Mock OpenClaw / agent workspace stream (center column).
  */
 
-import { L, getLocale } from "../i18n.js?v=20260807-topbar-fix";
+import { L, getLocale } from "../i18n.js?v=20260812-smooth";
+import { isReplayMode } from "../playback.js?v=20260812-smooth";
 
 function esc(s) {
   return String(s ?? "")
@@ -38,6 +39,10 @@ export class EcomIm {
     this.activeTab = "all";
     this.activeThread = null;
     this._thinking = null;
+    this._freshId = null;
+    this._freshTimer = null;
+    this._arrivedIds = new Set();
+    this._renderedBossCount = 0;
     tabsEl?.querySelectorAll("[data-tab]").forEach((btn) => {
       btn.addEventListener("click", () => {
         this.activeTab = btn.dataset.tab || "all";
@@ -51,6 +56,9 @@ export class EcomIm {
     this.threads = threads.slice();
     this.feed = [];
     this._thinking = null;
+    this._freshId = null;
+    this._arrivedIds = new Set();
+    this._renderedBossCount = 0;
     this.activeThread = threads[0]?.id || null;
     this.activeTab = "all";
     this.tabsEl?.querySelectorAll("[data-tab]").forEach((b) => {
@@ -61,16 +69,37 @@ export class EcomIm {
 
   /** Ephemeral Manus-style thinking rail under the boss stream. */
   showThinking(label = "", reason = "") {
-    this._thinking = {
+    const next = {
       label: label || L("核对中", "Checking"),
       reason: reason || "",
     };
+    const prev = this._thinking;
+    this._thinking = next;
+    this._thinkEpoch = (this._thinkEpoch || 0) + 1;
+    // Update in place when only the label changes — avoids thinking-pill flicker.
+    if (prev && this.messagesEl?.querySelector(".ecom-thinking")) {
+      const el = this.messagesEl.querySelector(".ecom-thinking");
+      el?.classList.remove("is-leaving");
+      const em = el?.querySelector(".ecom-thinking-copy em");
+      if (em) {
+        em.textContent = next.label;
+        this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+        return;
+      }
+    }
     this._mountThinking();
   }
 
   hideThinking() {
     this._thinking = null;
-    this.messagesEl?.querySelector(".ecom-thinking")?.remove();
+    const el = this.messagesEl?.querySelector(".ecom-thinking");
+    if (!el) return;
+    el.classList.add("is-leaving");
+    const token = (this._thinkEpoch = (this._thinkEpoch || 0) + 1);
+    window.setTimeout(() => {
+      if (this._thinkEpoch !== token || this._thinking) return;
+      el.remove();
+    }, 120);
   }
 
   _thinkingBeatHtml(modeKey = "planning") {
@@ -102,17 +131,100 @@ export class EcomIm {
   _mountThinking() {
     if (!this.messagesEl || !this._thinking) return;
     let el = this.messagesEl.querySelector(".ecom-thinking");
+    const label = typeof this._thinking === "string" ? this._thinking : this._thinking.label;
     if (!el) {
       el = document.createElement("div");
       el.className = "ecom-thinking";
+      el.innerHTML = `<i></i><i></i><i></i><span class="ecom-thinking-copy"><em></em></span>`;
       this.messagesEl.appendChild(el);
     }
-    const label = typeof this._thinking === "string" ? this._thinking : this._thinking.label;
-    el.classList.remove("is-dual");
-    el.innerHTML = `<i></i><i></i><i></i><span class="ecom-thinking-copy"><em>${esc(
-      label
-    )}</em></span>`;
-    this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+    el.classList.remove("is-dual", "is-leaving");
+    const em = el.querySelector(".ecom-thinking-copy em");
+    if (em) em.textContent = label;
+    const near =
+      this.messagesEl.scrollHeight - this.messagesEl.clientHeight - this.messagesEl.scrollTop < 80;
+    if (near) this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+  }
+
+  _bossList() {
+    return this.feed.filter((m) => m.thread === "boss" && (!m.html || Boolean(m.deliverableId)));
+  }
+
+  _arriveClass(id) {
+    if (!id || isReplayMode()) return "";
+    if (id !== this._freshId || this._arrivedIds.has(id)) return "";
+    this._arrivedIds.add(id);
+    return "is-arrive";
+  }
+
+  _itemHtml(m) {
+    const mine = m.from === "agent";
+    const arrive = this._arriveClass(m.id);
+    const kind = String(m.kind || "text");
+    const kindClass = `kind-${kind.replace(/[^a-z0-9_-]/gi, "")}`;
+    const threadMeta = this.threads.find((t) => t.id === m.from || t.id === m.thread) || null;
+    const who = mine
+      ? "Dots Note"
+      : threadMeta?.[getLocale() === "en" ? "name_en" : "name_zh"] || m.from;
+    const avatarSrc = mine ? "" : threadMeta?.avatar_img || "";
+    const avatarLetter = mine ? "D" : threadMeta?.avatar || (who || "?").slice(0, 1);
+    const avatarHtml = avatarSrc
+      ? `<img class="ecom-stream-avatar" src="${esc(avatarSrc)}" alt="" />`
+      : `<span class="ecom-stream-avatar is-letter">${esc(avatarLetter)}</span>`;
+    const whoMeta = `${avatarHtml}<span>${esc(who)}</span>`;
+    const text = pickLocale(m, "text");
+    const time = formatStreamTime(m.ts);
+    const eventKinds = new Set(["world", "notify", "discovery", "mutation", "stage"]);
+
+    if (m.deliverableId) {
+      return `<article class="ecom-stream-item ecom-stream-output ${kindClass} ${arrive}" data-msg-id="${esc(m.id)}">
+        <span class="ecom-log-bullet is-done" aria-hidden="true"></span>
+        <div class="ecom-message-stack ecom-output-row">
+          <div class="ecom-output-copy">
+            <span>${esc(L("已完成", "Done"))}</span>
+            <strong title="${esc(text)}">${esc(text)}</strong>
+          </div>
+          <button type="button" class="ecom-msg-card-btn" data-deliv-btn="${esc(m.deliverableId || "")}">${esc(
+            L("查看", "View")
+          )}</button>
+        </div>
+      </article>`;
+    }
+    if (eventKinds.has(kind)) {
+      return `<article class="ecom-stream-item ecom-stream-event ${kindClass} ${arrive}" data-msg-id="${esc(m.id)}">
+        <span class="ecom-log-bullet is-event" aria-hidden="true"></span>
+        <div class="ecom-event-copy">
+          <strong>${esc(this._streamKindTag(kind) || L("动态", "Update"))}</strong>
+          <p>${esc(text)}</p>
+        </div>
+      </article>`;
+    }
+    if (mine) {
+      return `<article class="ecom-stream-item mine is-agent-log ${kindClass} ${arrive}" data-msg-id="${esc(m.id)}">
+        <span class="ecom-log-bullet" aria-hidden="true"></span>
+        <div class="ecom-message-stack">
+          <div class="ecom-stream-who"><span>Dots Note</span><time>${esc(time)}</time></div>
+          <div class="ecom-msg-bubble">${esc(text)}</div>
+        </div>
+      </article>`;
+    }
+    return `<article class="ecom-stream-item ${kindClass} ${arrive}" data-msg-id="${esc(m.id)}">
+      <div class="ecom-stream-who">${whoMeta}</div>
+      <div class="ecom-msg-bubble">${esc(text)}</div>
+    </article>`;
+  }
+
+  _bindStreamActions(root = this.messagesEl) {
+    root?.querySelectorAll("[data-deliv-btn]").forEach((btn) => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", () => this.onFocusDeliverable(btn.dataset.delivBtn));
+    });
+    root?.querySelectorAll("[data-ecom-wrapup-replay]").forEach((btn) => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", () => this.onReplay?.());
+    });
   }
 
   /** Compatibility with script focus_thread */
@@ -132,23 +244,30 @@ export class EcomIm {
 
   /** Surface who Agent is coordinating with in the unified stream header. */
   _pulseChatMode(threadId = "boss") {
-    const mode = document.querySelector(".ecom-chat-mode-tabs > span");
+    const mode =
+      document.querySelector(".ecom-chat-mode-tabs .ecom-mode-chip") ||
+      document.querySelector(".ecom-chat-mode-tabs > span");
     if (!mode) return;
     const en = getLocale() === "en";
     if (threadId && threadId !== "boss") {
       const meta = this.threads.find((t) => t.id === threadId);
       const name = en ? meta?.name_en || meta?.name_zh || threadId : meta?.name_zh || meta?.name_en || threadId;
-      mode.textContent = L(`对接 · ${name}`, `Chat · ${name}`);
+      const kicker = esc(L("协作", "With"));
+      mode.innerHTML = `<i aria-hidden="true"></i><em><b>${kicker}</b>${esc(name)}</em>`;
       mode.classList.add("is-live");
+      mode.classList.remove("is-active");
+      mode.setAttribute("title", L(`正在协作 · ${name}`, `Coordinating · ${name}`));
     } else {
-      mode.textContent = L("对话", "Chat");
+      mode.innerHTML = `<i aria-hidden="true"></i><em>${esc(L("主对话", "Main chat"))}</em>`;
+      mode.classList.add("is-active");
       mode.classList.remove("is-live");
+      mode.removeAttribute("title");
     }
     mode.classList.remove("is-pulse");
     void mode.offsetWidth;
     mode.classList.add("is-pulse");
     window.clearTimeout(this._modePulseTimer);
-    this._modePulseTimer = window.setTimeout(() => mode.classList.remove("is-pulse"), 780);
+    this._modePulseTimer = window.setTimeout(() => mode.classList.remove("is-pulse"), 520);
   }
 
   renderThreads() {
@@ -158,13 +277,18 @@ export class EcomIm {
   pushMessage(msg) {
     const thread = msg.thread || "boss";
     const tab = this.threads.find((t) => t.id === thread)?.tab || TAB_OF[thread] || "ops";
+    const text_zh = msg.text_zh ?? msg.text ?? "";
+    const text_en = msg.text_en ?? msg.text ?? text_zh;
     const row = {
       id: msg.id || `m_${Date.now()}_${this.feed.length}`,
       thread,
       tab,
       from: msg.from || "agent",
       kind: msg.kind || "text",
-      text: pickLocale(msg, "text"),
+      text_zh,
+      text_en,
+      // Keep resolved text for older callers; render always re-picks by locale.
+      text: pickLocale({ text_zh, text_en, text: msg.text }, "text"),
       html: msg.html || null,
       deliverableId: msg.deliverable_id || msg.deliverableId || null,
       meta: msg.meta || null,
@@ -259,9 +383,14 @@ export class EcomIm {
     if (!row) return false;
     if (patch.html != null) row.html = patch.html;
     if (patch.kind != null) row.kind = patch.kind;
-    if (patch.text != null) row.text = patch.text;
-    if (patch.text_zh != null || patch.text_en != null) {
-      row.text = pickLocale(patch, "text") || row.text;
+    if (patch.text_zh != null) row.text_zh = patch.text_zh;
+    if (patch.text_en != null) row.text_en = patch.text_en;
+    if (patch.text != null && patch.text_zh == null && patch.text_en == null) {
+      row.text_zh = patch.text;
+      row.text_en = patch.text;
+    }
+    if (patch.text != null || patch.text_zh != null || patch.text_en != null) {
+      row.text = pickLocale(row, "text");
     }
     this.renderChat({ stick: false });
     return true;
@@ -270,8 +399,8 @@ export class EcomIm {
   _streamKindTag(kind = "text") {
     return (
       {
-        stage: L("幕切换", "Act"),
-        world: L("外部信号", "World"),
+        stage: L("阶段", "Stage"),
+        world: L("外部", "External"),
         discovery: L("已核对", "Verified"),
         notify: L("通知", "Notice"),
         tool: L("工具", "Tool"),
@@ -290,84 +419,123 @@ export class EcomIm {
     );
   }
 
+  _msgSig(m) {
+    return [
+      m.id,
+      m.kind,
+      m.from,
+      m.deliverableId || "",
+      m.text_zh || "",
+      m.text_en || "",
+      m.html ? String(m.html).length : 0,
+    ].join("|");
+  }
+
+  _mountArticle(html, { beforeThinking = true } = {}) {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = html;
+    const node = wrap.firstElementChild;
+    if (!node) return null;
+    const thinkingEl = this.messagesEl.querySelector(".ecom-thinking");
+    if (beforeThinking && thinkingEl) thinkingEl.before(node);
+    else this.messagesEl.appendChild(node);
+    this._bindStreamActions(node);
+    return node;
+  }
+
+  _patchArticles(list) {
+    const articles = [...this.messagesEl.querySelectorAll("article[data-msg-id]")];
+    if (articles.length !== list.length) return false;
+    for (let i = 0; i < list.length; i++) {
+      if (articles[i].dataset.msgId !== String(list[i].id)) return false;
+    }
+    for (let i = 0; i < list.length; i++) {
+      const m = list[i];
+      const el = articles[i];
+      const sig = this._msgSig(m);
+      if (el.dataset.sig === sig) continue;
+      const wrap = document.createElement("div");
+      wrap.innerHTML = this._itemHtml(m);
+      const next = wrap.firstElementChild;
+      if (!next) return false;
+      next.dataset.sig = sig;
+      el.replaceWith(next);
+      this._bindStreamActions(next);
+    }
+    return true;
+  }
+
+  _stickScroll(wasNearBottom, stick, previousTop, rebuilt) {
+    if (!this.messagesEl) return;
+    if (stick && wasNearBottom) {
+      const el = this.messagesEl;
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    } else if (rebuilt) {
+      this.messagesEl.scrollTop = previousTop;
+    }
+  }
+
   renderChat({ stick = true } = {}) {
     if (!this.messagesEl) return;
     const previousTop = this.messagesEl.scrollTop;
     const wasNearBottom =
-      this.messagesEl.scrollHeight - this.messagesEl.clientHeight - this.messagesEl.scrollTop < 72;
-    // Keep the conversation pane conversational. Rich execution cards remain
-    // available in Playground / Dock instead of repeating inside the chat.
-    const list = this.feed.filter(
-      (m) => m.thread === "boss" && (!m.html || Boolean(m.deliverableId))
-    );
+      this.messagesEl.scrollHeight - this.messagesEl.clientHeight - this.messagesEl.scrollTop < 80;
+    const list = this._bossList();
     if (!list.length) {
+      this._renderedBossCount = 0;
       this.messagesEl.innerHTML = `<div class="ecom-stream-empty is-simple">
         <strong>${esc(L("对话会出现在这里", "Conversation will appear here"))}</strong>
         <p>${esc(L("执行细节请看右侧 Playground", "See Playground for execution details"))}</p>
       </div>`;
       return;
     }
-    const eventKinds = new Set(["world", "notify", "discovery", "mutation", "stage"]);
-    this.messagesEl.innerHTML = list
-      .map((m) => {
-        const mine = m.from === "agent";
-        const arrive = m.id === this._freshId ? "is-arrive" : "";
-        const kind = String(m.kind || "text");
-        const kindClass = `kind-${kind.replace(/[^a-z0-9_-]/gi, "")}`;
-        const threadMeta =
-          this.threads.find((t) => t.id === m.from || t.id === m.thread) || null;
-        const who = mine
-          ? "AI Agent"
-          : threadMeta?.[getLocale() === "en" ? "name_en" : "name_zh"] || m.from;
-        const avatarSrc = mine
-          ? "assets/ecom/avatars/agent.webp"
-          : threadMeta?.avatar_img || "";
-        const avatarLetter = mine ? "AI" : threadMeta?.avatar || (who || "?").slice(0, 1);
-        const avatarHtml = avatarSrc
-          ? `<img class="ecom-stream-avatar" src="${esc(avatarSrc)}" alt="" />`
-          : `<span class="ecom-stream-avatar is-letter">${esc(avatarLetter)}</span>`;
-        const whoMeta = `${avatarHtml}<span>${esc(who)}</span>`;
-        if (m.deliverableId) {
-          return `<article class="ecom-stream-item ecom-stream-output ${kindClass} ${arrive}">
-            <span class="ecom-output-icon" aria-hidden="true">✓</span>
-            <div class="ecom-output-copy">
-              <span>${esc(L("交付物已完成", "Output ready"))}</span>
-              <strong>${esc(m.text)}</strong>
-            </div>
-            <button type="button" class="ecom-msg-card-btn" data-deliv-btn="${esc(m.deliverableId || "")}">${esc(
-                L("查看", "Open")
-              )}</button>
-          </article>`;
-        }
-        if (eventKinds.has(kind)) {
-          return `<article class="ecom-stream-item ecom-stream-event ${kindClass} ${arrive}">
-            <span class="ecom-event-marker" aria-hidden="true"></span>
-            <div class="ecom-event-copy">
-              <strong>${esc(this._streamKindTag(kind) || L("动态", "Update"))}</strong>
-              <p>${esc(m.text)}</p>
-            </div>
-          </article>`;
-        }
-        return `<article class="ecom-stream-item ${kindClass} ${mine ? "mine" : ""} ${arrive}">
-          <div class="ecom-stream-who">${whoMeta}</div>
-          <div class="ecom-msg-bubble">${esc(m.text)}</div>
-        </article>`;
-      })
-      .join("");
-    this.messagesEl.querySelectorAll("[data-deliv-btn]").forEach((btn) => {
-      btn.addEventListener("click", () => this.onFocusDeliverable(btn.dataset.delivBtn));
-    });
-    this.messagesEl.querySelectorAll("[data-ecom-wrapup-replay]").forEach((btn) => {
-      btn.addEventListener("click", () => this.onReplay?.());
-    });
+
+    const articleCount = this.messagesEl.querySelectorAll("article[data-msg-id]").length;
+    const canAppend =
+      list.length === this._renderedBossCount + 1 &&
+      articleCount === this._renderedBossCount &&
+      this._renderedBossCount > 0;
+    const canPatch =
+      !canAppend &&
+      list.length === this._renderedBossCount &&
+      articleCount === this._renderedBossCount &&
+      this._renderedBossCount > 0;
+
+    let rebuilt = false;
+    if (canAppend) {
+      const last = list[list.length - 1];
+      const node = this._mountArticle(this._itemHtml(last));
+      if (node) node.dataset.sig = this._msgSig(last);
+      this._renderedBossCount = list.length;
+    } else if (canPatch && this._patchArticles(list)) {
+      this._renderedBossCount = list.length;
+    } else {
+      const thinking = this._thinking;
+      this.messagesEl.innerHTML = list
+        .map((m) => {
+          const html = this._itemHtml(m);
+          return html.replace(
+            /^<article\b/,
+            `<article data-sig="${esc(this._msgSig(m))}"`
+          );
+        })
+        .join("");
+      this._bindStreamActions(this.messagesEl);
+      this._renderedBossCount = list.length;
+      rebuilt = true;
+      if (thinking) this._mountThinking();
+    }
+
     if (this._thinking) this._mountThinking();
-    if (stick && wasNearBottom) this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
-    else this.messagesEl.scrollTop = previousTop;
+    this._stickScroll(wasNearBottom, stick, previousTop, rebuilt);
+
     if (this._freshId) {
       window.clearTimeout(this._freshTimer);
       this._freshTimer = window.setTimeout(() => {
         this._freshId = null;
-      }, 520);
+      }, 420);
     }
   }
 }
@@ -376,6 +544,15 @@ function pickLocale(obj, key) {
   const zh = obj[`${key}_zh`] ?? obj[key];
   const en = obj[`${key}_en`] ?? obj[key];
   return getLocale() === "en" ? en || zh || "" : zh || en || "";
+}
+
+function formatStreamTime(ts) {
+  const date = new Date(ts || Date.now());
+  return date.toLocaleTimeString(getLocale() === "en" ? "en-US" : "zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 
 function toolLabel(name) {

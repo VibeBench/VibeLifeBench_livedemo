@@ -68,6 +68,9 @@ export function createScriptedScenarioRegistry(definitions, hooks = {}) {
     hide: (id) => state(id)?.instance?.hide?.(),
     reset: (id) => state(id)?.instance?.reset?.(),
     rerenderLocale: (id) => state(id)?.instance?.rerenderLocale?.(),
+    rerenderLocaleAll() {
+      states.forEach((entry) => entry.instance?.rerenderLocale?.());
+    },
     stop,
     stopAll() {
       states.forEach((_, id) => stop(id));

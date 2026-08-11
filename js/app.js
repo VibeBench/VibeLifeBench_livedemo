@@ -9,7 +9,7 @@ import {
   detectProvider,
 } from "./agent.js?v=20260808-travel-persona";
 import { Trajectory, isValidRecording } from "./trajectory.js?v=20260807-loop21";
-import { UI } from "./ui.js?v=20260807-loop21";
+import { UI } from "./ui.js?v=20260812-smooth";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,7 +18,8 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260807-loop21";
+} from "./map.js?v=20260812-map-fast";
+import { loadPrecomputedRoutes } from "./routing.js?v=20260812-map-fast";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -26,7 +27,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260807-loop21";
+} from "./playback.js?v=20260812-smooth";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -40,10 +41,10 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260807-wedding-align2";
-import { EcomCockpit } from "./ecom/cockpit.js?v=20260807-topbar-fix";
-import { WeddingCockpit } from "./wedding/cockpit.js?v=20260807-wedding-mini-workbenches";
-import { createScriptedScenarioRegistry } from "./scenarios.js?v=20260807-wedding-v1";
+} from "./i18n.js?v=20260812-smooth";
+import { EcomCockpit } from "./ecom/cockpit.js?v=20260812-smooth";
+import { WeddingCockpit } from "./wedding/cockpit.js?v=20260812-smooth";
+import { createScriptedScenarioRegistry } from "./scenarios.js?v=20260812-smooth";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -205,15 +206,21 @@ function rerenderForLocale() {
     agent.applyLocale(getLocale(), workspaceForLocale(caseData.workspace), activeMeta());
   }
   ui.rerenderTaskHistory(revealedEvents.map((ev) => localizeEvent(ev)));
-  if (currentScenario === "travel") refreshDashboard();
   fillProviderSelect({ refresh: true });
   applySettingsToForm();
   syncConsoleOnboard();
   syncAutoplayButtonLabel();
   syncReplayButton();
   // Welcome card is hard-rendered HTML — rebuild so EN/ZH buttons & tips update.
-  if (currentScenario === "travel" && document.querySelector(".welcome-guide")) showEntryGuide();
-  if (scriptedScenarios.has(currentScenario)) scriptedScenarios.rerenderLocale(currentScenario);
+  if (document.querySelector(".welcome-guide")) showEntryGuide();
+  // Always refresh travel phone panes so leftover ZH copy cannot linger under ecom/wedding.
+  try {
+    refreshDashboard();
+  } catch {
+    /* travel engine may not be ready yet */
+  }
+  // Re-render every loaded cockpit so EN/ZH switches stay complete even when hidden.
+  scriptedScenarios.rerenderLocaleAll?.();
   syncScenarioChrome();
   ui.toast(i18nT(getLocale() === "en" ? "lang.toast.en" : "lang.toast.zh"));
 }
@@ -283,6 +290,12 @@ async function startScriptedReplay(id = currentScenario) {
     syncAutoplayButtonLabel();
     return;
   }
+  // Honor the top-bar speed before scripted cockpits start sleeping.
+  let speedSel = Number(document.querySelector("#playbackSpeed")?.value) || settings.playbackSpeed || 2;
+  if (speedSel < 1) speedSel = 2;
+  setPlaybackSpeed(speedSel);
+  settings.playbackSpeed = speedSel;
+  syncSpeedUi();
   syncReplayButton();
   syncAutoplayButtonLabel();
   try {
@@ -312,6 +325,8 @@ function readScenarioFromUrl() {
 }
 
 async function main() {
+  // Kick off road polylines ASAP so the first map paint never stalls on OSRM.
+  loadPrecomputedRoutes("./data/routes.json").catch((err) => console.warn("routes prefetch", err));
   await loadI18nPacks();
   initLocaleFromStorage();
   bindChrome();
@@ -480,17 +495,8 @@ function isLlmReady() {
 }
 
 function syncAgentStatusBar() {
-  const provider = settings.provider || DEFAULT_PROVIDER;
-  const tag = providerLabel(provider) || provider;
-  if (!hasApiKeyConfigured()) {
-    ui.setAgentStatus(i18nL("Offline · 需配置 API Key", "Offline · API Key required"), false);
-    return;
-  }
-  if (!hasModelConfigured()) {
-    ui.setAgentStatus(i18nL("Offline · 需填写模型", "Offline · Model required"), false);
-    return;
-  }
-  ui.setAgentStatus(`Online · ${tag}`, true);
+  // Demo branding: always show Dots Note online (matches ecom / wedding).
+  ui.setAgentStatus(i18nL("Online · Dots Note", "Online · Dots Note"), true);
 }
 
 function showEntryGuide() {

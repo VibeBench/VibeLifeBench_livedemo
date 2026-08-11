@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260807-loop21";
-import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260807-loop21";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260807-loop21";
+} from "./routing.js?v=20260812-map-fast";
+import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260812-smooth";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260812-smooth";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";
@@ -3674,9 +3674,13 @@ export function renderLeafletMap(engine) {
     if (baseChanged) {
       lastMapBaseSig = baseSig;
       lastMapPaintSig = paintSig;
-      paintLeafletBase(ctx, { fit: false });
+      // Fit immediately so tiles for the real framing start downloading now.
+      paintLeafletBase(ctx, { fit: camChanged || !lastMapCameraSig });
+      if (camChanged || !lastMapCameraSig) {
+        maybeAutoFitCamera(ctx, camSig, { replay, force: true });
+      }
       watchTiles(host);
-      // Wait for baked road polylines so live legs (e.g. SH80) don't flash as straight lines.
+      // Paint road-following polylines when baked routes arrive — do not block first map view.
       loadPrecomputedRoutes("./data/routes.json").finally(() => {
         if (!leafletMap) return;
         // Stale async paint from an older base refresh — drop it.
@@ -3684,10 +3688,6 @@ export function renderLeafletMap(engine) {
         paintLeafletRoutes(lastCtx || ctx);
         if (lastAgentPlan?.stays?.length) {
           repaintAgentPlan({ fit: false }).catch(() => {});
-        }
-        // Fit after routes settle only when framing inputs changed.
-        if (camChanged || !lastMapCameraSig) {
-          maybeAutoFitCamera(lastCtx || ctx, camSig, { replay, force: true });
         }
       });
     } else if (paintChanged) {
@@ -4259,15 +4259,27 @@ function ensureLeaflet(host) {
     zoomControl: false,
     attributionControl: true,
     scrollWheelZoom: true,
+    // NZ-first framing so the first paint isn't a blank world view waiting on routes.
+    center: [-41.2, 172.5],
+    zoom: 5,
+    preferCanvas: true,
   });
 
+  const tileOpts = {
+    maxZoom: 18,
+    attribution: "Tiles © Esri",
+    updateWhenIdle: true,
+    updateWhenZooming: false,
+    keepBuffer: 2,
+    crossOrigin: true,
+  };
   const topo = window.L.tileLayer(
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-    { maxZoom: 18, attribution: "Tiles © Esri" }
+    tileOpts
   );
   const streets = window.L.tileLayer(
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-    { maxZoom: 18, attribution: "Tiles © Esri" }
+    tileOpts
   );
   topo.addTo(leafletMap);
   topo.on("tileerror", () => {

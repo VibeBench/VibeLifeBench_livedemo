@@ -2,8 +2,8 @@
  * Playground benches — call streaming transcript + agentic pack/video editing.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260807-topbar-fix";
-import { sleepPlayback } from "../playback.js?v=20260807-topbar-fix";
+import { L, getLocale } from "../i18n.js?v=20260812-smooth";
+import { sleepPlayback } from "../playback.js?v=20260812-smooth";
 
 function esc(s) {
   return String(s ?? "")
@@ -11,6 +11,13 @@ function esc(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function pickLocaleText(obj, key = "text") {
+  if (!obj) return "";
+  const zh = obj[`${key}_zh`] ?? obj[key];
+  const en = obj[`${key}_en`] ?? obj[key];
+  return String(getLocale() === "en" ? en || zh || "" : zh || en || "");
 }
 
 function transcriptChunks(text) {
@@ -250,6 +257,11 @@ export class EcomBenches {
   }
 
   renderPlayground() {
+    if (this.seed?.sheet) {
+      const headers =
+        getLocale() === "en" ? this.seed.sheet.headers_en : this.seed.sheet.headers_zh;
+      if (headers?.length) this.sheet.headers = headers;
+    }
     const el = this.playgroundEl;
     if (!el) return;
     const mode = this.active || "idle";
@@ -650,7 +662,7 @@ export class EcomBenches {
           <span class="ecom-contact-copy">
             <span class="ecom-contact-row"><strong>${esc(name)}</strong><time>${esc(clock)}</time></span>
             <span class="ecom-contact-preview"><small>${esc(
-              last?.text || L("等待消息", "No messages yet")
+              (last ? pickLocaleText(last, "text") : "") || L("等待消息", "No messages yet")
             )}</small>${unread ? `<b>${Math.min(unread, 9)}</b>` : ""}</span>
           </span>
         </button>`;
@@ -664,9 +676,10 @@ export class EcomBenches {
           .map((m) => {
             const mine = m.from === "agent";
             const isNew = m.id === freshId;
+            const text = pickLocaleText(m, "text");
             return `<div class="ecom-app-msg ${mine ? "is-mine" : "is-peer"} ${isNew ? "is-new" : ""}">
               <span class="ecom-app-msg-who">${esc(mine ? "AI Agent" : threadName)}</span>
-              ${m.html ? m.html : `<div class="ecom-app-bubble">${esc(m.text)}</div>`}
+              ${m.html ? m.html : `<div class="ecom-app-bubble">${esc(text)}</div>`}
             </div>`;
           })
           .join("")

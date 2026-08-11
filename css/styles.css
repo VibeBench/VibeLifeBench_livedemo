@@ -6645,18 +6645,22 @@ body.is-busy .btn.primary {
 
 /* ===== Ecommerce Manus-style cockpit ===== */
 :root {
-  --ecom-bg: #f4f5f7;
+  --agent-teal: #5fbfb0;
+  --agent-teal-deep: #3d9b8a;
+  --agent-teal-soft: #e8f7f4;
+  --agent-mint-bg: #eef7f5;
+  --ecom-bg: var(--agent-mint-bg);
   --ecom-card: #ffffff;
-  --ecom-line: #ebecef;
+  --ecom-line: #dceae6;
   --ecom-ink: #1a1d23;
-  --ecom-muted: #8b929e;
-  --ecom-blue: #3b6ff5;
-  --ecom-blue-deep: #2f5de0;
-  --ecom-green: #12b76a;
-  --ecom-red: #f04438;
-  --ecom-radius: 14px;
-  --ecom-shadow: 0 1px 0 rgba(16, 24, 40, 0.03);
-  --ecom-shadow-lg: 0 10px 30px rgba(16, 24, 40, 0.06);
+  --ecom-muted: #7a8a86;
+  --ecom-blue: var(--agent-teal);
+  --ecom-blue-deep: var(--agent-teal-deep);
+  --ecom-green: #3d9b8a;
+  --ecom-red: #c45c5c;
+  --ecom-radius: 18px;
+  --ecom-shadow: 0 1px 0 rgba(16, 40, 36, 0.03);
+  --ecom-shadow-lg: 0 14px 36px rgba(30, 70, 62, 0.08);
 }
 
 .brand-block {
@@ -6760,8 +6764,8 @@ body[data-scenario="ecom"] .ecom-cockpit:not([hidden]) {
 
 .ecom-side-rail button:hover,
 .ecom-side-rail button.is-active {
-  color: #3b6ff5;
-  background: #eef3ff;
+  color: var(--agent-teal-deep, #3d9b8a);
+  background: var(--agent-teal-soft, #e8f7f4);
 }
 
 .ecom-side-rail button:disabled {
@@ -6833,11 +6837,13 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-brand-block {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   padding-right: 14px;
+  margin-right: 2px;
   border-right: 1px solid var(--ecom-line);
-  flex: 0 1 220px;
+  flex: 0 0 auto;
+  max-width: 168px;
   min-width: 0;
 }
 
@@ -6862,19 +6868,23 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-brand-name {
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--ecom-ink);
-  line-height: 1.15;
+  line-height: 1.2;
   letter-spacing: -0.01em;
-}
-
-.ecom-brand-sub {
-  font-size: 11px;
-  color: var(--ecom-muted);
-  max-width: 160px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.ecom-brand-sub {
+  font-size: 10.5px;
+  color: var(--ecom-muted);
+  max-width: 128px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
 }
 
 .ecom-project {
@@ -6941,22 +6951,28 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-top-kpis {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns:
+    minmax(92px, 1.2fr)
+    minmax(92px, 1.2fr)
+    minmax(72px, 0.9fr)
+    minmax(58px, 0.7fr)
+    minmax(118px, 1.45fr);
+  align-items: stretch;
   gap: 0;
   min-width: 0;
   width: 100%;
-  max-width: 680px;
-  flex: 1 1 480px;
-  background: #f7f8fa;
+  max-width: 720px;
+  flex: 1 1 520px;
+  background: #fff;
   border-radius: 12px;
-  border: 1px solid var(--ecom-line);
+  border: 1px solid var(--agent-line, #dceae6);
   overflow: hidden;
-  height: 44px;
+  height: 48px;
 }
 
 .ecom-top-kpis.is-dual {
-  border-color: #abefc6;
-  background: linear-gradient(180deg, #f6fffb 0%, #f7f8fa 100%);
+  border-color: #b9ddd6;
+  background: linear-gradient(180deg, #f7fbfa 0%, #fff 100%);
 }
 
 .ecom-top-kpis.is-syncing {
@@ -6988,11 +7004,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-kpi-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-kpi-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -7003,76 +7019,100 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-top-kpi {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
   background: transparent;
   border: 0;
-  border-right: 1px solid var(--ecom-line);
+  border-right: 1px solid transparent;
   border-radius: 0;
-  padding: 7px 10px;
+  padding: 7px 12px;
   min-width: 0;
   overflow: hidden;
+  box-shadow: inset -1px 0 0 #e8eeec;
 }
 
 .ecom-top-kpi.is-dual.is-changed .ecom-kpi-fresh {
-  background: #fffaeb;
+  background: #fff4e5;
   color: #b54708;
 }
 
 .ecom-top-kpi:last-child {
   border-right: 0;
+  box-shadow: none;
+  padding-right: 14px;
+}
+
+.ecom-top-kpi:first-child {
+  padding-left: 14px;
 }
 
 .ecom-kpi-label,
 .ecom-top-kpi span.ecom-kpi-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  height: 14px;
+  margin: 0;
+  padding-right: 0;
+  overflow: hidden;
+  color: #7a8a86;
   font-size: 10px;
-  color: var(--ecom-muted);
-  margin-bottom: 2px;
+  font-weight: 550;
+  letter-spacing: 0.01em;
+  line-height: 14px;
   white-space: nowrap;
-  font-weight: 500;
+  text-overflow: ellipsis;
+}
+
+.ecom-top-kpi.is-changed .ecom-kpi-label {
+  padding-right: 34px;
 }
 
 .ecom-kpi-fresh {
-  padding: 0 4px;
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 1;
+  padding: 0 5px;
   border-radius: 999px;
-  background: #eff8ff;
-  color: #175cd3;
+  background: #e8f7f4;
+  color: var(--agent-teal-deep, #3d9b8a);
   font-size: 9px;
   font-weight: 700;
+  line-height: 14px;
+  letter-spacing: 0;
+}
+
+.ecom-top-kpi.is-dual.is-changed .ecom-kpi-fresh {
+  background: #fff4e5;
+  color: #b54708;
 }
 
 .ecom-kpi-value,
 .ecom-top-kpi strong.ecom-kpi-value {
   display: block;
-  font-size: 14px;
+  min-width: 0;
+  font-size: 13.5px;
   font-variant-numeric: tabular-nums;
   color: var(--ecom-ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: 700;
+  font-weight: 720;
   letter-spacing: -0.02em;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
-.ecom-top-kpi .delta {
-  color: var(--ecom-green);
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 600;
-}
-
-.ecom-top-kpi .warn,
-.ecom-top-kpi.warn .warn {
-  color: var(--ecom-red);
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 600;
+.ecom-top-kpi .delta,
+.ecom-top-kpi .warn {
+  display: none;
 }
 
 .ecom-top-kpi.warn {
-  background: #fff8f8;
+  background: linear-gradient(180deg, #fff8f1 0%, #fffaf6 100%);
 }
 
 .ecom-top-kpi.is-changed {
@@ -7080,8 +7120,17 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 @keyframes ecomKpiChanged {
-  0% { background: #edf3ff; }
+  0% { background: #eef8f5; }
   100% { background: transparent; }
+}
+
+.ecom-top-kpi.warn.is-changed {
+  animation: ecomKpiWarnChanged 0.8s ease-out;
+}
+
+@keyframes ecomKpiWarnChanged {
+  0% { background: #fff1e6; }
+  100% { background: linear-gradient(180deg, #fff8f1 0%, #fffaf6 100%); }
 }
 
 .ecom-top-right {
@@ -7209,10 +7258,10 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   flex-direction: row;
   align-items: center;
   min-width: 0;
-  flex: 1 1 480px;
-  max-width: 680px;
-  height: 44px;
-  border-radius: 10px;
+  flex: 1 1 420px;
+  max-width: min(720px, 100%);
+  height: 48px;
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -7247,7 +7296,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 .ecom-rail-watch.is-live {
   background: #ecfdf3;
   border-color: #abefc6;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-rail-watch.is-warn {
@@ -7280,11 +7329,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-rail-watch-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-rail-watch-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -7330,7 +7379,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 0 5px;
   border-radius: 999px;
   background: #fff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   font-size: 9px;
   font-weight: 700;
   box-shadow: inset 0 0 0 1px #c7d7fe;
@@ -7400,7 +7449,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 0 5px;
   border-radius: 999px;
   background: #fff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   box-shadow: inset 0 0 0 1px #c7d7fe;
 }
 
@@ -7432,7 +7481,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-monitor-empty-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -7498,7 +7547,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-monitor-chip.is-fresh time {
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-monitor-chip.is-warn time,
@@ -7543,7 +7592,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-monitor-chip.is-ok {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-monitor-chip.is-info {
@@ -7573,7 +7622,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   justify-content: center;
   font-size: 11px;
   font-weight: 600;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   background: #eff4ff;
   border: 0;
   border-radius: 999px;
@@ -7619,11 +7668,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-stage-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-stage-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -7642,7 +7691,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 0 5px;
   border-radius: 999px;
   background: #fff;
-  color: #027a48;
+  color: #3d9b8a;
   font-size: 9px;
   font-weight: 700;
   box-shadow: inset 0 0 0 1px #abefc6;
@@ -7650,7 +7699,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-stage-chip.is-live {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
   box-shadow: inset 0 0 0 1px #abefc6;
 }
 
@@ -7679,12 +7728,12 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-wall.is-dock-tip .ecom-wall-label {
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-wall.is-dock-tip .ecom-wall-label span {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-bell {
@@ -7710,6 +7759,10 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-chat-head {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   border-bottom: 1px solid var(--ecom-line);
   background: #fff;
 }
@@ -7736,7 +7789,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   gap: 10px;
   padding: 5px 12px 6px;
   border-bottom: 1px solid #eef0f3;
-  background: linear-gradient(90deg, #fffaf3 0%, #f5f8ff 55%, #fff 100%);
+  background: linear-gradient(90deg, #fffaf3 0%, #f3fbf9 55%, #fff 100%);
   font-size: 11px;
   color: #667085;
 }
@@ -7777,7 +7830,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-parallel-agent i {
   background: var(--ecom-blue);
-  box-shadow: 0 0 0 3px rgba(59, 111, 245, 0.16);
+  box-shadow: 0 0 0 3px rgba(95, 191, 176, 0.18);
   animation: ecomPulse 1.4s ease-in-out infinite;
 }
 
@@ -7860,7 +7913,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-beat-rail b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #ecfdf3;
 }
 
@@ -7893,12 +7946,12 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-parallel-mode.is-acting,
 .ecom-parallel-mode.is-communicating {
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   background: #eff4ff;
 }
 
 .ecom-parallel-mode.is-verified {
-  color: #027a48;
+  color: #3d9b8a;
   background: #ecfdf3;
 }
 
@@ -7978,11 +8031,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-plan-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-plan-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -7997,7 +8050,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 1px 5px;
   border-radius: 999px;
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   font-size: 9px;
   font-weight: 700;
 }
@@ -8044,7 +8097,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-plan-act.is-done {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-plan-act.is-active {
@@ -8110,11 +8163,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 .ecom-plan-watch.is-ok {
   background: #ecfdf3;
   border-color: #abefc6;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-plan-watch.is-ok span {
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-plan-watch.is-warn {
@@ -8142,7 +8195,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 @media (max-width: 1180px) {
   .ecom-brand-block {
-    flex-basis: 150px;
+    max-width: 160px;
     padding-right: 10px;
   }
   .ecom-brand-sub {
@@ -8152,8 +8205,16 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
     flex-basis: 360px;
     max-width: 560px;
   }
+  .ecom-top-kpis {
+    grid-template-columns:
+      minmax(78px, 1.15fr)
+      minmax(78px, 1.15fr)
+      minmax(64px, 0.9fr)
+      minmax(52px, 0.7fr)
+      minmax(96px, 1.35fr);
+  }
   .ecom-top-kpi {
-    padding-inline: 8px;
+    padding-inline: 10px;
   }
   .ecom-plan-strip {
     grid-template-columns: 1fr auto;
@@ -8186,36 +8247,95 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 .ecom-chat-mode-tabs {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 0 12px;
+  justify-content: flex-end;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: auto;
+  padding: 0;
 }
 
-.ecom-chat-mode-tabs > span {
-  display: inline-block;
-  padding: 7px 9px 8px;
-  border-bottom: 2px solid transparent;
-  color: #98a2b3;
-  font-size: 11px;
-  max-width: 200px;
+.ecom-chat-mode-tabs > span,
+.ecom-mode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: min(260px, 48vw);
+  min-height: 26px;
+  padding: 4px 11px 4px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #f3f6f5;
+  color: #6b7874;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: none;
+}
+
+.ecom-mode-chip > i {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #aebcbb;
+}
+
+.ecom-mode-chip > em {
+  min-width: 0;
+  overflow: hidden;
+  font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.ecom-chat-mode-tabs > span.is-active {
-  border-bottom-color: var(--ecom-blue);
-  color: var(--ecom-blue-deep);
-  font-weight: 700;
+.ecom-mode-chip > em > b {
+  font-weight: 500;
+  color: #8a9793;
+  margin-right: 4px;
 }
 
-.ecom-chat-mode-tabs > span.is-live {
-  border-bottom-color: #12b76a;
-  color: #027a48;
-  font-weight: 700;
+.ecom-chat-mode-tabs > span.is-active,
+.ecom-mode-chip.is-active {
+  border-color: transparent;
+  background: #f3f6f5;
+  color: #6b7874;
 }
 
-.ecom-chat-mode-tabs > span.is-pulse {
-  animation: ecomBenchPulse 0.75s ease-out;
+.ecom-chat-mode-tabs > span.is-live,
+.ecom-mode-chip.is-live {
+  border-color: rgba(95, 191, 176, 0.35);
+  background: linear-gradient(180deg, #f3fbf9 0%, #e8f7f4 100%);
+  color: var(--agent-teal-deep, #3d9b8a);
+  font-weight: 650;
+}
+
+.ecom-mode-chip.is-live > i {
+  background: var(--agent-teal, #5fbfb0);
+  box-shadow: 0 0 0 3px rgba(95, 191, 176, 0.18);
+  animation: ecomModeDotPulse 1.6s ease-in-out infinite;
+}
+
+.ecom-mode-chip.is-live > em > b {
+  color: #6aa89c;
+}
+
+.ecom-chat-mode-tabs > span.is-pulse,
+.ecom-mode-chip.is-pulse {
+  animation: ecomModeChipPulse 0.42s ease-out;
+}
+
+@keyframes ecomModeChipPulse {
+  0% { transform: scale(0.98); opacity: 0.7; }
+  100% { transform: none; opacity: 1; }
+}
+
+@keyframes ecomModeDotPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(95, 191, 176, 0.14); }
+  50% { box-shadow: 0 0 0 5px rgba(95, 191, 176, 0.22); }
 }
 
 .ecom-tool-next {
@@ -8393,72 +8513,14 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   box-shadow: 0 0 0 3px #ecfdf3;
 }
 
+/* Legacy block kept inert; teal timeline rules below own the stream layout. */
 .ecom-chat .ecom-stream-output {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  max-width: 100%;
-  min-height: 52px;
-  padding: 9px 10px;
-  border: 1px solid #d1fadf;
-  border-radius: 12px;
-  background: #f6fef9;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-.ecom-chat .ecom-output-icon {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: #dcfae6;
-  color: #079455;
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.ecom-chat .ecom-output-copy {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-}
-
-.ecom-chat .ecom-output-copy span {
-  color: #079455;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.ecom-chat .ecom-output-copy strong {
-  overflow: hidden;
-  color: #344054;
-  font-size: 12px;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ecom-chat .ecom-stream-output .ecom-msg-card-btn {
-  min-height: 30px;
-  padding: 0 11px;
-  border: 1px solid #a6f4c5;
-  border-radius: 8px;
-  background: #fff;
-  color: #067647;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.ecom-chat .ecom-stream-item.is-arrive {
-  animation: ecomChatFadeIn 0.18s ease-out;
-}
-
-@keyframes ecomChatFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
+/* arrive animation unified under .streamItemIn below */
 
 .ecom-chat .ecom-rich {
   border: 1px solid #e4e7ec;
@@ -8706,12 +8768,12 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-play-status-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
   box-shadow: 0 0 0 2px #c7d7fe;
 }
 
 .ecom-play-status-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -8735,12 +8797,12 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-play-status-pill {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-play-status.is-acting .ecom-play-status-pill {
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-play-status-next {
@@ -8760,7 +8822,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-play-status-watch.is-ok {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-play-status.is-live {
@@ -8822,7 +8884,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   overflow: auto;
   padding: 20px;
   background:
-    radial-gradient(900px 320px at 10% -10%, #eef3ff 0%, transparent 60%),
+    radial-gradient(900px 320px at 10% -10%, #e8f7f4 0%, transparent 60%),
     #f7f8fa;
 }
 
@@ -8852,6 +8914,16 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 .ecom-play-panel {
   max-width: 760px;
   margin: 0 auto;
+  animation: ecomPlayPanelIn 0.22s ease-out;
+}
+
+@keyframes ecomPlayPanelIn {
+  from { opacity: 0.55; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+html.is-replay-fast .ecom-play-panel {
+  animation: none;
 }
 
 .ecom-play-panel img.ecom-play-hero {
@@ -8971,7 +9043,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   display: grid;
   place-items: center;
   background: #e9efff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   font-size: 12px;
   font-weight: 750;
 }
@@ -9068,7 +9140,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 1px 6px;
   border-radius: 999px;
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   font-weight: 700;
   font-size: 10px;
 }
@@ -9095,7 +9167,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 5px 10px;
   border-bottom: 1px solid #eef2f6;
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
   font-size: 10px;
 }
 
@@ -9126,7 +9198,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 1px 6px;
   border-radius: 999px;
   background: #fff;
-  color: #027a48;
+  color: #3d9b8a;
   box-shadow: inset 0 0 0 1px #abefc6;
 }
 
@@ -9167,11 +9239,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-comms-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-comms-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -9195,7 +9267,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-app-composer.is-agent {
-  color: #027a48;
+  color: #3d9b8a;
   background: #ecfdf3;
 }
 
@@ -9480,7 +9552,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 1px 6px;
   border-radius: 999px;
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
   font-size: 9px;
   font-weight: 700;
 }
@@ -9491,7 +9563,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 1px 6px;
   border-radius: 999px;
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   font-size: 9px;
   font-weight: 700;
 }
@@ -9516,11 +9588,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-wall-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-wall-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -9616,7 +9688,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-tool-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #ecfdf3;
 }
 
@@ -9634,7 +9706,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 5px 7px;
   border-radius: 8px;
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
   font-size: 11px;
 }
 
@@ -9725,7 +9797,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-tool-steps li.is-done {
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-tool-steps li.is-done i {
@@ -9999,7 +10071,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   background: var(--ecom-blue);
   color: #fff;
   border-color: var(--ecom-blue);
-  box-shadow: 0 1px 2px rgba(47, 93, 224, 0.25);
+  box-shadow: 0 1px 2px rgba(61, 155, 138, 0.28);
 }
 
 .ecom-btn-primary:hover {
@@ -10011,8 +10083,8 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 #ecomBtnReplay.is-running {
-  background: #027a48;
-  box-shadow: inset 0 0 0 1px #abefc6, 0 0 0 3px rgba(18, 183, 106, 0.16);
+  background: var(--agent-teal-deep, #3d9b8a);
+  box-shadow: inset 0 0 0 1px #b9e8df, 0 0 0 3px rgba(95, 191, 176, 0.2);
   pointer-events: none;
   opacity: 0.92;
 }
@@ -10024,8 +10096,8 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 @keyframes ecomReplayPulse {
-  0%, 100% { box-shadow: 0 1px 2px rgba(47, 93, 224, 0.25); }
-  50% { box-shadow: 0 0 0 4px rgba(59, 111, 245, 0.18), 0 1px 2px rgba(47, 93, 224, 0.25); }
+  0%, 100% { box-shadow: 0 1px 2px rgba(61, 155, 138, 0.28); }
+  50% { box-shadow: 0 0 0 4px rgba(59, 111, 245, 0.18), 0 1px 2px rgba(61, 155, 138, 0.28); }
 }
 
 .ecom-btn-ghost {
@@ -10186,11 +10258,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-activity-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-activity-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -10243,12 +10315,12 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 .ecom-agent-activity.is-acting .ecom-agent-mode,
 .ecom-agent-activity.is-communicating .ecom-agent-mode {
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-agent-activity.is-verified .ecom-agent-mode {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-agent-activity.is-dual {
@@ -10257,7 +10329,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-agent-activity.is-dual .ecom-agent-mode {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-agent-activity:not(.is-idle) > i:first-child {
@@ -10392,7 +10464,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 2px 8px;
   border-radius: 999px;
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
   font-size: 10px;
   font-weight: 700;
 }
@@ -10422,7 +10494,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-stream-empty-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-stream-empty-beat i {
@@ -10463,7 +10535,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-stream-kind.kind-stage {
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-stream-kind.kind-world,
@@ -10475,7 +10547,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 .ecom-stream-kind.kind-discovery,
 .ecom-stream-kind.kind-wrapup {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-stream-kind.kind-tool,
@@ -10486,7 +10558,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-stream-dual {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-stream-avatar {
@@ -10594,7 +10666,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   display: block;
   margin-top: 2px;
   padding-left: 2px;
-  color: #027a48;
+  color: #3d9b8a;
   font-style: normal;
   font-size: 10px;
   font-weight: 600;
@@ -10680,7 +10752,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-agent-activity.is-planning {
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   background: #eef4ff;
 }
 
@@ -10691,7 +10763,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-agent-activity.is-verified {
-  color: #027a48;
+  color: #3d9b8a;
   background: #ecfdf3;
 }
 
@@ -10699,16 +10771,24 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   display: flex;
   align-items: center;
   gap: 5px;
-  margin: 4px 0 2px 34px;
-  padding: 6px 10px;
+  margin: 8px 0 2px 18px;
+  padding: 7px 12px;
   width: fit-content;
   max-width: min(420px, 92%);
-  border: 1px solid #e4e7ec;
-  border-radius: 10px;
-  background: #f8fafc;
+  border: 1px solid #dceae6;
+  border-radius: 999px;
+  background: #f7fbfa;
   color: #667085;
   font-size: 11px;
-  animation: ecomThinkIn 0.18s ease-out;
+  animation: ecomThinkIn 0.16s ease-out;
+  will-change: opacity;
+}
+
+.ecom-thinking.is-leaving,
+.wedding-thinking.is-leaving {
+  opacity: 0;
+  transition: opacity 0.12s ease-out;
+  pointer-events: none;
 }
 
 .ecom-thinking i {
@@ -10778,7 +10858,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-thinking-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -10802,12 +10882,12 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-thinking-dual {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-thinking-mode {
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-thinking-stage {
@@ -10863,7 +10943,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 .ecom-standby-chips li.is-next {
   background: #eff4ff;
   border-color: #b2ddff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   font-weight: 700;
 }
 
@@ -10871,7 +10951,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   margin-left: 4px;
   padding: 0 4px;
   border-radius: 999px;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
   color: #fff;
   font-size: 9px;
   font-weight: 700;
@@ -10909,12 +10989,12 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-standby-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
   box-shadow: 0 0 0 2px #c7d7fe;
 }
 
 .ecom-standby-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -10940,7 +11020,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   margin: 10px 0 0;
   max-width: 360px;
   font-size: 11px;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-standby-dual i {
@@ -10959,7 +11039,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-play-empty.is-standby.is-live {
-  background: linear-gradient(180deg, #f5f8ff 0%, #fff 70%);
+  background: linear-gradient(180deg, #f3fbf9 0%, #fff 70%);
   border-radius: 14px;
 }
 
@@ -10999,7 +11079,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-standby-watch.is-ok span {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-standby-watch.is-warn span {
@@ -11087,11 +11167,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-sheet-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-sheet-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -11124,7 +11204,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 .ecom-sheet-verify.is-fresh {
   background: #ecfdf3;
   border-color: #abefc6;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-sheet-verify i {
@@ -11143,7 +11223,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 6px 8px;
   border-radius: 8px;
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
   font-size: 11px;
   line-height: 1.35;
 }
@@ -11184,7 +11264,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-sheet-dual b.is-ok {
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-sheet-next {
@@ -11229,7 +11309,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-call-summary.is-done span {
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-call-beat {
@@ -11259,11 +11339,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-call-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-call-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -11291,7 +11371,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 6px 8px;
   border-radius: 8px;
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
   font-size: 11px;
 }
 
@@ -11378,11 +11458,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-result-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-result-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -11451,7 +11531,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 1px 6px;
   border-radius: 999px;
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-notify-panel ul {
@@ -11490,7 +11570,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-notify-hint.is-live {
-  color: #027a48;
+  color: #3d9b8a;
   background: #ecfdf3;
   border-radius: 6px;
   padding: 5px 7px;
@@ -11526,7 +11606,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-notify-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -11564,7 +11644,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-notify-panel li.is-phase-verified .ecom-notify-phase {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-notify-foot {
@@ -11737,8 +11817,8 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding-top: 2px;
 }
 
-.ecom-stream-line.is-agent .who { color: #3538cd; }
-.ecom-stream-line.is-peer .who { color: #027a48; }
+.ecom-stream-line.is-agent .who { color: var(--agent-teal-deep, #3d9b8a); }
+.ecom-stream-line.is-peer .who { color: #3d9b8a; }
 
 .ecom-stream-line .text {
   background: #fff;
@@ -11758,7 +11838,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 1px 5px;
   border-radius: 999px;
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -11802,7 +11882,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 1px 6px;
   border-radius: 999px;
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   font-size: 10px;
   font-weight: 700;
 }
@@ -11846,7 +11926,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-call-extract span.is-on b {
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-call-extract span.is-pop {
@@ -11896,7 +11976,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   position: absolute;
   inset: 0 auto 0 0;
   width: var(--c, 86%);
-  background: linear-gradient(90deg, #84caff, #3538cd);
+  background: linear-gradient(90deg, #84caff, var(--agent-teal-deep, #3d9b8a));
   border-radius: inherit;
   transition: width 0.18s ease;
 }
@@ -11914,7 +11994,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 1px 5px;
   border-radius: 999px;
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   font-size: 9px;
 }
 
@@ -12014,11 +12094,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-agentic-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-agentic-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -12046,12 +12126,12 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-agentic-hands.is-on {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-agentic-hands.is-done {
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-agentic-count,
@@ -12078,7 +12158,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 5px 7px;
   border-radius: 8px;
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
   font-size: 10px;
   line-height: 1.35;
 }
@@ -12142,7 +12222,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 .ecom-agentic-checks span.is-on {
   background: #ecfdf3;
   border-color: #abefc6;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 #ecomNotifyBtn.is-ping {
@@ -12183,7 +12263,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 .ecom-agentic-badge.static {
   position: static;
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   max-width: none;
 }
 
@@ -12268,7 +12348,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   position: absolute;
   inset: 0 auto 0 0;
   width: var(--c, 80%);
-  background: linear-gradient(90deg, #84caff, #3538cd);
+  background: linear-gradient(90deg, #84caff, var(--agent-teal-deep, #3d9b8a));
   border-radius: inherit;
   transition: width 0.18s ease;
 }
@@ -13077,7 +13157,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 1px 5px;
   border-radius: 999px;
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   font-size: 9px;
   font-style: normal;
   font-weight: 700;
@@ -13359,7 +13439,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-welcome-agent i {
   background: var(--ecom-blue);
-  box-shadow: 0 0 0 3px rgba(59, 111, 245, 0.16);
+  box-shadow: 0 0 0 3px rgba(95, 191, 176, 0.18);
 }
 
 .ecom-welcome-human em,
@@ -13406,7 +13486,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-wrapup-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #ecfdf3;
 }
 
@@ -13495,7 +13575,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-composer-hint.is-tick .ecom-composer-hint-agent em {
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-composer-hint.is-human-tick .ecom-composer-hint-human em {
@@ -13540,7 +13620,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-composer-hint-agent i {
   background: var(--ecom-blue);
-  box-shadow: 0 0 0 3px rgba(59, 111, 245, 0.16);
+  box-shadow: 0 0 0 3px rgba(95, 191, 176, 0.18);
   animation: ecomPulse 1.2s ease-in-out infinite;
 }
 
@@ -13602,11 +13682,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-composer-hint-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-composer-hint-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -13650,26 +13730,26 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 .ecom-composer-hint-mode.is-acting,
 .ecom-composer-hint-mode.is-communicating {
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-composer-hint-mode.is-verified {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-composer-hint.is-done {
   justify-content: space-between;
   background: #ecfdf3;
   border-top-color: #abefc6;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-composer-hint-btn {
   border: 0;
   border-radius: 999px;
   padding: 4px 10px;
-  background: #027a48;
+  background: #3d9b8a;
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -13723,7 +13803,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 5px 7px;
   border-radius: 8px;
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
   font-size: 11px;
 }
 
@@ -13748,7 +13828,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 1px 6px;
   border-radius: 999px;
   background: #fff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   font-size: 10px;
   font-weight: 700;
   box-shadow: inset 0 0 0 1px #c7d7fe;
@@ -13783,11 +13863,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-card-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-card-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -13835,7 +13915,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-stage-watch.is-ok span {
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
 }
 
 .ecom-stage-watch.is-warn span {
@@ -13861,14 +13941,25 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   font-weight: 600;
 }
 
-.ecom-stream-item.is-arrive,
-.ecom-chat .ecom-stream-item.is-arrive {
-  animation: ecomStreamArrive 0.38s ease-out;
+/* Prefer the softer chat fade; avoid double opacity flashes during replay rebuilds. */
+.ecom-stream-item.is-arrive:not(.ecom-chat .ecom-stream-item) {
+  animation: ecomStreamArrive 0.2s ease-out;
 }
 
 @keyframes ecomStreamArrive {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0.35; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+
+html.is-replay-fast .ecom-stream-item.is-arrive,
+html.is-replay-fast .wedding-stream-item.is-arrive,
+html.is-replay-fast .ecom-thinking,
+html.is-replay-fast .wedding-thinking {
+  animation: none !important;
+}
+
+html.is-replay-fast .wedding-track-window {
+  transition-duration: 0.18s;
 }
 
 .ecom-rich-wrapup {
@@ -13894,7 +13985,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   border-radius: 999px;
   background: #ecfdf3;
   border: 1px solid #abefc6;
-  color: #027a48;
+  color: #3d9b8a;
   font-size: 10px;
   font-weight: 600;
 }
@@ -13925,7 +14016,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 1px 6px;
   border-radius: 999px;
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   font-size: 10px;
   font-weight: 700;
 }
@@ -14002,14 +14093,14 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 }
 
 .ecom-plan-strip.is-live {
-  background: linear-gradient(180deg, #f5f8ff 0%, #fff 100%);
+  background: linear-gradient(180deg, #f3fbf9 0%, #fff 100%);
 }
 
 .ecom-plan-live {
   padding: 1px 6px;
   border-radius: 999px;
   background: #ecfdf3;
-  color: #027a48;
+  color: #3d9b8a;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -14019,7 +14110,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   padding: 1px 6px;
   border-radius: 999px;
   background: #eff4ff;
-  color: #3538cd;
+  color: var(--agent-teal-deep, #3d9b8a);
   font-size: 9px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -14054,7 +14145,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   margin-left: auto;
   font-style: normal;
   font-size: 10px;
-  color: #027a48;
+  color: #3d9b8a;
   font-weight: 600;
 }
 
@@ -14155,11 +14246,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-snap-beat b.is-on {
   color: #fff;
-  background: #3538cd;
+  background: var(--agent-teal-deep, #3d9b8a);
 }
 
 .ecom-snap-beat b.is-done {
-  color: #027a48;
+  color: #3d9b8a;
   background: #dcfae6;
 }
 
@@ -14174,7 +14265,7 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  color: #027a48;
+  color: #3d9b8a;
   font-style: normal;
   font-size: 10px;
   font-weight: 600;
@@ -14530,9 +14621,6 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
   .ecom-body-manus {
     grid-template-columns: minmax(300px, 43%) minmax(0, 1fr);
   }
-  .ecom-top-kpis {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 800px) {
@@ -14566,17 +14654,18 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 /* ===== Wedding fixed-date cockpit ===== */
 :root {
-  --wedding-bg: #f3efea;
-  --wedding-card: #fffdf9;
-  --wedding-line: #e8dfd4;
-  --wedding-ink: #292521;
-  --wedding-muted: #81776d;
-  --wedding-red: #a63d40;
-  --wedding-red-soft: #f8ece9;
-  --wedding-gold: #9a7042;
-  --wedding-green: #39745b;
-  --wedding-amber: #a86624;
-  --wedding-shadow: 0 12px 34px rgba(67, 53, 40, 0.08);
+  --wedding-bg: var(--agent-mint-bg, #eef7f5);
+  --wedding-card: #ffffff;
+  --wedding-line: #dceae6;
+  --wedding-ink: #1a1d23;
+  --wedding-muted: #7a8a86;
+  --wedding-red: var(--agent-teal, #5fbfb0);
+  --wedding-red-soft: var(--agent-teal-soft, #e8f7f4);
+  --wedding-gold: #6a9e94;
+  --wedding-green: var(--agent-teal-deep, #3d9b8a);
+  --wedding-amber: #c45c5c;
+  --wedding-danger: #c45c5c;
+  --wedding-shadow: 0 14px 36px rgba(30, 70, 62, 0.08);
 }
 
 .wedding-cockpit {
@@ -14826,8 +14915,8 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-track-pill.is-active {
-  border-color: #d7b3aa;
-  background: #fff9f7;
+  border-color: #b9ddd6;
+  background: var(--agent-teal-soft, #e8f7f4);
 }
 
 .wedding-track-pill.is-done {
@@ -14890,12 +14979,12 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #b8afa6;
+  background: #b7c7c3;
 }
 
 .wedding-live-dot.is-live {
   background: var(--wedding-green);
-  box-shadow: 0 0 0 3px rgba(57, 116, 91, 0.12);
+  box-shadow: 0 0 0 3px rgba(95, 191, 176, 0.18);
 }
 
 .wedding-stream-wrap {
@@ -14969,7 +15058,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   height: 6px;
   margin-top: 7px;
   border-radius: 50%;
-  background: #b8afa6;
+  background: #b7c7c3;
 }
 
 .wedding-event.is-risk::before,
@@ -15204,7 +15293,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   padding: 3px 7px;
   border-radius: 999px;
   color: var(--wedding-muted);
-  background: #f1ede8;
+  background: #eef5f3;
   font-size: 9px;
   font-weight: 700;
 }
@@ -15237,13 +15326,13 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-diff-new {
-  border-color: #dfb7ae;
-  background: #fff8f6;
+  border-color: #b9ddd6;
+  background: #f7fbfa;
 }
 
 .wedding-auth-card {
-  border-color: #d8aaa1;
-  background: #fff9f7;
+  border-color: #b9ddd6;
+  background: var(--agent-teal-soft, #e8f7f4);
 }
 
 .wedding-auth-card strong {
@@ -15471,7 +15560,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   height: 6px;
   margin-top: 9px;
   border-radius: 50%;
-  background: #b8afa6;
+  background: #b7c7c3;
 }
 
 .wedding-stream-event.kind-notify .wedding-event-marker {
@@ -15591,15 +15680,17 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   align-items: center;
   gap: 4px;
   min-height: 24px;
+  margin: 6px 0 2px 20px;
   color: var(--wedding-muted);
   font-size: 9px;
+  animation: streamItemIn 0.2s ease-out;
 }
 
 .wedding-thinking i {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: #b8afa6;
+  background: #b7c7c3;
 }
 
 .wedding-thinking span {
@@ -15642,8 +15733,8 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-track-row.is-active {
-  border-color: #d7b3aa;
-  background: #fff9f7;
+  border-color: #b9ddd6;
+  background: var(--agent-teal-soft, #e8f7f4);
 }
 
 .wedding-track-row.is-done {
@@ -15778,7 +15869,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   padding: 3px 6px;
   border-radius: 999px;
   color: var(--wedding-muted);
-  background: #f1ede8;
+  background: #eef5f3;
   font-size: 8px;
   font-weight: 700;
 }
@@ -16020,7 +16111,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-stream-who time {
-  color: #aaa198;
+  color: #9aa8a4;
   font-size: 8px;
   font-weight: 500;
 }
@@ -16035,16 +16126,16 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   border: 1px solid var(--wedding-line);
   border-radius: 11px 11px 11px 3px;
   color: var(--wedding-ink);
-  background: #f5f1ec;
+  background: #f3f8f6;
   font-size: 11px;
   line-height: 1.55;
 }
 
 .wedding-stream-item.is-user .wedding-msg-bubble {
-  border-color: var(--wedding-red);
+  border-color: #cfe5e0;
   border-radius: 11px 11px 3px 11px;
-  color: #fff;
-  background: var(--wedding-red);
+  color: #1c2422;
+  background: var(--agent-teal-soft, #e8f7f4);
 }
 
 .wedding-calendar-app {
@@ -16102,7 +16193,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   border: 0;
   border-radius: 7px;
   color: var(--wedding-muted);
-  background: #f5f1ec;
+  background: #eef5f3;
 }
 
 .wedding-month-weekdays,
@@ -16131,7 +16222,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   display: grid;
   place-items: center;
   border-radius: 7px;
-  color: #5f5750;
+  color: #5f6e6a;
   font-size: 8px;
 }
 
@@ -16487,7 +16578,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-agenda .wedding-calendar-list li.is-unavailable::before {
-  background: #b8afa6;
+  background: #b7c7c3;
 }
 
 .wedding-agenda .wedding-calendar-list time,
@@ -16524,11 +16615,15 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid #ded8d1;
-  border-radius: 11px;
-  background: #fffdfa;
-  box-shadow: 0 5px 14px rgba(71, 55, 45, 0.05);
+  border: 1px solid #e6efec;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: none;
   contain: layout paint;
+  transition:
+    border-color 0.28s ease,
+    background-color 0.28s ease,
+    box-shadow 0.28s ease;
 }
 
 .wedding-track-window:nth-child(5) {
@@ -16536,92 +16631,121 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-track-window.is-focus {
-  border-color: rgba(166, 61, 64, 0.62);
-  box-shadow: 0 0 0 2px rgba(166, 61, 64, 0.09), 0 9px 22px rgba(107, 51, 51, 0.12);
-  animation: wedding-window-focus 520ms ease-out both;
+  border-color: #b9ddd6;
+  background: #fff;
+  box-shadow: inset 3px 0 0 var(--agent-teal, #5fbfb0);
+  animation: none;
 }
 
 .wedding-track-window.is-alert {
-  border-color: rgba(192, 71, 64, 0.72);
+  border-color: rgba(196, 92, 92, 0.45);
   background: #fffaf8;
+  box-shadow: inset 3px 0 0 #c45c5c;
 }
 
 .wedding-track-window.is-done {
-  border-color: #cbdcd3;
-  background: #fbfdfb;
+  border-color: #dceae6;
+  background: #fbfdfc;
 }
 
 .wedding-window-bar {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
+  gap: 8px;
   height: 23px;
-  padding: 0 6px;
-  border-bottom: 1px solid #e9e3dd;
-  background: #f5f1ec;
+  padding: 0 10px;
+  border-bottom: 1px solid #eef3f1;
+  background: #fff;
 }
 
 .wedding-window-bar > b {
   overflow: hidden;
-  color: #4e4640;
-  font-size: 10px;
-  text-align: center;
+  color: #2b3331;
+  font-size: 11px;
+  font-weight: 650;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: -0.01em;
 }
 
 .wedding-window-bar > em {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: var(--wedding-muted);
+  gap: 5px;
+  min-height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  color: #6b7874;
+  background: #f3f6f5;
   font-size: 9px;
   font-style: normal;
+  font-weight: 600;
   white-space: nowrap;
+  transition: color 0.22s ease, background-color 0.22s ease;
+}
+
+.wedding-mini-workbench {
+  transition: opacity 0.16s ease;
 }
 
 .wedding-window-bar > em > i {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: #aaa29a;
+  background: #b7c7c3;
+}
+
+.wedding-track-window.is-running .wedding-window-bar > em {
+  color: var(--agent-teal-deep, #3d9b8a);
+  background: var(--agent-teal-soft, #e8f7f4);
 }
 
 .wedding-track-window.is-running .wedding-window-bar > em > i {
-  background: var(--wedding-green);
+  background: var(--agent-teal, #5fbfb0);
   animation: wedding-window-live 1.8s ease-in-out infinite;
 }
 
+.wedding-track-window.is-focus .wedding-window-bar > em {
+  color: var(--agent-teal-deep, #3d9b8a);
+  background: var(--agent-teal-soft, #e8f7f4);
+}
+
 .wedding-track-window.is-focus .wedding-window-bar > em > i {
-  background: var(--wedding-red);
+  background: var(--agent-teal, #5fbfb0);
+}
+
+.wedding-track-window.is-done .wedding-window-bar > em {
+  color: #5f6e6a;
+  background: #eef3f1;
 }
 
 .wedding-track-window.is-alert .wedding-window-bar {
-  background: #fff0ed;
+  background: #fffaf8;
+}
+
+.wedding-track-window.is-alert .wedding-window-bar > em {
+  color: #b42318;
+  background: #fff1f0;
+}
+
+.wedding-window-mark {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  color: var(--agent-teal-deep, #3d9b8a);
+  background: var(--agent-teal-soft, #e8f7f4);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0;
+  line-height: 1;
 }
 
 .wedding-window-controls {
-  display: flex;
-  gap: 3px;
-}
-
-.wedding-window-controls i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #c8c0b8;
-}
-
-.wedding-window-controls i:first-child {
-  background: #d9958c;
-}
-
-.wedding-window-controls i:nth-child(2) {
-  background: #dfbf76;
-}
-
-.wedding-window-controls i:last-child {
-  background: #8fb99f;
+  display: none;
 }
 
 .wedding-window-body {
@@ -16641,7 +16765,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   margin: 0;
   overflow: hidden;
   border-radius: 7px;
-  background: #eae4de;
+  background: #e4eeeb;
 }
 
 .wedding-window-evidence img {
@@ -16697,7 +16821,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-window-copy span {
-  color: #5f5750;
+  color: #5f6e6a;
   font-size: 10px;
 }
 
@@ -16868,41 +16992,47 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   }
 }
 
-/* Direct five-window mode: no surrounding workbench chrome. */
+/* Unified workbench shell: one white stage, inset track grid. */
 .wedding-playground {
   display: block;
   overflow: hidden;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  border: 1px solid var(--wedding-line, #dceae6);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(30, 70, 62, 0.06);
 }
 
 .wedding-workspace {
   height: 100%;
-  padding: 0;
+  padding: 10px;
   overflow: hidden;
+  background: #fff;
 }
 
 .wedding-parallel-desktop {
   display: block;
   height: 100%;
+  min-height: 0;
 }
 
 .wedding-parallel-windows {
   height: 100%;
-  gap: 10px;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #e8eeec;
+  border-radius: 12px;
+  background: #f5f9f8;
 }
 
 .wedding-window-bar {
-  height: 27px;
+  height: 30px;
 }
 
 .wedding-window-body {
   grid-template-columns: minmax(78px, 34%) minmax(0, 1fr);
   gap: 8px;
-  height: calc(100% - 27px);
-  padding: 8px;
+  height: calc(100% - 30px);
+  padding: 8px 10px 10px;
 }
 
 .wedding-window-copy {
@@ -16933,9 +17063,10 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 
 .wedding-mini-workbench {
   display: block;
-  height: calc(100% - 27px);
-  padding: 6px 7px;
+  height: calc(100% - 30px);
+  padding: 8px 10px 10px;
   overflow: hidden;
+  background: #fff;
 }
 
 .wedding-mini-toolbar {
@@ -16944,7 +17075,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   align-items: center;
   height: 19px;
   margin-bottom: 4px;
-  color: #57504a;
+  color: #5f6e6a;
 }
 
 .wedding-mini-toolbar > span {
@@ -16954,7 +17085,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   height: 16px;
   border-radius: 4px;
   color: #fff;
-  background: var(--wedding-red);
+  background: var(--agent-teal, #5fbfb0);
   font-size: 9px;
 }
 
@@ -16986,14 +17117,14 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   grid-template-columns: 1fr auto;
   align-content: center;
   padding: 4px 5px;
-  border: 1px solid #e4ddd6;
+  border: 1px solid var(--wedding-line, #dceae6);
   border-radius: 6px;
-  background: #faf7f3;
+  background: #f7fbfa;
 }
 
 .wedding-mini-contract section.is-changed {
-  border-color: #dfa69f;
-  background: #fff1ef;
+  border-color: #b9ddd6;
+  background: var(--agent-teal-soft, #e8f7f4);
 }
 
 .wedding-mini-contract small {
@@ -17018,9 +17149,19 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 
 .wedding-mini-contract > i {
   align-self: center;
-  color: #aa9d93;
+  color: #8a9793;
   font-size: 10px;
   font-style: normal;
+}
+
+/* Pin the Agent-found strip lower in the card (more air under table counts). */
+.wedding-mini-workbench:has(.wedding-mini-contract) {
+  display: flex;
+  flex-direction: column;
+}
+
+.wedding-mini-contract + .wedding-mini-chatline {
+  margin-top: auto;
 }
 
 .wedding-mini-chatline {
@@ -17032,14 +17173,14 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   margin-top: 4px;
   padding: 4px 6px;
   border-radius: 6px;
-  background: #f4f0eb;
+  background: #f3f8f6;
 }
 
 .wedding-mini-chatline > i {
   padding: 2px 4px;
   border-radius: 4px;
-  color: #725f55;
-  background: #e9dfd7;
+  color: var(--agent-teal-deep, #3d9b8a);
+  background: #dceae6;
   font-size: 8px;
   font-style: normal;
   white-space: nowrap;
@@ -17049,7 +17190,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   display: -webkit-box;
   margin: 0;
   overflow: hidden;
-  color: #554d47;
+  color: #4a5552;
   font-size: 9px;
   line-height: 1.25;
   -webkit-box-orient: vertical;
@@ -17057,7 +17198,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-mini-chatline.is-risk {
-  background: #fff0ed;
+  background: #fff4f2;
 }
 
 .wedding-mini-progress {
@@ -17068,14 +17209,14 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   height: 18px;
   overflow: hidden;
   border-radius: 5px;
-  background: #eee8e2;
+  background: #e8eeec;
 }
 
 .wedding-mini-progress > i {
   position: absolute;
   inset: 0 auto 0 0;
   width: var(--value);
-  background: #dfc1b8;
+  background: linear-gradient(90deg, #a8d4cb 0%, var(--agent-teal, #5fbfb0) 100%);
   transition: width 420ms ease;
 }
 
@@ -17101,8 +17242,8 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   padding: 3px 5px;
   overflow: hidden;
   border-radius: 6px 6px 6px 2px;
-  color: #5d554f;
-  background: #f3eee9;
+  color: #4a5552;
+  background: #f3f6f5;
   font-size: 8px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -17110,11 +17251,11 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 
 .wedding-mini-chat p.is-user {
   border-radius: 6px 6px 2px;
-  background: #f8e8e5;
+  background: var(--agent-teal-soft, #e8f7f4);
 }
 
 .wedding-mini-chat p.is-risk {
-  color: var(--wedding-red);
+  color: var(--wedding-danger, #c45c5c);
 }
 
 .wedding-mini-chat p b {
@@ -17149,20 +17290,20 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   padding: 2px 4px;
   border-radius: 5px;
   color: var(--wedding-muted);
-  background: #f3eee9;
+  background: #f3f6f5;
   font-size: 8px;
 }
 
 .wedding-mini-photo span b {
   overflow: hidden;
-  color: #4f4842;
+  color: #3d4643;
   font-size: 8px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .wedding-mini-photo span.is-risk {
-  background: #fff0ed;
+  background: #fff4f2;
 }
 
 .wedding-mini-calendar {
@@ -17177,7 +17318,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   gap: 2px;
   padding: 5px;
   border-radius: 6px;
-  background: #f2ede8;
+  background: #eef5f3;
 }
 
 .wedding-mini-month strong {
@@ -17196,13 +17337,13 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 
 .wedding-mini-month span.has-event {
   color: #fff;
-  background: var(--wedding-red);
+  background: var(--agent-teal, #5fbfb0);
 }
 
 .wedding-mini-month span.is-cancelled {
-  color: #9b8f86;
+  color: #8a9793;
   text-decoration: line-through;
-  background: #ded7d1;
+  background: #dceae6;
 }
 
 .wedding-mini-calendar ol {
@@ -17221,13 +17362,13 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   align-items: center;
   padding: 4px 5px;
   border-radius: 5px;
-  background: #f7f3ef;
+  background: #f3f6f5;
   font-size: 8px;
 }
 
 .wedding-mini-calendar li.is-risk {
-  color: var(--wedding-red);
-  background: #fff0ed;
+  color: var(--wedding-danger, #c45c5c);
+  background: #fff4f2;
 }
 
 .wedding-mini-calendar li em {
@@ -17249,7 +17390,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   padding: 7px 9px;
   overflow: hidden;
   border-radius: 7px;
-  background: #f1ece6;
+  background: #eef5f3;
 }
 
 .wedding-mini-budget span {
@@ -17275,7 +17416,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   inset: auto auto 0 0;
   width: var(--value);
   height: 4px;
-  background: var(--wedding-red);
+  background: var(--agent-teal, #5fbfb0);
   transition: width 420ms ease;
 }
 
@@ -17293,7 +17434,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   grid-template-columns: 24px 1fr auto;
   gap: 5px;
   padding: 3px 5px;
-  border-bottom: 1px solid #ece5df;
+  border-bottom: 1px solid #e4eeeb;
   font-size: 8px;
 }
 
@@ -17312,7 +17453,8 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   gap: 4px;
   padding: 8px;
   border-radius: 7px;
-  background: #f4f0eb;
+  background: #f3f8f6;
+  border: 1px solid var(--wedding-line, #dceae6);
 }
 
 .wedding-mini-auth strong {
@@ -17325,8 +17467,9 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-mini-auth.is-risk {
-  color: var(--wedding-red);
-  background: #fff0ed;
+  color: var(--wedding-danger, #c45c5c);
+  background: #fff4f2;
+  border-color: #e2b4b4;
 }
 
 @media (max-width: 640px) {
@@ -17369,4 +17512,384 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 .wedding-mini-auth strong,
 .wedding-mini-auth span {
   font-size: 10px;
+}
+
+/* ===== Shared Agent log + teal workbench skin (ecom / wedding) ===== */
+.ecom-chat,
+.wedding-chat,
+.ecom-playground,
+.wedding-playground {
+  border-radius: 20px;
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 16px 40px rgba(30, 70, 62, 0.08);
+  background: #fff;
+}
+
+.ecom-agent-copy,
+.wedding-agent-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.ecom-agent-copy small,
+.wedding-agent-copy small {
+  color: var(--agent-muted, #7a8a86);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.ecom-chat .ecom-agent-bar,
+.wedding-chat-head {
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--agent-line, #dceae6);
+}
+
+.ecom-chat-head {
+  padding: 12px 16px 12px 18px;
+  border-bottom: 1px solid var(--agent-line, #dceae6);
+}
+
+.ecom-chat .ecom-agent-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border-bottom: 0;
+  min-width: 0;
+}
+
+.ecom-chat .ecom-agent-bar strong,
+.wedding-chat-head strong {
+  color: #111;
+  font-size: 15px;
+  font-weight: 760;
+  letter-spacing: -0.01em;
+}
+
+.ecom-live-dot,
+.wedding-live-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #b7c7c3;
+}
+
+.ecom-live-dot.is-on,
+.wedding-live-dot.is-live {
+  background: var(--agent-teal, #5fbfb0);
+  box-shadow: 0 0 0 4px rgba(95, 191, 176, 0.18);
+}
+
+.wedding-chat-head > span {
+  color: #9aa8a4;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ecom-chat .ecom-messages,
+.wedding-messages {
+  gap: 14px;
+  padding: 18px 20px 22px;
+  background: #fff;
+  scroll-behavior: auto;
+  overflow-anchor: none;
+}
+
+.ecom-chat .ecom-stream-item,
+.wedding-stream-item {
+  contain: layout paint;
+}
+
+.ecom-chat .ecom-stream-item.is-arrive,
+.wedding-stream-item.is-arrive {
+  animation: streamItemIn 0.28s ease-out;
+}
+
+@keyframes streamItemIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.ecom-log-bullet,
+.wedding-log-bullet {
+  width: 7px;
+  height: 7px;
+  margin-top: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--agent-teal, #5fbfb0);
+  box-shadow: 0 0 0 3px rgba(95, 191, 176, 0.12);
+}
+
+.ecom-log-bullet.is-done,
+.wedding-log-bullet.is-done {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  background: var(--agent-teal-deep, #3d9b8a);
+  box-shadow: 0 0 0 3px rgba(61, 155, 138, 0.14);
+}
+
+.ecom-log-bullet.is-event,
+.wedding-log-bullet.is-event {
+  width: 6px;
+  height: 6px;
+  margin-top: 8px;
+  background: #c5d5d1;
+  box-shadow: none;
+}
+
+.ecom-chat .ecom-stream-item.mine.is-agent-log,
+.ecom-chat .ecom-stream-output,
+.ecom-chat .ecom-stream-event,
+.wedding-stream-item.is-agent,
+.wedding-stream-output,
+.wedding-stream-event {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  align-self: stretch;
+  background: transparent;
+  color: var(--agent-ink, #1a1d23);
+}
+
+.ecom-message-stack,
+.wedding-message-stack {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ecom-chat .ecom-stream-item.mine.is-agent-log .ecom-stream-who,
+.wedding-stream-item.is-agent .wedding-stream-who {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--agent-teal, #5fbfb0);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.ecom-chat .ecom-stream-item.mine.is-agent-log .ecom-stream-who time,
+.wedding-stream-item.is-agent .wedding-stream-who time {
+  color: var(--agent-teal, #5fbfb0);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.ecom-chat .ecom-stream-item.mine.is-agent-log .ecom-msg-bubble,
+.wedding-stream-item.is-agent .wedding-msg-bubble {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #1c2422;
+  font-size: 13px;
+  line-height: 1.55;
+  box-shadow: none;
+}
+
+.ecom-chat .ecom-stream-item.mine.is-agent-log {
+  align-items: start;
+  align-self: stretch;
+}
+
+.ecom-chat .ecom-stream-event,
+.wedding-stream-event {
+  padding: 0;
+  margin: 0;
+}
+
+.ecom-chat .ecom-event-marker,
+.wedding-event-marker,
+.ecom-chat .ecom-output-icon,
+.wedding-output-icon {
+  display: none;
+}
+
+.ecom-chat .ecom-event-copy,
+.wedding-event-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.ecom-chat .ecom-event-copy strong,
+.wedding-event-copy strong {
+  color: #8a9a96;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.ecom-chat .ecom-event-copy p,
+.wedding-event-copy p {
+  margin: 0;
+  color: #5f6e6a;
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: normal;
+  text-overflow: unset;
+  overflow: visible;
+}
+
+.ecom-chat .ecom-stream-output,
+.wedding-stream-output {
+  margin: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ecom-output-row,
+.wedding-output-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #e6efec;
+  border-radius: 10px;
+  background: #fafcfb;
+}
+
+.ecom-chat .ecom-output-copy,
+.wedding-output-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ecom-chat .ecom-output-copy span,
+.wedding-output-copy span {
+  color: #8a9a96;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.ecom-chat .ecom-output-copy strong,
+.wedding-output-copy strong {
+  overflow: hidden;
+  color: #1c2422;
+  font-size: 13px;
+  font-weight: 680;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ecom-chat .ecom-stream-output .ecom-msg-card-btn,
+.wedding-output-btn {
+  flex: 0 0 auto;
+  min-height: 28px;
+  border: 1px solid #cfe5e0;
+  border-radius: 999px;
+  padding: 5px 11px;
+  color: var(--agent-teal-deep, #3d9b8a);
+  background: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ecom-chat .ecom-stream-output .ecom-msg-card-btn:hover,
+.wedding-output-btn:hover {
+  border-color: #b9ddd6;
+  background: var(--agent-teal-soft, #e8f7f4);
+  color: var(--agent-teal-deep, #3d9b8a);
+}
+
+.wedding-stream-item.is-user .wedding-msg-bubble {
+  border-color: #dceae6;
+  background: #f3f8f6;
+  color: #1c2422;
+}
+
+.wedding-stream-item.is-user .wedding-message-avatar {
+  color: var(--agent-teal-deep, #3d9b8a);
+  border-color: #cfe5e0;
+  background: var(--agent-teal-soft, #e8f7f4);
+}
+
+.wedding-track-pill.is-active {
+  border-color: #b9ddd6;
+  background: #f3fbf9;
+}
+
+.wedding-track-pill.is-done {
+  border-color: #c5ddd7;
+  background: #f5fbf9;
+}
+
+.wedding-mini-contract section.is-changed {
+  border-color: #b9ddd6;
+  background: var(--agent-teal-soft, #e8f7f4);
+}
+
+.wedding-mini-chatline.is-risk,
+.wedding-mini-chat p.is-risk,
+.wedding-mini-photo span.is-risk,
+.wedding-mini-calendar li.is-risk,
+.wedding-mini-auth.is-risk {
+  border-color: #e2b4b4;
+  background: #fff4f2;
+  color: var(--wedding-danger, #c45c5c);
+}
+
+.wedding-btn.primary,
+.ecom-btn-primary {
+  background: var(--agent-teal, #5fbfb0);
+  border-color: var(--agent-teal, #5fbfb0);
+}
+
+.wedding-btn.primary:hover,
+.ecom-btn-primary:hover {
+  background: var(--agent-teal-deep, #3d9b8a);
+  border-color: var(--agent-teal-deep, #3d9b8a);
+}
+
+.ecom-playground {
+  background: #fff;
+}
+
+.wedding-playground {
+  background: #fff;
+  border: 1px solid var(--wedding-line, #dceae6);
+  box-shadow: 0 10px 28px rgba(30, 70, 62, 0.06);
+}
+
+.ecom-play-kicker,
+.wedding-workspace .wedding-panel-head span,
+.wedding-workspace-tabs button.is-active {
+  color: var(--agent-teal-deep, #3d9b8a);
+}
+
+.wedding-workspace-tabs button.is-active {
+  border-bottom-color: var(--agent-teal, #5fbfb0);
+}
+
+.ecom-bench-strip button.is-active,
+.ecom-comms-contact.is-active {
+  background: var(--agent-teal-soft, #e8f7f4);
+  color: var(--agent-teal-deep, #3d9b8a);
+  border-color: #b9ddd6;
+}
+
+.ecom-brand-mark,
+.wedding-brand-mark {
+  background: var(--agent-teal, #5fbfb0);
+  color: #fff;
 }

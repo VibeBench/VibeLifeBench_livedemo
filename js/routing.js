@@ -69,10 +69,12 @@ const SEED_ROAD_LEGS = [
 ];
 
 const OSRM = "https://router.project-osrm.org/route/v1/driving";
+const OSRM_TIMEOUT_MS = 1800;
 const routeCache = new Map();
 /** @type {Map<string, [number, number][]>} */
 const precomputed = new Map();
-let precomputedLoaded = false;
+/** @type {Promise<number> | null} */
+let precomputedLoading = null;
 
 /** Map event location fragments → place_id (order matters for compound names). */
 export function placeAliasToId(raw) {
@@ -137,22 +139,27 @@ export function allRoutePlaceIds() {
 
 /** Load baked OSRM polylines from demo/data/routes.json (called once at boot). */
 export async function loadPrecomputedRoutes(url = "./data/routes.json") {
-  if (precomputedLoaded) return precomputed.size;
-  precomputedLoaded = true;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(String(res.status));
-    const data = await res.json();
-    for (const [key, leg] of Object.entries(data || {})) {
-      const coords = leg?.coordinates;
-      if (Array.isArray(coords) && coords.length >= 2) {
-        precomputed.set(key, coords.map(([lat, lng]) => [Number(lat), Number(lng)]));
+  if (precomputed.size) return precomputed.size;
+  if (precomputedLoading) return precomputedLoading;
+  precomputedLoading = (async () => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(String(res.status));
+      const data = await res.json();
+      for (const [key, leg] of Object.entries(data || {})) {
+        const coords = leg?.coordinates;
+        if (Array.isArray(coords) && coords.length >= 2) {
+          precomputed.set(key, coords.map(([lat, lng]) => [Number(lat), Number(lng)]));
+        }
       }
+    } catch (err) {
+      console.warn("precomputed routes unavailable", err);
+      // Allow a later retry if the first fetch failed empty.
+      precomputedLoading = null;
     }
-  } catch (err) {
-    console.warn("precomputed routes unavailable", err);
-  }
-  return precomputed.size;
+    return precomputed.size;
+  })();
+  return precomputedLoading;
 }
 
 export async function buildDrivingPath(ctx, placeIds) {
@@ -210,9 +217,11 @@ async function fetchOsrm(lng1, lat1, lng2, lat2) {
   const key = `${lng1.toFixed(4)},${lat1.toFixed(4)};${lng2.toFixed(4)},${lat2.toFixed(4)}`;
   if (routeCache.has(key)) return routeCache.get(key);
 
+  const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), OSRM_TIMEOUT_MS) : null;
   try {
     const url = `${OSRM}/${lng1},${lat1};${lng2},${lat2}?overview=full&geometries=geojson`;
-    const res = await fetch(url);
+    const res = await fetch(url, ctrl ? { signal: ctrl.signal } : undefined);
     if (!res.ok) throw new Error(String(res.status));
     const data = await res.json();
     const line = data.routes?.[0]?.geometry?.coordinates || [];
@@ -223,6 +232,8 @@ async function fetchOsrm(lng1, lat1, lng2, lat2) {
     console.warn("OSRM leg failed", err);
     // Do not cache failures — allow retry on next paint
     return [];
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 

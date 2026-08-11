@@ -3,7 +3,8 @@
  * No rich cards, sense-think-act rails, or dual-track chrome.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260807-wedding-align2";
+import { L, getLocale } from "../i18n.js?v=20260812-smooth";
+import { isReplayMode } from "../playback.js?v=20260812-smooth";
 
 export const AUTH_PAYMENT_THRESHOLD = 5000;
 
@@ -64,24 +65,50 @@ export class WeddingStream {
     this._thinking = null;
     this._freshId = null;
     this._freshTimer = null;
+    this._arrivedIds = new Set();
+    this._renderedCount = 0;
   }
 
   reset(couple = {}) {
     this.couple = couple;
     this.feed = [];
     this._thinking = null;
+    this._freshId = null;
+    this._arrivedIds = new Set();
+    this._renderedCount = 0;
     this.render({ stick: true });
   }
 
   /** Short compose indicator — no beat rail or dual-track meta. */
   showThinking(label = "") {
-    this._thinking = label || L("整理回复…", "Composing…");
+    const next = label || L("整理回复…", "Composing…");
+    this._thinking = next;
+    this._thinkEpoch = (this._thinkEpoch || 0) + 1;
+    const el = this.messagesEl?.querySelector(".wedding-thinking");
+    if (el) {
+      el.classList.remove("is-leaving");
+      const span = el.querySelector("span");
+      if (span) {
+        span.textContent = next;
+        const near =
+          this.messagesEl.scrollHeight - this.messagesEl.clientHeight - this.messagesEl.scrollTop < 80;
+        if (near) this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+        return;
+      }
+    }
     this._mountThinking();
   }
 
   hideThinking() {
     this._thinking = null;
-    this.messagesEl?.querySelector(".wedding-thinking")?.remove();
+    const el = this.messagesEl?.querySelector(".wedding-thinking");
+    if (!el) return;
+    el.classList.add("is-leaving");
+    const token = (this._thinkEpoch = (this._thinkEpoch || 0) + 1);
+    window.setTimeout(() => {
+      if (this._thinkEpoch !== token || this._thinking) return;
+      el.remove();
+    }, 120);
   }
 
   _mountThinking() {
@@ -90,22 +117,31 @@ export class WeddingStream {
     if (!el) {
       el = document.createElement("div");
       el.className = "wedding-thinking";
+      el.innerHTML = `<i></i><i></i><i></i><span></span>`;
       this.messagesEl.appendChild(el);
     }
-    el.innerHTML = `<i></i><i></i><i></i><span>${esc(this._thinking)}</span>`;
-    this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+    el.classList.remove("is-leaving");
+    const span = el.querySelector("span");
+    if (span) span.textContent = this._thinking;
+    const near =
+      this.messagesEl.scrollHeight - this.messagesEl.clientHeight - this.messagesEl.scrollTop < 80;
+    if (near) this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
   }
 
   pushMessage(msg = {}) {
     const thread = msg.thread || MAIN_THREAD;
     const from = msg.from || "agent";
     const kind = msg.kind || "text";
+    const text_zh = msg.text_zh ?? msg.text ?? "";
+    const text_en = msg.text_en ?? msg.text ?? text_zh;
     const row = {
       id: msg.id || `wm_${this.feed.length}_${Date.now()}`,
       thread,
       from,
       kind,
-      text: pickLocale(msg, "text"),
+      text_zh,
+      text_en,
+      text: pickLocale({ text_zh, text_en, text: msg.text }, "text"),
       deliverableId: msg.deliverable_id || msg.deliverableId || null,
       auth: Boolean(msg.auth || msg.lock_id || msg.authorization),
       lockId: msg.lock_id || msg.lockId || null,
@@ -162,14 +198,137 @@ export class WeddingStream {
     return grants.length > 0;
   }
 
+  _arriveClass(id) {
+    if (!id || isReplayMode()) return "";
+    if (id !== this._freshId || this._arrivedIds.has(id)) return "";
+    this._arrivedIds.add(id);
+    return "is-arrive";
+  }
+
+  _itemHtml(m, bride) {
+    const mine = m.from === "agent";
+    const userSide = USER_IDS.has(m.from);
+    const arrive = this._arriveClass(m.id);
+    const kind = String(m.kind || "text");
+    const kindClass = `kind-${kind.replace(/[^a-z0-9_-]/gi, "")}`;
+    const text = pickLocale(m, "text");
+
+    if (m.deliverableId) {
+      return `<article class="wedding-stream-item wedding-stream-output ${kindClass} ${arrive}" data-msg-id="${esc(m.id)}">
+        <span class="wedding-log-bullet is-done" aria-hidden="true"></span>
+        <div class="wedding-message-stack wedding-output-row">
+          <div class="wedding-output-copy">
+            <span>${esc(L("已完成", "Done"))}</span>
+            <strong title="${esc(text)}">${esc(text)}</strong>
+          </div>
+          <button type="button" class="wedding-output-btn" data-wedding-deliv="${esc(m.deliverableId)}">${esc(
+            L("查看", "View")
+          )}</button>
+        </div>
+      </article>`;
+    }
+
+    if (EVENT_KINDS.has(kind)) {
+      return `<article class="wedding-stream-item wedding-stream-event ${kindClass} ${arrive}" data-msg-id="${esc(m.id)}">
+        <span class="wedding-log-bullet is-event" aria-hidden="true"></span>
+        <div class="wedding-event-copy">
+          <strong>${esc(kindTag(kind))}</strong>
+          <p>${esc(text)}</p>
+        </div>
+      </article>`;
+    }
+
+    if (mine) {
+      return `<article class="wedding-stream-item is-agent ${kindClass} ${arrive}" data-msg-id="${esc(m.id)}">
+        <span class="wedding-log-bullet" aria-hidden="true"></span>
+        <div class="wedding-message-stack">
+          <div class="wedding-stream-who"><span>Dots Note</span><time>${esc(formatTime(m.ts))}</time></div>
+          <div class="wedding-msg-bubble">${esc(text)}</div>
+        </div>
+      </article>`;
+    }
+
+    const who = userSide ? bride : m.from;
+    const avatar = userSide
+      ? Array.from(bride || (getLocale() === "en" ? "Q" : "乔")).slice(-1)[0]
+      : Array.from(m.from || "·")[0];
+    return `<article class="wedding-stream-item ${kindClass} ${userSide ? "is-user" : ""} ${arrive}" data-msg-id="${esc(m.id)}">
+      <span class="wedding-message-avatar" aria-hidden="true">${esc(avatar)}</span>
+      <div class="wedding-message-stack">
+        <div class="wedding-stream-who"><span>${esc(who)}</span><time>${esc(formatTime(m.ts))}</time></div>
+        <div class="wedding-msg-bubble">${esc(text)}</div>
+      </div>
+    </article>`;
+  }
+
+  _bindActions(root = this.messagesEl) {
+    root?.querySelectorAll("[data-wedding-deliv]").forEach((btn) => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", () => this.onFocusDeliverable(btn.dataset.weddingDeliv));
+    });
+    root?.querySelectorAll("[data-wedding-replay]").forEach((btn) => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", () => this.onReplay?.());
+    });
+  }
+
+  _msgSig(m) {
+    return [
+      m.id,
+      m.kind,
+      m.from,
+      m.deliverableId || "",
+      m.text_zh || "",
+      m.text_en || "",
+      m.html ? String(m.html).length : 0,
+    ].join("|");
+  }
+
+  _mountArticle(html) {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = html;
+    const node = wrap.firstElementChild;
+    if (!node) return null;
+    const thinkingEl = this.messagesEl.querySelector(".wedding-thinking");
+    if (thinkingEl) thinkingEl.before(node);
+    else this.messagesEl.appendChild(node);
+    this._bindActions(node);
+    return node;
+  }
+
+  _patchArticles(list, bride) {
+    const articles = [...this.messagesEl.querySelectorAll("article[data-msg-id]")];
+    if (articles.length !== list.length) return false;
+    for (let i = 0; i < list.length; i++) {
+      if (articles[i].dataset.msgId !== String(list[i].id)) return false;
+    }
+    for (let i = 0; i < list.length; i++) {
+      const m = list[i];
+      const el = articles[i];
+      const sig = this._msgSig(m);
+      if (el.dataset.sig === sig) continue;
+      const wrap = document.createElement("div");
+      wrap.innerHTML = this._itemHtml(m, bride);
+      const next = wrap.firstElementChild;
+      if (!next) return false;
+      next.dataset.sig = sig;
+      el.replaceWith(next);
+      this._bindActions(next);
+    }
+    return true;
+  }
+
   render({ stick = true } = {}) {
     if (!this.messagesEl) return;
     const previousTop = this.messagesEl.scrollTop;
     const wasNearBottom =
-      this.messagesEl.scrollHeight - this.messagesEl.clientHeight - this.messagesEl.scrollTop < 72;
+      this.messagesEl.scrollHeight - this.messagesEl.clientHeight - this.messagesEl.scrollTop < 80;
 
     const list = this.feed.filter((m) => m.thread === MAIN_THREAD);
     if (!list.length) {
+      this._renderedCount = 0;
       this.messagesEl.innerHTML = `<div class="wedding-stream-empty">
         <strong>${esc(L("对话会出现在这里", "Conversation will appear here"))}</strong>
         <p>${esc(L("执行细节请看右侧工作台", "See the workspace for execution details"))}</p>
@@ -182,65 +341,56 @@ export class WeddingStream {
         ? this.couple?.bride?.name_en || this.couple?.bride?.name_zh || "Lin Qiao"
         : this.couple?.bride?.name_zh || this.couple?.bride?.name_en || "林乔";
 
-    this.messagesEl.innerHTML = list
-      .map((m) => {
-        const mine = m.from === "agent";
-        const userSide = USER_IDS.has(m.from);
-        const arrive = m.id === this._freshId ? "is-arrive" : "";
-        const kind = String(m.kind || "text");
-        const kindClass = `kind-${kind.replace(/[^a-z0-9_-]/gi, "")}`;
+    const articleCount = this.messagesEl.querySelectorAll("article[data-msg-id]").length;
+    const canAppend =
+      list.length === this._renderedCount + 1 &&
+      articleCount === this._renderedCount &&
+      this._renderedCount > 0;
+    const canPatch =
+      !canAppend &&
+      list.length === this._renderedCount &&
+      articleCount === this._renderedCount &&
+      this._renderedCount > 0;
 
-        if (m.deliverableId) {
-          return `<article class="wedding-stream-item wedding-stream-output ${kindClass} ${arrive}">
-            <span class="wedding-output-icon" aria-hidden="true">✓</span>
-            <div class="wedding-output-copy">
-              <span>${esc(L("已完成", "Done"))}</span>
-              <strong>${esc(m.text)}</strong>
-            </div>
-            <button type="button" class="wedding-output-btn" data-wedding-deliv="${esc(m.deliverableId)}">${esc(
-              L("查看", "Open")
-            )}</button>
-          </article>`;
-        }
-
-        if (EVENT_KINDS.has(kind)) {
-          return `<article class="wedding-stream-item wedding-stream-event ${kindClass} ${arrive}">
-            <span class="wedding-event-marker" aria-hidden="true"></span>
-            <div class="wedding-event-copy">
-              <strong>${esc(kindTag(kind))}</strong>
-              <p>${esc(m.text)}</p>
-            </div>
-          </article>`;
-        }
-
-        const who = mine ? "Agent" : userSide ? bride : m.from;
-        const avatar = mine ? "AI" : userSide ? Array.from(bride || "乔").slice(-1)[0] : Array.from(m.from || "·")[0];
-        return `<article class="wedding-stream-item ${kindClass} ${userSide ? "is-user" : mine ? "is-agent" : ""} ${arrive}">
-          <span class="wedding-message-avatar" aria-hidden="true">${esc(avatar)}</span>
-          <div class="wedding-message-stack">
-            <div class="wedding-stream-who"><span>${esc(who)}</span><time>${esc(formatTime(m.ts))}</time></div>
-            <div class="wedding-msg-bubble">${esc(m.text)}</div>
-          </div>
-        </article>`;
-      })
-      .join("");
-
-    this.messagesEl.querySelectorAll("[data-wedding-deliv]").forEach((btn) => {
-      btn.addEventListener("click", () => this.onFocusDeliverable(btn.dataset.weddingDeliv));
-    });
-    this.messagesEl.querySelectorAll("[data-wedding-replay]").forEach((btn) => {
-      btn.addEventListener("click", () => this.onReplay?.());
-    });
+    let rebuilt = false;
+    if (canAppend) {
+      const last = list[list.length - 1];
+      const node = this._mountArticle(this._itemHtml(last, bride));
+      if (node) node.dataset.sig = this._msgSig(last);
+      this._renderedCount = list.length;
+    } else if (canPatch && this._patchArticles(list, bride)) {
+      this._renderedCount = list.length;
+    } else {
+      const thinking = this._thinking;
+      this.messagesEl.innerHTML = list
+        .map((m) =>
+          this._itemHtml(m, bride).replace(
+            /^<article\b/,
+            `<article data-sig="${esc(this._msgSig(m))}"`
+          )
+        )
+        .join("");
+      this._bindActions(this.messagesEl);
+      this._renderedCount = list.length;
+      rebuilt = true;
+      if (thinking) this._mountThinking();
+    }
 
     if (this._thinking) this._mountThinking();
-    if (stick && wasNearBottom) this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
-    else this.messagesEl.scrollTop = previousTop;
+    if (stick && wasNearBottom) {
+      const el = this.messagesEl;
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    } else if (rebuilt) {
+      this.messagesEl.scrollTop = previousTop;
+    }
 
     if (this._freshId) {
       window.clearTimeout(this._freshTimer);
       this._freshTimer = window.setTimeout(() => {
         this._freshId = null;
-      }, 480);
+      }, 420);
     }
   }
 }

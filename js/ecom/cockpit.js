@@ -2,11 +2,11 @@
  * SaaS-style ecommerce full-chain cockpit.
  */
 
-import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260807-topbar-fix";
-import { EcomIm } from "./im.js?v=20260807-topbar-fix";
-import { EcomBenches } from "./benches.js?v=20260807-topbar-fix";
-import { EcomScriptPlayer, ecomProgressLabel } from "./script.js?v=20260807-topbar-fix";
-import { createEcomTools } from "./tools.js?v=20260807-topbar-fix";
+import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-smooth";
+import { EcomIm } from "./im.js?v=20260812-smooth";
+import { EcomBenches } from "./benches.js?v=20260812-smooth";
+import { EcomScriptPlayer, ecomProgressLabel } from "./script.js?v=20260812-smooth";
+import { createEcomTools } from "./tools.js?v=20260812-smooth";
 
 function esc(s) {
   return String(s ?? "")
@@ -177,6 +177,7 @@ export class EcomCockpit {
     this.root.hidden = false;
     this.root.setAttribute("aria-hidden", "false");
     applyDomI18n(this.root);
+    this.im?._pulseChatMode?.(this.im.activeThread || "boss");
     this.showWelcome(false);
   }
 
@@ -204,8 +205,8 @@ export class EcomCockpit {
     const p = this.seed?.project || {};
     const nameEl = document.querySelector("#ecomProjectName");
     if (nameEl) {
-      const proj = en ? p.name_en || p.name_zh : p.name_zh || p.name_en;
-      nameEl.textContent = proj ? `${proj} · ${p.id || ""}` : "VibeLifeBench";
+      // Keep the brand row short: project id (or name) only under the product mark.
+      nameEl.textContent = p.id || (en ? p.name_en || p.name_zh : p.name_zh || p.name_en) || "—";
     }
     const idEl = document.querySelector("#ecomProjectId");
     if (idEl) idEl.textContent = p.id || "—";
@@ -1550,30 +1551,28 @@ export class EcomCockpit {
       .map(([label, value, delta, tone, note], index) => {
         const changed =
           this._lastKpiValues[index] != null && this._lastKpiValues[index] !== value;
-        return `<div class="ecom-top-kpi ${tone || ""} ${changed ? "is-changed" : ""} ${
-          live ? "is-dual" : ""
-        }" title="${esc(
-          changed
-            ? live
+        const tipParts = [label, value];
+        if (delta != null) tipParts.push(`+${delta}%`);
+        if (note) tipParts.push(note);
+        if (changed) {
+          tipParts.push(
+            live
               ? L("静默回写已感知 · 不打断门店", "Silent writeback sensed · floor uninterrupted")
               : L("刚回写", "Just written")
-            : label
-        )}">
-        <span class="ecom-kpi-label">${esc(label)}${
+          );
+        }
+        return `<div class="ecom-top-kpi ${tone || ""} ${changed ? "is-changed" : ""} ${
+          live ? "is-dual" : ""
+        }" title="${esc(tipParts.join(" · "))}">
+        <span class="ecom-kpi-label">${esc(label)}</span>
+        ${
           changed
             ? `<b class="ecom-kpi-fresh">${esc(
                 live ? L("感知", "Sense") : L("回写", "Sync")
               )}</b>`
             : ""
-        }</span>
-        <strong class="ecom-kpi-value">${esc(value)}</strong>
-        ${
-          delta != null
-            ? `<em class="delta">+${esc(delta)}%</em>`
-            : note
-              ? `<em class="warn">${esc(note)}</em>`
-              : ""
         }
+        <strong class="ecom-kpi-value">${esc(value)}</strong>
       </div>`;
       })
       .join("")}`;
@@ -2042,7 +2041,18 @@ export class EcomCockpit {
     this.renderMonitors();
     this.renderWall();
     this.renderNotifyBadge();
+    const running = Boolean(this.player?.running);
+    if (running) {
+      const st = this.meta?.stages?.find((s) => s.id === this.stageId);
+      const label = st ? (getLocale() === "en" ? st.en || st.zh : st.zh || st.en) : null;
+      this.setAgentStatus(label || null);
+      this.setAgentActivity(this._activityMode || "idle", "", { settle: false });
+    } else {
+      this.setAgentStatus(null);
+    }
+    this.setReplayLocked(running);
     this.im.renderChat({ stick: false });
+    this.im?._pulseChatMode?.(this.im.activeThread || "boss");
     this.benches.renderPlayground?.();
     const welcome = document.querySelector("#ecomWelcome");
     if (welcome && !welcome.hidden) this.showWelcome(true);

@@ -10,7 +10,10 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./css/styles.css?v=20260807-wedding-mini-workbenches" />
+    <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin />
+    <link rel="dns-prefetch" href="https://server.arcgisonline.com" />
+    <link rel="preload" href="./data/routes.json" as="fetch" crossorigin />
+    <link rel="stylesheet" href="./css/styles.css?v=20260812-dotsnote" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
@@ -22,7 +25,7 @@
       <header class="topbar">
         <div class="brand-block">
           <div class="brand" id="caseTitle">VibeLifeBench</div>
-          <div class="scenario-switch" id="scenarioSwitch" role="group" aria-label="场景">
+          <div class="scenario-switch" id="scenarioSwitch" role="group" data-i18n-aria="scenario.aria" aria-label="场景">
             <button type="button" class="scenario-btn is-active" data-scenario="travel" id="btnScenarioTravel" data-i18n="scenario.travel">
               旅行 NZ
             </button>
@@ -150,8 +153,8 @@
             <div class="phone-header">
               <div class="avatar">A</div>
               <div>
-                <h2>小林 · 旅行助理</h2>
-                <p class="agent-status offline" id="agentStatus" data-i18n="phone.offline">Offline</p>
+                <h2 data-i18n="phone.agentTitle">小林 · 旅行助理</h2>
+                <p class="agent-status" id="agentStatus">Online · Dots Note</p>
               </div>
             </div>
             <div class="phone-screens">
@@ -290,13 +293,13 @@
 
       <!-- Ecommerce · Manus-style: dynamic bar + chat + playground -->
       <section class="ecom-cockpit" id="ecomCockpit" hidden aria-hidden="true">
-        <aside class="ecom-side-rail" aria-label="工作台导航">
-          <button type="button" class="is-active" title="工作台"><span>▦</span><small>工作台</small></button>
-          <button type="button" disabled title="本 demo 聚焦经营工作台"><span>▱</span><small>项目</small></button>
-          <button type="button" disabled title="本 demo 聚焦经营工作台"><span>◫</span><small>知识库</small></button>
-          <button type="button" disabled title="本 demo 聚焦经营工作台"><span>♙</span><small>数据看板</small></button>
-          <button type="button" disabled title="本 demo 聚焦经营工作台"><span>⚙</span><small>设置</small></button>
-          <button type="button" class="ecom-rail-collapse" disabled title="固定展开"><span>‹‹</span></button>
+        <aside class="ecom-side-rail" data-i18n-aria="ecom.railNav" aria-label="工作台导航">
+          <button type="button" class="is-active" data-i18n-title="ecom.rail.bench" title="工作台"><span>▦</span><small data-i18n="ecom.rail.bench">工作台</small></button>
+          <button type="button" disabled data-i18n-title="ecom.rail.focusDemo" title="本 demo 聚焦经营工作台"><span>▱</span><small data-i18n="ecom.rail.project">项目</small></button>
+          <button type="button" disabled data-i18n-title="ecom.rail.focusDemo" title="本 demo 聚焦经营工作台"><span>◫</span><small data-i18n="ecom.rail.knowledge">知识库</small></button>
+          <button type="button" disabled data-i18n-title="ecom.rail.focusDemo" title="本 demo 聚焦经营工作台"><span>♙</span><small data-i18n="ecom.rail.dashboard">数据看板</small></button>
+          <button type="button" disabled data-i18n-title="ecom.rail.focusDemo" title="本 demo 聚焦经营工作台"><span>⚙</span><small data-i18n="ecom.rail.settings">设置</small></button>
+          <button type="button" class="ecom-rail-collapse" disabled data-i18n-title="ecom.rail.pin" title="固定展开"><span>‹‹</span></button>
         </aside>
         <header class="ecom-top">
           <div class="ecom-brand-block">
@@ -312,11 +315,11 @@
           </div>
           <div class="ecom-top-right">
             <span class="ecom-stage-chip" id="ecomAgentEta">—</span>
-            <label class="ecom-auto-toggle" title="自动执行">
+            <label class="ecom-auto-toggle" data-i18n-title="ecom.autoExec" title="自动执行">
               <input type="checkbox" id="ecomAutoExec" checked />
               <i></i>
             </label>
-            <button type="button" class="ecom-icon-btn" id="ecomNotifyBtn" aria-label="通知">
+            <button type="button" class="ecom-icon-btn" id="ecomNotifyBtn" data-i18n-aria="ecom.notify" aria-label="通知">
               <span class="ecom-bell" aria-hidden="true"></span>
               <span class="ecom-badge" id="ecomNotifyBadge" hidden>0</span>
             </button>
@@ -330,19 +333,20 @@
             <div class="ecom-chat-head">
               <div class="ecom-agent-bar">
                 <span class="ecom-live-dot" id="ecomLiveDot" aria-hidden="true"></span>
-                <div>
+                <div class="ecom-agent-copy">
                   <strong data-i18n="ecom.agentWorking">AI Agent</strong>
-                  <span id="ecomAgentTask">—</span>
-                  <span class="ecom-agent-activity is-idle" id="ecomAgentActivity">
-                    <i aria-hidden="true"></i><em>观察</em>
+                  <small data-i18n="ecom.agentSub">Dots Note</small>
+                  <span id="ecomAgentTask" hidden>—</span>
+                  <span class="ecom-agent-activity is-idle" id="ecomAgentActivity" hidden>
+                    <i aria-hidden="true"></i><em data-i18n="ecom.observe">观察</em>
                   </span>
                 </div>
               </div>
-              <div class="ecom-chat-mode-tabs">
-                <span class="is-active">对话</span>
+              <div class="ecom-chat-mode-tabs" aria-live="polite">
+                <span class="ecom-mode-chip is-active"><i aria-hidden="true"></i><em>主对话</em></span>
               </div>
             </div>
-            <div class="ecom-plan-strip" id="ecomPlanStrip" aria-label="任务进度"></div>
+            <div class="ecom-plan-strip" id="ecomPlanStrip" data-i18n-aria="ecom.planAria" aria-label="任务进度"></div>
             <div class="ecom-parallel-strip" id="ecomParallelStrip" hidden aria-live="polite">
               <span class="ecom-parallel-human"><i></i><em data-i18n="ecom.parallelHuman">你在打理门店</em></span>
               <span class="ecom-parallel-sep" aria-hidden="true"></span>
@@ -366,8 +370,8 @@
                 <h2 id="ecomPlayTitle">—</h2>
                 <small class="ecom-play-status" id="ecomPlayStatus"></small>
               </div>
-              <nav class="ecom-bench-strip" id="ecomBenchTabs" role="tablist" aria-label="工具台">
-                <button type="button" class="is-active" data-bench="comms" title="协作消息">✦</button>
+              <nav class="ecom-bench-strip" id="ecomBenchTabs" role="tablist" data-i18n-aria="ecom.benchAria" aria-label="工具台">
+                <button type="button" class="is-active" data-bench="comms" data-i18n-title="ecom.bench.comms" title="协作消息">✦</button>
                 <button type="button" data-bench="phone" title="打电话" data-i18n-title="ecom.bench.phone">☎</button>
                 <button type="button" data-bench="sheet" title="库存定价" data-i18n-title="ecom.bench.sheet">▦</button>
                 <button type="button" data-bench="pack" title="包装设计" data-i18n-title="ecom.bench.pack">◇</button>
@@ -400,21 +404,21 @@
       <section class="wedding-cockpit" id="weddingCockpit" hidden aria-hidden="true">
         <header class="wedding-top">
           <div class="wedding-brand">
-            <span class="wedding-brand-mark" aria-hidden="true">囍</span>
+            <span class="wedding-brand-mark" data-i18n="wedding.brandMark" aria-hidden="true">囍</span>
             <div>
               <strong>VibeLifeBench</strong>
-              <span id="weddingProjectName">固定婚期 · 五轨筹备</span>
+              <span id="weddingProjectName" data-i18n="wedding.projectFallback">固定婚期 · 五轨筹备</span>
             </div>
           </div>
-          <div class="wedding-top-kpis" id="weddingTopKpis" aria-label="婚礼关键状态"></div>
+          <div class="wedding-top-kpis" id="weddingTopKpis" data-i18n-aria="wedding.kpiAria" aria-label="婚礼关键状态"></div>
           <div class="wedding-top-actions">
-            <span class="wedding-stage-chip" id="weddingStageChip">待命</span>
+            <span class="wedding-stage-chip" id="weddingStageChip" data-i18n="wedding.standby">待命</span>
             <button type="button" class="wedding-btn ghost" id="weddingBtnConfigure" data-i18n="wedding.configure">配置模型</button>
-            <button type="button" class="wedding-btn primary" id="weddingBtnReplay" title="按 36 阶段播放完整事件流">完整 Replay</button>
+            <button type="button" class="wedding-btn primary" id="weddingBtnReplay" data-i18n="wedding.replay" data-i18n-title="wedding.replayTitle" title="按 36 阶段播放完整事件流">完整 Replay</button>
           </div>
         </header>
 
-        <div class="wedding-track-rail" id="weddingTrackRail" aria-label="五轨进度"></div>
+        <div class="wedding-track-rail" id="weddingTrackRail" data-i18n-aria="wedding.tracksAria" aria-label="五轨进度"></div>
 
         <div class="wedding-body">
           <main class="wedding-chat">
@@ -423,7 +427,7 @@
                 <span class="wedding-live-dot" id="weddingLiveDot" aria-hidden="true"></span>
                 <span class="wedding-agent-copy">
                   <strong>AI Agent</strong>
-                  <small>在线 · 负责五轨统筹</small>
+                  <small data-i18n="wedding.agentSub">Dots Note</small>
                 </span>
               </div>
               <span data-i18n="wedding.dialogue">对话</span>
@@ -447,6 +451,6 @@
 
     <div class="toast" id="toast" hidden></div>
 
-    <script type="module" src="./js/app.js?v=20260808-travel-persona"></script>
+    <script type="module" src="./js/app.js?v=20260812-dotsnote"></script>
   </body>
 </html>

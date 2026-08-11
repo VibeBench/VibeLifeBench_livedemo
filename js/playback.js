@@ -44,12 +44,21 @@ function syncReplaySpeedClass() {
   }
 }
 
-/** Scale a base duration: faster speed → shorter wait. */
+/**
+ * Scale a base duration: faster speed → shorter wait.
+ * min/max are also divided by speed so floors (e.g. ecom HOLD_FLOOR) cannot
+ * defeat 4×/8× — otherwise every step stays clamped near the 1× floor.
+ */
 export function playbackMs(baseMs, { min = 0, max = Number.POSITIVE_INFINITY } = {}) {
   const raw = Number(baseMs);
-  if (!Number.isFinite(raw) || raw <= 0) return Math.max(min, 0);
-  const scaled = Math.round(raw / speed);
-  return Math.min(max, Math.max(min, scaled));
+  const s = Math.max(Number(speed) || 1, 0.5);
+  const scaledMin = Math.max(0, Math.round((Number(min) || 0) / s));
+  const scaledMax = Number.isFinite(max)
+    ? Math.max(scaledMin, Math.round(Number(max) / s))
+    : Number.POSITIVE_INFINITY;
+  if (!Number.isFinite(raw) || raw <= 0) return scaledMin;
+  const scaled = Math.round(raw / s);
+  return Math.min(scaledMax, Math.max(scaledMin, scaled));
 }
 
 /**
