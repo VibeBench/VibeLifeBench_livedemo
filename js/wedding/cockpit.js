@@ -2,15 +2,15 @@
  * Wedding planning cockpit — fixed KPI header, pure dialogue stream, workspace panels.
  */
 
-import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-tip-view";
-import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-tip-view";
+import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-no-think-cards";
+import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-no-think-cards";
 import {
   WeddingWorkspaces,
   maskContact,
   parseWeddingStageTracks,
   WORKSPACE_IDS,
-} from "./workspaces.js?v=20260812-tip-view";
-import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-tip-view";
+} from "./workspaces.js?v=20260812-no-think-cards";
+import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-no-think-cards";
 
 export { AUTH_PAYMENT_THRESHOLD, weddingProgressLabel, WORKSPACE_IDS };
 
