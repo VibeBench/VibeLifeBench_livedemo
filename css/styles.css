@@ -15831,7 +15831,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   width: 100% !important;
   max-width: 100% !important;
   padding: 0 !important;
-  margin: 0;
+  margin: 1px 0;
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
@@ -15842,73 +15842,84 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   width: 100%;
   box-sizing: border-box;
   appearance: none;
-  border: 1px solid #cfe0f8;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #f5f9ff 0%, #eef5ff 100%);
-  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 5px 4px;
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 52px;
-  gap: 8px;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  gap: 6px;
   align-items: center;
   text-align: left;
   cursor: pointer;
   font: inherit;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.06);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: none;
+  transition: background 0.12s ease;
 }
 
 .wedding-inbound-tip-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.1);
+  background: rgba(60, 60, 67, 0.05);
+  transform: none;
+  box-shadow: none;
 }
 
 .wedding-inbound-tip-ico {
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
+  width: 16px;
+  height: 16px;
+  border-radius: 0;
   display: grid;
   place-items: center;
-  background: #fff;
-  border: 1px solid #dbe7f8;
-  font-size: 14px;
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  opacity: 0.85;
 }
 
 .wedding-inbound-tip-copy {
   min-width: 0;
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: nowrap;
 }
 
 .wedding-inbound-tip-copy strong {
-  font-size: 12.5px;
-  font-weight: 750;
-  color: #1e3a5f;
+  flex: 0 1 auto;
+  max-width: 42%;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .wedding-inbound-tip-copy em {
+  flex: 1 1 auto;
+  min-width: 0;
   font-style: normal;
   font-size: 11px;
-  color: #64748b;
+  color: #9aa3af;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .wedding-inbound-tip-go {
-  width: 52px;
+  width: auto;
   box-sizing: border-box;
   justify-self: end;
-  text-align: center;
-  padding: 4px 0;
-  border-radius: 999px;
-  background: #2563eb;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.02em;
+  text-align: right;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #3d9b8a;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(61, 155, 138, 0.35);
 }
 
 .wedding-output-icon {
