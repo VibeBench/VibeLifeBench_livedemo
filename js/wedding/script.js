@@ -8,8 +8,8 @@ import {
   getPlaybackSpeed,
   playbackMs,
   chatPlaybackMs,
-} from "../playback.js?v=20260812-ios-apps";
-import { getLocale, L } from "../i18n.js?v=20260812-ios-apps";
+} from "../playback.js?v=20260812-think-tools";
+import { getLocale, L } from "../i18n.js?v=20260812-think-tools";
 
 const DEFAULT_INTERNAL_MS = {
   stage: 100,
@@ -201,16 +201,24 @@ export class WeddingScriptPlayer {
         await this._sleepChat({ from: "agent", text_zh: "需当次确认" }, { compose: true });
       }
       // Keep a short compose beat even at 8× so chat doesn't teleport.
-      if (from === "agent" && !step.html) {
-        if (external) {
-          c.workspaces?.showCommsTyping?.(thread);
-          await this._sleepChat(step, { compose: true });
-          c.workspaces?.hideCommsTyping?.();
-        } else {
-          c.stream?.showThinking?.(L("整理回复…", "Composing…"));
-          await this._sleepChat(step, { compose: true });
-          c.stream?.hideThinking?.();
-        }
+      if (from === "agent" && !step.html && !external) {
+        const thinkZh =
+          step.thinking_zh ||
+          step.think_zh ||
+          L("对照婚期、预算顶与授权门禁，组织可执行回复…", "Align date, budget cap and auth gates, then draft a concrete reply…");
+        const thinkEn =
+          step.thinking_en ||
+          step.think_en ||
+          "Align date, budget cap and auth gates, then draft a concrete reply…";
+        c.stream?.showThinking?.(getLocale() === "en" ? thinkEn : thinkZh);
+        await this._sleepChat(step, { compose: true });
+        c.stream?.hideThinking?.();
+        c.stream?.pushThinkingNote?.({ text_zh: thinkZh, text_en: thinkEn });
+        await sleepPlayback(this._internalMs("tool_call") * 0.35);
+      } else if (from === "agent" && !step.html && external) {
+        c.workspaces?.showCommsTyping?.(thread);
+        await this._sleepChat(step, { compose: true });
+        c.workspaces?.hideCommsTyping?.();
       } else if (human) {
         // Brief beat before a human line lands — helps at high speed.
         await this._sleepChat(step, { compose: true });
@@ -279,8 +287,36 @@ export class WeddingScriptPlayer {
     }
 
     if (type === "tool_call") {
-      await c.runTool?.(step.name, step.args || {}, step);
-      await sleepPlayback(this._internalMs("tool_call"));
+      const toolName = step.name || "tool";
+      const toolLabel = String(toolName).replace(/_/g, " ");
+      c.stream?.showThinking?.(
+        L(`选择工具并准备参数 · ${toolLabel}`, `Picking tool and args · ${toolLabel}`)
+      );
+      await sleepPlayback(Math.max(280, this._internalMs("tool_call") * 0.45));
+      c.stream?.hideThinking?.();
+      c.stream?.pushThinkingNote?.({
+        text_zh: step.thinking_zh || `需要可验证事实才能推进：调用 ${toolLabel}。`,
+        text_en: step.thinking_en || `Need verifiable facts before moving on — calling ${toolLabel}.`,
+      });
+      const toolId = c.stream?.pushToolCall?.(toolName, step.args || {}, { status: "running" });
+      await sleepPlayback(Math.max(260, this._internalMs("tool_call") * 0.4));
+      c.stream?.advanceToolCall?.(toolId, 1);
+      await sleepPlayback(Math.max(260, this._internalMs("tool_call") * 0.4));
+      c.stream?.advanceToolCall?.(toolId, 2);
+      let ok = true;
+      let detail = "";
+      try {
+        await c.runTool?.(toolName, step.args || {}, step);
+        detail = Object.entries(step.args || {})
+          .slice(0, 3)
+          .map(([k, v]) => `${k} · ${String(v).slice(0, 36)}`)
+          .join("　");
+      } catch (e) {
+        ok = false;
+        detail = String(e?.message || e);
+      }
+      c.stream?.finishToolCall?.(toolId, { ok, detail });
+      await sleepPlayback(this._internalMs("tool_call") * 0.5);
       return;
     }
 

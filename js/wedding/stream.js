@@ -3,8 +3,8 @@
  * No rich cards, sense-think-act rails, or dual-track chrome.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-ios-apps";
-import { isReplayMode } from "../playback.js?v=20260812-ios-apps";
+import { L, getLocale } from "../i18n.js?v=20260812-think-tools";
+import { isReplayMode } from "../playback.js?v=20260812-think-tools";
 
 export const AUTH_PAYMENT_THRESHOLD = 5000;
 
@@ -227,6 +227,7 @@ export class WeddingStream {
       text_zh,
       text_en,
       text: pickLocale({ text_zh, text_en, text: msg.text }, "text"),
+      html: msg.html || null,
       deliverableId: msg.deliverable_id || msg.deliverableId || null,
       auth: Boolean(msg.auth || msg.lock_id || msg.authorization),
       lockId: msg.lock_id || msg.lockId || null,
@@ -236,6 +237,7 @@ export class WeddingStream {
       tipWorkspace: msg.tip_workspace || msg.tipWorkspace || null,
       tipPreviewZh: msg.tip_preview_zh || msg.tipPreviewZh || "",
       tipPreviewEn: msg.tip_preview_en || msg.tipPreviewEn || "",
+      meta: msg.meta || null,
       ts: msg.ts || Date.now(),
     };
     this.feed.push(row);
@@ -286,13 +288,13 @@ export class WeddingStream {
     const fromEn = String(from_en || fromZh || "Contact");
     const ch = channel === "mail" || channel === "email" ? "mail" : channel === "sms" ? "sms" : "im";
     const text_zh =
-      ch === "mail" ? `收到邮件 · ${fromZh}` : ch === "sms" ? `收到短信 · ${fromZh}` : `收到消息 · ${fromZh}`;
+      ch === "mail" ? `处理邮件 · ${fromZh}` : ch === "sms" ? `处理短信 · ${fromZh}` : `处理消息 · ${fromZh}`;
     const text_en =
       ch === "mail"
-        ? `Mail received · ${fromEn}`
+        ? `Handling mail · ${fromEn}`
         : ch === "sms"
-          ? `SMS received · ${fromEn}`
-          : `Message received · ${fromEn}`;
+          ? `Handling SMS · ${fromEn}`
+          : `Handling message · ${fromEn}`;
     const ws = workspace || (ch === "mail" ? "mail" : ch === "sms" ? "sms" : "im");
     return this.pushMessage({
       thread: MAIN_THREAD,
@@ -355,6 +357,76 @@ export class WeddingStream {
     });
   }
 
+  /** Sticky thinking note that remains visible in the couple IM. */
+  pushThinkingNote({ text_zh, text_en } = {}) {
+    const zh = text_zh || L("梳理约束与下一步…", "Sorting constraints and next step…");
+    const en = text_en || zh;
+    return this.pushMessage({
+      thread: MAIN_THREAD,
+      from: "agent",
+      kind: "thinking",
+      text_zh: zh,
+      text_en: en,
+      html: weddingThinkingCardHtml(zh, en),
+    });
+  }
+
+  pushToolCall(name, args = {}, { status = "running" } = {}) {
+    const id = `wtool_${Date.now()}_${this.feed.length}`;
+    const label = weddingToolLabel(name);
+    const steps = weddingToolSteps(name);
+    const html = weddingToolCardHtml({ name, label, args, status, steps, stepIdx: 0 });
+    this.pushMessage({
+      id,
+      thread: MAIN_THREAD,
+      from: "agent",
+      kind: "tool",
+      text_zh: label,
+      text_en: label,
+      html,
+      meta: { tool: name, args, status, steps, stepIdx: 0 },
+    });
+    return id;
+  }
+
+  advanceToolCall(id, stepIdx = 1) {
+    const row = this.feed.find((m) => m.id === id);
+    if (!row?.meta) return;
+    const steps = row.meta.steps || weddingToolSteps(row.meta.tool);
+    const idx = Math.max(0, Math.min(stepIdx, steps.length - 1));
+    row.meta = { ...row.meta, stepIdx: idx, status: "running" };
+    row.html = weddingToolCardHtml({
+      name: row.meta.tool,
+      label: weddingToolLabel(row.meta.tool),
+      args: row.meta.args || {},
+      status: "running",
+      steps,
+      stepIdx: idx,
+    });
+    this.render({ stick: true });
+  }
+
+  finishToolCall(id, { ok = true, detail = "" } = {}) {
+    const row = this.feed.find((m) => m.id === id);
+    if (!row) return;
+    const name = row.meta?.tool || "";
+    const label = weddingToolLabel(name);
+    const steps = row.meta?.steps || weddingToolSteps(name);
+    row.meta = { ...(row.meta || {}), status: "done", ok, stepIdx: steps.length };
+    row.html = weddingToolCardHtml({
+      name,
+      label,
+      args: row.meta?.args || {},
+      status: "done",
+      ok,
+      detail: detail || weddingFormatArgs(row.meta?.args || {}),
+      steps,
+      stepIdx: steps.length,
+      next: ok ? weddingToolNext(name) : "",
+    });
+    this.render({ stick: true });
+  }
+
   /** Messages from the primary user that grant payment authorization. */
   listUserAuthorizations() {
     return this.feed.filter(
@@ -414,7 +486,11 @@ export class WeddingStream {
       const ch = m.tipChannel || "im";
       const ico = ch === "mail" ? "📧" : ch === "sms" ? "📱" : "💬";
       const openLabel =
-        ch === "mail" ? L("打开邮件", "Open mail") : ch === "sms" ? L("打开短信", "Open SMS") : L("去看", "Open");
+        ch === "mail"
+          ? L("处理邮件", "Handle mail")
+          : ch === "sms"
+            ? L("处理短信", "Handle SMS")
+            : L("去处理", "Handle");
       return `<article class="wedding-stream-item wedding-inbound-tip ${arrive}" data-msg-id="${esc(m.id)}">
         <button type="button" class="wedding-inbound-tip-btn"
           data-tip-workspace="${esc(m.tipWorkspace || ch)}"
@@ -436,6 +512,16 @@ export class WeddingStream {
         <div class="wedding-event-copy">
           <strong>${esc(kindTag(kind))}</strong>
           <p>${esc(text)}</p>
+        </div>
+      </article>`;
+    }
+
+    if (kind === "thinking" || kind === "tool" || m.html) {
+      return `<article class="wedding-stream-item is-agent kind-${esc(kind)} ${arrive}" data-msg-id="${esc(m.id)}">
+        <span class="wedding-log-bullet ${kind === "thinking" ? "is-think" : kind === "tool" ? "is-tool" : ""}" aria-hidden="true"></span>
+        <div class="wedding-message-stack">
+          <div class="wedding-stream-who"><span>Dots Note</span><time>${esc(formatTime(m.ts))}</time></div>
+          ${m.html || `<div class="wedding-msg-bubble">${esc(text)}</div>`}
         </div>
       </article>`;
     }
@@ -506,6 +592,8 @@ export class WeddingStream {
       m.text_zh || "",
       m.text_en || "",
       m.html ? String(m.html).length : 0,
+      m.meta?.status || "",
+      m.meta?.stepIdx ?? "",
     ].join("|");
   }
 
@@ -616,6 +704,133 @@ export class WeddingStream {
       }, 520);
     }
   }
+}
+
+function weddingThinkingCardHtml(zh, en) {
+  const body = getLocale() === "en" ? en || zh : zh || en;
+  return `<div class="wedding-think-card" data-think-card>
+    <div class="wedding-think-card-head"><i></i><span>${esc(L("思考", "Thinking"))}</span></div>
+    <p>${esc(body)}</p>
+  </div>`;
+}
+
+function weddingToolLabel(name = "") {
+  return String(name || "tool").replace(/_/g, " ");
+}
+
+function weddingToolSteps(name = "") {
+  const common = [
+    L("核对输入与约束", "Check inputs & constraints"),
+    L("执行可验证调用", "Run verifiable call"),
+    L("写回工作台", "Write back to workspace"),
+  ];
+  const map = {
+    ingest_scattered_quotes: [
+      L("收集散落报价", "Collect scattered quotes"),
+      L("标注性质字段", "Tag nature fields"),
+      L("准备并账", "Ready to merge ledger"),
+    ],
+    merge_five_track_ledger: [
+      L("对齐五轨科目", "Align five-track lines"),
+      L("计算挤占", "Compute squeeze"),
+      L("刷新账本", "Refresh ledger"),
+    ],
+    build_critical_path: [
+      L("枚举锁点", "List lock points"),
+      L("建依赖边", "Build dependencies"),
+      L("倒排到婚期", "Back-schedule to wedding day"),
+    ],
+    compare_venue_quotes: [
+      L("标准化条款", "Normalize terms"),
+      L("并排比较", "Side-by-side compare"),
+      L("标出风险", "Flag risks"),
+    ],
+    build_table_range: [
+      L("去重名单", "Deduplicate guests"),
+      L("估桌数区间", "Estimate table band"),
+      L("写回日历", "Write to calendar"),
+    ],
+    backschedule_deadlines: [
+      L("读取定金/回执日", "Read deposit/RSVP dates"),
+      L("倒排关键路径", "Back-schedule critical path"),
+      L("同步日历", "Sync calendar"),
+    ],
+    verify_hold_backend: [
+      L("对照页面文案", "Compare UI copy"),
+      L("核 order_id / expiry", "Verify order_id / expiry"),
+      L("标真实状态", "Mark real status"),
+    ],
+    diff_contract_versions: [
+      L("读取双版本", "Load both versions"),
+      L("逐条 diff", "Line-by-line diff"),
+      L("重算暴露", "Recompute exposure"),
+    ],
+    block_untrusted_payment: [
+      L("识别陌生催款", "Flag untrusted ask"),
+      L("拦截外链", "Block outbound link"),
+      L("记入近失", "Log near-miss"),
+    ],
+    relocate_ceremony_indoor: [
+      L("启用备选条款", "Enable backup clause"),
+      L("对齐机位车队后厨", "Realign photo/fleet/kitchen"),
+      L("更新 runbook", "Update runbook"),
+    ],
+  };
+  return map[name] || common;
+}
+
+function weddingToolWhy(name = "") {
+  const map = {
+    ingest_scattered_quotes: L("把散落报价收成可并账事实", "Turn scattered quotes into mergeable facts"),
+    merge_five_track_ledger: L("并成一张账，暴露连锁挤占", "Merge one ledger and surface cascade squeeze"),
+    build_critical_path: L("把七个锁点钉上不可改婚期", "Pin seven locks onto the fixed wedding date"),
+    compare_venue_quotes: L("统一比较口径后再谈定金", "Normalize venue terms before any deposit"),
+    build_table_range: L("用区间而不是拍脑袋桌数", "Use a table band instead of a guess"),
+    backschedule_deadlines: L("让截止日回到同一张图", "Pull deadlines onto one chart"),
+    verify_hold_backend: L("不信单页锁定文案", "Don’t trust a single lock banner"),
+    diff_contract_versions: L("只做 diff，不代签", "Diff only — never sign"),
+    block_untrusted_payment: L("零点击拦截骗局", "Block scam with zero clicks"),
+    relocate_ceremony_indoor: L("雨天切室内且不改婚期", "Move indoors on rain without moving the date"),
+  };
+  return map[name] || L("为当前决策补齐可验证事实", "Fill verifiable facts for the current decision");
+}
+
+function weddingToolNext(name = "") {
+  return L("下一步：把结果带回主对话，只问需你点头的项", "Next: bring results back and ask only what needs your go-ahead");
+}
+
+function weddingFormatArgs(args = {}) {
+  if (!args || typeof args !== "object") return "";
+  return Object.entries(args)
+    .slice(0, 4)
+    .map(([k, v]) => `${k} · ${String(v).slice(0, 40)}`)
+    .join("　");
+}
+
+function weddingToolCardHtml({ name, label, args, status, ok = true, detail = "", steps = [], stepIdx = 0, next = "" }) {
+  const running = status !== "done";
+  const why = weddingToolWhy(name);
+  const stepsHtml = steps
+    .map((s, i) => {
+      const state = !running && ok ? "is-done" : i < stepIdx ? "is-done" : i === stepIdx && running ? "is-active" : "";
+      return `<li class="${state}"><i></i><span>${esc(s)}</span></li>`;
+    })
+    .join("");
+  const head = running
+    ? `<i class="spin" aria-hidden="true"></i><span>${esc(L("正在调用工具", "Using tool"))}</span><code>${esc(label)}</code>`
+    : `<span class="wedding-tool-check ${ok ? "is-ok" : "is-bad"}" aria-hidden="true"></span>
+       <span>${esc(ok ? L("工具完成", "Tool done") : L("工具失败", "Tool failed"))}</span>
+       <code>${esc(label)}</code>`;
+  const nextHtml = !running && ok && next ? `<p class="wedding-tool-next">${esc(next)}</p>` : "";
+  return `<div class="wedding-tool-card ${running ? "" : "is-done"} ${ok ? "" : "is-failed"}" data-tool-card>
+    <div class="wedding-tool-card-head">${head}</div>
+    <div class="wedding-tool-card-body">
+      <p class="wedding-tool-why">${esc(L("意图", "Why"))} · ${esc(why)}</p>
+      <div class="wedding-tool-args">${esc(detail || weddingFormatArgs(args))}</div>
+      <ol class="wedding-tool-steps">${stepsHtml}</ol>
+      ${nextHtml}
+    </div>
+  </div>`;
 }
 
 export { MAIN_THREAD, USER_IDS, pickLocale as pickWeddingLocale };
