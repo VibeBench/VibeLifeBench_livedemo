@@ -3,8 +3,8 @@
  * Aligns with ecom Team Inbox pattern (one big window, multi-contact).
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-user-queries";
-import { sleepPlayback } from "../playback.js?v=20260812-user-queries";
+import { L, getLocale } from "../i18n.js?v=20260812-scroll-fix";
+import { sleepPlayback } from "../playback.js?v=20260812-scroll-fix";
 
 export const WORKSPACE_IDS = [
   "im",
@@ -239,6 +239,13 @@ export class WeddingWorkspaces {
     this._els();
     if (!this.stageEl) return;
     WeddingWorkspaces.activeOwner = this;
+
+    // Stay on Team IM: patch messages in place — full innerHTML rebuild causes scroll jump.
+    if (this.active === "im" && !opts.softSwitch && !opts.force && this._tryPatchComms()) {
+      this._syncTabs();
+      return;
+    }
+
     const state = this.getState() || {};
     const renderers = {
       im: () => this._renderCommunication(),
@@ -260,7 +267,6 @@ export class WeddingWorkspaces {
     const stage = this.stageEl;
     if (opts.softSwitch) {
       stage.classList.remove("is-switching");
-      // force restart
       void stage.offsetWidth;
       stage.classList.add("is-switching");
       window.clearTimeout(this._switchAnimTimer);
@@ -268,7 +274,6 @@ export class WeddingWorkspaces {
     }
 
     this.stageEl.innerHTML = `<div class="wedding-workspace-panel">${html}</div>`;
-    // Re-assert tab label after body render (guards against stale multi-instance writes).
     this._syncTabs();
     if (this.active === "im") {
       const thread =
@@ -276,7 +281,8 @@ export class WeddingWorkspaces {
       const localeKey = getLocale() === "en" ? "name_en" : "name_zh";
       const threadName = thread?.[localeKey] || thread?.name_zh || thread?.name_en || L("协作消息", "Messages");
       this.setTitle(L(`协作消息 · ${threadName}`, `Messages · ${threadName}`));
-      this._bindCommsActions();
+      this._renderedCommThread = thread?.id || null;
+      this._bindCommsActions({ scroll: true, snap: true });
     }
     if (this.active === "mail" || this.active === "inbox") this._bindMailActions();
     if (this.active === "sms") this._bindSmsActions();
@@ -353,7 +359,8 @@ export class WeddingWorkspaces {
     if (reveal) {
       this.activeCommThread = row.thread;
       this.commSeenAt[row.thread] = Math.max(this.commSeenAt[row.thread] || 0, row.ts || Date.now());
-      this.switchWorkspace("im");
+      if (this.active === "im") this.render();
+      else this.switchWorkspace("im");
       return;
     }
     if (this.active === "im") this.render();
@@ -628,61 +635,12 @@ export class WeddingWorkspaces {
     if (thread && !this.activeCommThread) this.activeCommThread = thread.id;
     const messages = this.commFeed.filter((m) => m.thread === thread?.id);
     const intent = this._commIntent(thread);
-    const contacts = this.commThreads
-      .map((t) => {
-        const name = t[localeKey] || t.name_zh || t.name_en || t.id;
-        const last = [...this.commFeed].reverse().find((m) => m.thread === t.id);
-        const seenAt = this.commSeenAt[t.id] || 0;
-        const unread =
-          t.id === thread?.id
-            ? 0
-            : this.commFeed.filter(
-                (m) => m.thread === t.id && m.from !== "agent" && (m.ts || 0) > seenAt
-              ).length;
-        const clock = last
-          ? new Intl.DateTimeFormat(getLocale() === "en" ? "en" : "zh-CN", {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false,
-            }).format(new Date(last.ts))
-          : "";
-        const avatarClass = t.avatar_kind === "group" ? "wedding-comms-avatar is-group" : "wedding-comms-avatar";
-        const avatar = t.avatar_img
-          ? `<img class="${avatarClass}" src="./${esc(String(t.avatar_img).replace(/^\.\//, ""))}" alt="" width="40" height="40" />`
-          : `<span class="avatar-letter">${esc(t.avatar || name.slice(0, 1))}</span>`;
-        return `<button type="button" class="ecom-comms-contact wedding-comms-contact ${
-          t.id === thread?.id ? "is-active" : ""
-        } ${unread ? "is-unread" : ""}" data-comm-thread="${esc(t.id)}">
-          ${avatar}
-          <span class="ecom-contact-copy">
-            <span class="ecom-contact-row"><strong>${esc(name)}</strong><time>${esc(clock)}</time></span>
-            <span class="ecom-contact-preview"><small>${esc(
-              (last ? pickLocaleText(last, "text") : "") || L("等待消息", "No messages yet")
-            )}</small>${unread ? `<b>${Math.min(unread, 9)}</b>` : ""}</span>
-          </span>
-        </button>`;
-      })
-      .join("");
+    const contacts = this._commContactsHtml(thread?.id);
     const threadName = thread?.[localeKey] || thread?.name_zh || thread?.name_en || L("协作消息", "Messages");
     const freshId = this._freshCommId;
     const typingHere = this._typingThread && this._typingThread === thread?.id;
     const bubbles = messages.length
-      ? messages
-          .map((m) => {
-            const mine = m.from === "agent";
-            const isNew = m.id === freshId;
-            const text = pickLocaleText(m, "text");
-            const peer = mine
-              ? "AI Agent"
-              : this.commThreads.find((t) => t.id === m.from)?.[localeKey] || threadName;
-            return `<div class="ecom-app-msg ${mine ? "is-mine" : "is-peer"} ${isNew ? "is-new" : ""} ${
-              /scam|yitiaolong/.test(m.thread || "") ? "is-scam" : ""
-            }">
-              <span class="ecom-app-msg-who">${esc(peer)}</span>
-              ${m.html ? m.html : `<div class="ecom-app-bubble">${esc(text)}</div>`}
-            </div>`;
-          })
-          .join("")
+      ? messages.map((m) => this._commBubbleHtml(m, threadName, m.id === freshId)).join("")
       : typingHere
         ? ""
         : `<div class="ecom-app-empty"><span class="ecom-empty-illustration">•••</span><strong>${esc(
@@ -690,21 +648,16 @@ export class WeddingWorkspaces {
           )}</strong><small>${esc(
             L("多源报价与协调会显示在这里", "Multi-source quotes and coordination appear here")
           )}</small></div>`;
-    const typingHtml = typingHere
-      ? `<div class="ecom-app-msg is-mine is-typing" aria-live="polite">
-          <span class="ecom-app-msg-who">AI Agent</span>
-          <div class="ecom-app-bubble is-typing"><i></i><i></i><i></i></div>
-        </div>`
-      : "";
+    const typingHtml = typingHere ? this._commTypingHtml() : "";
     this.setTitle(L(`协作消息 · ${threadName}`, `Messages · ${threadName}`));
     if (!typingHere) {
       this.setStatus(L(`Agent 代办 · ${threadName}`, `Agent handling · ${threadName}`));
     }
     this._updateCommsBadge();
-    return `<div class="ecom-comms-app wedding-comms-app">
+    return `<div class="ecom-comms-app wedding-comms-app" data-comm-active="${esc(thread?.id || "")}">
       <aside class="ecom-comms-contacts">
         <div class="ecom-comms-brand"><strong>${esc(L("协作 IM", "Team inbox"))}</strong><span>⌕　＋</span></div>
-        ${contacts || `<p class="wedding-comms-empty">${esc(L("暂无联系人", "No contacts"))}</p>`}
+        <div class="ecom-comms-contact-list">${contacts || `<p class="wedding-comms-empty">${esc(L("暂无联系人", "No contacts"))}</p>`}</div>
       </aside>
       <section class="ecom-comms-thread">
         <header><span class="ecom-online-dot"></span><strong>${esc(threadName)}</strong><small>${esc(
@@ -723,49 +676,254 @@ export class WeddingWorkspaces {
     </div>`;
   }
 
-  _bindCommsActions() {
-    const root = this.stageEl;
+  _commBubbleHtml(m, threadName, isNew = false) {
+    const localeKey = getLocale() === "en" ? "name_en" : "name_zh";
+    const mine = m.from === "agent";
+    const text = pickLocaleText(m, "text");
+    const peer = mine
+      ? "AI Agent"
+      : this.commThreads.find((t) => t.id === m.from)?.[localeKey] || threadName;
+    return `<div class="ecom-app-msg ${mine ? "is-mine" : "is-peer"} ${isNew ? "is-new" : ""} ${
+      /scam|yitiaolong/.test(m.thread || "") ? "is-scam" : ""
+    }" data-msg-id="${esc(m.id)}">
+      <span class="ecom-app-msg-who">${esc(peer)}</span>
+      ${m.html ? m.html : `<div class="ecom-app-bubble">${esc(text)}</div>`}
+    </div>`;
+  }
+
+  _commTypingHtml() {
+    return `<div class="ecom-app-msg is-mine is-typing" aria-live="polite" data-comm-typing="1">
+      <span class="ecom-app-msg-who">AI Agent</span>
+      <div class="ecom-app-bubble is-typing"><i></i><i></i><i></i></div>
+    </div>`;
+  }
+
+  _commContactsHtml(activeId) {
+    const localeKey = getLocale() === "en" ? "name_en" : "name_zh";
+    return this.commThreads
+      .map((t) => {
+        const name = t[localeKey] || t.name_zh || t.name_en || t.id;
+        const last = [...this.commFeed].reverse().find((m) => m.thread === t.id);
+        const seenAt = this.commSeenAt[t.id] || 0;
+        const unread =
+          t.id === activeId
+            ? 0
+            : this.commFeed.filter(
+                (m) => m.thread === t.id && m.from !== "agent" && (m.ts || 0) > seenAt
+              ).length;
+        const clock = last
+          ? new Intl.DateTimeFormat(getLocale() === "en" ? "en" : "zh-CN", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            }).format(new Date(last.ts))
+          : "";
+        const avatarClass = t.avatar_kind === "group" ? "wedding-comms-avatar is-group" : "wedding-comms-avatar";
+        const avatar = t.avatar_img
+          ? `<img class="${avatarClass}" src="./${esc(String(t.avatar_img).replace(/^\.\//, ""))}" alt="" width="40" height="40" />`
+          : `<span class="avatar-letter">${esc(t.avatar || name.slice(0, 1))}</span>`;
+        return `<button type="button" class="ecom-comms-contact wedding-comms-contact ${
+          t.id === activeId ? "is-active" : ""
+        } ${unread ? "is-unread" : ""}" data-comm-thread="${esc(t.id)}">
+          ${avatar}
+          <span class="ecom-contact-copy">
+            <span class="ecom-contact-row"><strong>${esc(name)}</strong><time>${esc(clock)}</time></span>
+            <span class="ecom-contact-preview"><small>${esc(
+              (last ? pickLocaleText(last, "text") : "") || L("等待消息", "No messages yet")
+            )}</small>${unread ? `<b>${Math.min(unread, 9)}</b>` : ""}</span>
+          </span>
+        </button>`;
+      })
+      .join("");
+  }
+
+  /** In-place Team IM update — keeps scroll container alive to avoid jump. */
+  _tryPatchComms() {
+    const root = this.stageEl?.querySelector(".wedding-comms-app");
+    if (!root) return false;
+    const msgBox = root.querySelector(".ecom-app-messages");
+    if (!msgBox) return false;
+
+    const localeKey = getLocale() === "en" ? "name_en" : "name_zh";
+    const thread =
+      this.commThreads.find((t) => t.id === this.activeCommThread) || this.commThreads[0] || null;
+    if (thread && !this.activeCommThread) this.activeCommThread = thread.id;
+    const threadId = thread?.id || "";
+    const threadName = thread?.[localeKey] || thread?.name_zh || thread?.name_en || L("协作消息", "Messages");
+    const prevThread = root.getAttribute("data-comm-active") || this._renderedCommThread || "";
+    const threadChanged = prevThread !== threadId;
+
+    const nearBottom =
+      msgBox.scrollHeight - msgBox.clientHeight - msgBox.scrollTop < 96;
+    const prevTop = msgBox.scrollTop;
+
+    // Sidebar + header can refresh without destroying the message scroller.
+    const listHost = root.querySelector(".ecom-comms-contact-list");
+    if (listHost) {
+      listHost.innerHTML =
+        this._commContactsHtml(threadId) ||
+        `<p class="wedding-comms-empty">${esc(L("暂无联系人", "No contacts"))}</p>`;
+      this._bindCommsThreadClicks(root);
+    }
+    const headerStrong = root.querySelector(".ecom-comms-thread header strong");
+    if (headerStrong) headerStrong.textContent = threadName;
+    root.setAttribute("data-comm-active", threadId);
+    this._renderedCommThread = threadId;
+
+    const intent = this._commIntent(thread);
+    const intentEm = root.querySelector(".ecom-comms-intent em");
+    const intentRow = root.querySelector(".ecom-comms-intent");
+    if (intentEm) intentEm.textContent = intent.replace(/^意图：|^Why:\s*/i, "");
+    const typingHere = this._typingThread && this._typingThread === threadId;
+    intentRow?.classList.toggle("is-live", Boolean(typingHere));
+
+    const composer = root.querySelector(".ecom-app-composer");
+    const composerSpan = composer?.querySelector("span");
+    composer?.classList.toggle("is-agent", Boolean(typingHere));
+    if (composerSpan) {
+      composerSpan.textContent = typingHere
+        ? L("Agent 正在输入…", "Agent is typing…")
+        : L("由 Agent 自动沟通 · 你可继续主对话", "Agent handles chat · you stay on main");
+    }
+
+    this.setTitle(L(`协作消息 · ${threadName}`, `Messages · ${threadName}`));
+    if (!typingHere) {
+      this.setStatus(L(`Agent 代办 · ${threadName}`, `Agent handling · ${threadName}`));
+    }
+    this._updateCommsBadge();
+
+    const messages = this.commFeed.filter((m) => m.thread === threadId);
+    if (threadChanged) {
+      msgBox.innerHTML = messages.length
+        ? messages.map((m) => this._commBubbleHtml(m, threadName, false)).join("")
+        : typingHere
+          ? ""
+          : `<div class="ecom-app-empty"><span class="ecom-empty-illustration">•••</span><strong>${esc(
+              L("暂无消息", "No messages")
+            )}</strong><small>${esc(
+              L("多源报价与协调会显示在这里", "Multi-source quotes and coordination appear here")
+            )}</small></div>`;
+    } else {
+      msgBox.querySelector(".ecom-app-empty")?.remove();
+      const existing = new Set(
+        [...msgBox.querySelectorAll(".ecom-app-msg[data-msg-id]")].map((n) => n.dataset.msgId)
+      );
+      let appended = 0;
+      for (const m of messages) {
+        if (!m?.id || existing.has(String(m.id))) continue;
+        const typing = msgBox.querySelector("[data-comm-typing]");
+        const wrap = document.createElement("div");
+        wrap.innerHTML = this._commBubbleHtml(m, threadName, m.id === this._freshCommId);
+        const node = wrap.firstElementChild;
+        if (!node) continue;
+        if (typing) typing.before(node);
+        else msgBox.appendChild(node);
+        appended += 1;
+      }
+      // Drop stale nodes if feed was reset mid-session
+      if (messages.length && existing.size > messages.length + 2) {
+        return false;
+      }
+      void appended;
+    }
+
+    const typingEl = msgBox.querySelector("[data-comm-typing]");
+    if (typingHere) {
+      if (!typingEl) {
+        const wrap = document.createElement("div");
+        wrap.innerHTML = this._commTypingHtml();
+        const node = wrap.firstElementChild;
+        if (node) msgBox.appendChild(node);
+      }
+    } else if (typingEl) {
+      typingEl.remove();
+    }
+
+    if (!messages.length && !typingHere && !msgBox.querySelector(".ecom-app-empty")) {
+      msgBox.innerHTML = `<div class="ecom-app-empty"><span class="ecom-empty-illustration">•••</span><strong>${esc(
+        L("暂无消息", "No messages")
+      )}</strong><small>${esc(
+        L("多源报价与协调会显示在这里", "Multi-source quotes and coordination appear here")
+      )}</small></div>`;
+    }
+
+    if (threadChanged || nearBottom || this._freshCommId) {
+      this._scrollCommsToBottom(msgBox, { soft: !threadChanged });
+    } else {
+      msgBox.scrollTop = prevTop;
+    }
+
+    if (this._freshCommId) {
+      const freshId = this._freshCommId;
+      window.clearTimeout(this._freshCommTimer);
+      this._freshCommTimer = window.setTimeout(() => {
+        if (this._freshCommId === freshId) this._freshCommId = null;
+        this.stageEl?.querySelector(".ecom-app-msg.is-new")?.classList.remove("is-new");
+      }, 700);
+    }
+    return true;
+  }
+
+  _bindCommsThreadClicks(root = this.stageEl) {
     root?.querySelectorAll("[data-comm-thread]").forEach((btn) => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = "1";
       btn.addEventListener("click", () => {
         this.activeCommThread = btn.dataset.commThread;
         this.commSeenAt[this.activeCommThread] = Date.now();
-        this.render();
+        this.render({ force: false });
         this._updateCommsBadge();
       });
     });
-    const msgBox = root?.querySelector(".ecom-app-messages");
-    if (msgBox) {
-      const max = Math.max(0, msgBox.scrollHeight - msgBox.clientHeight);
-      const start = msgBox.scrollTop;
-      const gap = max - start;
-      if (Math.abs(gap) < 4) {
-        msgBox.scrollTop = max;
-      } else {
-        let from = start;
-        if (Math.abs(gap) > 200) {
-          from = max - Math.sign(gap) * 140;
-          msgBox.scrollTop = from;
-        }
-        const origin = msgBox.scrollTop;
-        const delta = max - origin;
-        const dur = Math.min(320, 150 + Math.abs(delta) * 0.35);
-        const t0 = performance.now();
-        const tick = (now) => {
-          const p = Math.min(1, (now - t0) / dur);
-          const e = 1 - (1 - p) ** 3;
-          msgBox.scrollTop = origin + delta * e;
-          if (p < 1) requestAnimationFrame(tick);
-        };
-        requestAnimationFrame(tick);
-      }
+  }
+
+  _scrollCommsToBottom(msgBox, { soft = true } = {}) {
+    if (!msgBox) return;
+    const max = Math.max(0, msgBox.scrollHeight - msgBox.clientHeight);
+    if (!soft) {
+      msgBox.scrollTop = max;
+      return;
     }
+    const start = msgBox.scrollTop;
+    const gap = max - start;
+    if (Math.abs(gap) < 3) {
+      msgBox.scrollTop = max;
+      return;
+    }
+    // Stay glued near bottom — never snap from the middle of a rebuild.
+    let from = start;
+    if (gap > 280) {
+      from = max - 120;
+      msgBox.scrollTop = from;
+    }
+    const origin = msgBox.scrollTop;
+    const delta = max - origin;
+    const dur = Math.min(260, 120 + Math.abs(delta) * 0.28);
+    const t0 = performance.now();
+    const token = (this._commScrollEpoch = (this._commScrollEpoch || 0) + 1);
+    const tick = (now) => {
+      if (this._commScrollEpoch !== token) return;
+      const p = Math.min(1, (now - t0) / dur);
+      const e = 1 - (1 - p) ** 3;
+      msgBox.scrollTop = origin + delta * e;
+      if (p < 1) requestAnimationFrame(tick);
+      else msgBox.scrollTop = Math.max(0, msgBox.scrollHeight - msgBox.clientHeight);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  _bindCommsActions({ scroll = true, snap = false } = {}) {
+    const root = this.stageEl;
+    this._bindCommsThreadClicks(root);
+    const msgBox = root?.querySelector(".ecom-app-messages");
+    if (scroll && msgBox) this._scrollCommsToBottom(msgBox, { soft: !snap });
     if (this._freshCommId) {
       const freshId = this._freshCommId;
       window.clearTimeout(this._freshCommTimer);
       this._freshCommTimer = window.setTimeout(() => {
         if (this._freshCommId === freshId) this._freshCommId = null;
         root?.querySelector(".ecom-app-msg.is-new")?.classList.remove("is-new");
-      }, 900);
+      }, 700);
     }
   }
 

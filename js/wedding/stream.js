@@ -3,8 +3,8 @@
  * No rich cards, sense-think-act rails, or dual-track chrome.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-user-queries";
-import { isReplayMode } from "../playback.js?v=20260812-user-queries";
+import { L, getLocale } from "../i18n.js?v=20260812-scroll-fix";
+import { isReplayMode } from "../playback.js?v=20260812-scroll-fix";
 
 export const AUTH_PAYMENT_THRESHOLD = 5000;
 
@@ -133,19 +133,23 @@ export class WeddingStream {
     const max = Math.max(0, el.scrollHeight - el.clientHeight);
     const start = el.scrollTop;
     const gap = max - start;
-    if (Math.abs(gap) < 2) {
+    if (Math.abs(gap) < 8) {
       el.scrollTop = max;
       return;
     }
-    // If far away, snap near the end first, then ease the last stretch.
+    // Already near bottom: stick without a long ease that fights the next frame.
+    if (gap > 0 && gap < 120) {
+      el.scrollTop = max;
+      return;
+    }
     let origin = start;
-    if (Math.abs(gap) > 220) {
-      origin = max - Math.sign(gap) * 160;
+    if (gap > 240) {
+      origin = max - 140;
       el.scrollTop = origin;
     }
     const from = el.scrollTop;
     const delta = max - from;
-    const dur = Math.min(340, 160 + Math.abs(delta) * 0.4);
+    const dur = Math.min(240, 110 + Math.abs(delta) * 0.3);
     const t0 = performance.now();
     const token = (this._scrollEpoch = (this._scrollEpoch || 0) + 1);
     const tick = (now) => {

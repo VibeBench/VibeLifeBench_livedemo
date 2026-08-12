@@ -9234,8 +9234,8 @@ html.is-replay-fast .ecom-play-panel {
 }
 
 @keyframes ecomMsgArriveSoft {
-  from { opacity: 0.5; transform: translateY(5px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0.72; }
+  to { opacity: 1; }
 }
 
 .ecom-comms-contact img,
