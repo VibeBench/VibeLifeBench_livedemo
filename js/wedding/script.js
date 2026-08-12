@@ -7,8 +7,9 @@ import {
   setReplayMode,
   getPlaybackSpeed,
   playbackMs,
-} from "../playback.js?v=20260812-smooth";
-import { getLocale, L } from "../i18n.js?v=20260812-smooth";
+  chatPlaybackMs,
+} from "../playback.js?v=20260812-user-avatar";
+import { getLocale, L } from "../i18n.js?v=20260812-user-avatar";
 
 const DEFAULT_INTERNAL_MS = {
   stage: 100,
@@ -24,14 +25,40 @@ const DEFAULT_INTERNAL_MS = {
   switch_workspace: 180,
   switch_bench: 180,
   auth_record: 120,
+  calendar_upsert: 220,
+  calendar_cancel: 220,
+  files_update: 200,
+  web_update: 220,
 };
 
-/** Per-step hold ceiling after speed scaling (baked holds ~1–2s × 160 steps). */
+const HUMAN_SENDERS = new Set([
+  "user",
+  "boss",
+  "lin_qiao",
+  "zhou_yu",
+  "bride",
+  "groom",
+  "human",
+]);
+
+/** Per-step hold ceiling after speed scaling (non-chat steps). */
 function holdCapMs(speed) {
   const s = Number(speed) || 1;
   if (s >= 8) return 90;
   if (s >= 4) return 160;
   return Number.POSITIVE_INFINITY;
+}
+
+function isHumanChatSender(from = "") {
+  const id = String(from || "").toLowerCase();
+  if (!id || id === "agent" || id === "system" || id === "world") return false;
+  if (HUMAN_SENDERS.has(id)) return true;
+  // Vendor / family people in Team IM also count as "people messages".
+  return !/^(agent|system|notify|world)/i.test(id);
+}
+
+function stepTextLen(step = {}) {
+  return String(step.text_zh || step.text_en || step.text || step.html || "").replace(/<[^>]+>/g, "").length;
 }
 
 export class WeddingScriptPlayer {
@@ -63,13 +90,25 @@ export class WeddingScriptPlayer {
     return Math.max(floor, Math.round(raw * scale));
   }
 
-  /** Wall-clock pause after each step — scales with UI speed and caps at 4×/8×. */
+  /** Wall-clock pause after each step — chat keeps a readable floor even at 8×. */
   _pacedHoldMs(step) {
     const hold = this._holdMs(step);
+    const type = step?.type;
+    if (type === "im_message" || type === "user_authorization") {
+      return this._chatDwellMs(step, hold);
+    }
     if (hold <= 0) return 0;
     const speed = getPlaybackSpeed();
     const wait = playbackMs(hold, { min: 0, max: hold });
     return Math.min(wait, holdCapMs(speed));
+  }
+
+  /** Readable dwell for couple chat / Team IM bubbles. */
+  _chatDwellMs(step = {}, bakedHold = 0) {
+    const human = isHumanChatSender(step.from) || step.type === "user_authorization";
+    const chars = stepTextLen(step);
+    const base = Math.max(Number(bakedHold) || 0, human ? 900 + chars * 18 : 420 + chars * 12);
+    return chatPlaybackMs(base, { human, chars });
   }
 
   _internalMs(type) {
@@ -80,6 +119,18 @@ export class WeddingScriptPlayer {
     const speed = getPlaybackSpeed();
     const floor = speed >= 8 ? 4 : speed >= 4 ? 8 : 16;
     return Math.max(floor, Math.round(base * scale));
+  }
+
+  async _sleepChat(step, { compose = false } = {}) {
+    const human = isHumanChatSender(step?.from) || step?.type === "user_authorization";
+    const chars = stepTextLen(step);
+    if (compose) {
+      // Short compose beat; still visible at 8×.
+      const ms = chatPlaybackMs(human ? 520 : 360, { human: false, chars: Math.min(chars, 40) });
+      await new Promise((r) => setTimeout(r, ms));
+      return;
+    }
+    await new Promise((r) => setTimeout(r, this._chatDwellMs(step)));
   }
 
   async play({ onProgress } = {}) {
@@ -123,16 +174,23 @@ export class WeddingScriptPlayer {
     }
 
     if (type === "focus_thread") {
-      c.focusThread?.(step.thread || "lin_qiao");
+      const thread = step.thread || "lin_qiao";
+      c.focusThread?.(thread);
+      if (thread !== "lin_qiao" && thread !== "zhou_yu") {
+        c.workspaces?.focusCommunication?.(thread, { reveal: true });
+      }
       await sleepPlayback(this._internalMs("focus_thread"));
       return;
     }
 
     if (type === "im_message" || type === "user_authorization") {
       const from = step.from || "agent";
+      const thread = step.thread || "lin_qiao";
+      const external = thread !== "lin_qiao" && thread !== "zhou_yu";
+      const human = isHumanChatSender(from) || type === "user_authorization";
       if (type === "user_authorization") {
         c.stream?.pushMessage?.({
-          thread: step.thread || "lin_qiao",
+          thread: "lin_qiao",
           from: "agent",
           kind: "text",
           text_zh: `需当次确认：${step.lock_id || ""} ¥${Number(step.amount || 0).toLocaleString("zh-CN")}，确认后才会执行。`,
@@ -140,37 +198,50 @@ export class WeddingScriptPlayer {
             "en-US"
           )}. Nothing executes before confirmation.`,
         });
-        await sleepPlayback(this._internalMs("im_message"));
+        await this._sleepChat({ from: "agent", text_zh: "需当次确认" }, { compose: true });
       }
-      if (from === "agent" && !step.html && getPlaybackSpeed() < 4) {
-        c.stream?.showThinking?.(L("整理回复…", "Composing…"));
-        await sleepPlayback(this._internalMs("im_message"));
-        c.stream?.hideThinking?.();
+      // Keep a short compose beat even at 8× so chat doesn't teleport.
+      if (from === "agent" && !step.html) {
+        if (external) {
+          c.workspaces?.showCommsTyping?.(thread);
+          await this._sleepChat(step, { compose: true });
+          c.workspaces?.hideCommsTyping?.();
+        } else {
+          c.stream?.showThinking?.(L("整理回复…", "Composing…"));
+          await this._sleepChat(step, { compose: true });
+          c.stream?.hideThinking?.();
+        }
+      } else if (human) {
+        // Brief beat before a human line lands — helps at high speed.
+        await this._sleepChat(step, { compose: true });
       }
       const row = c.stream?.pushMessage?.(step);
       if (c.isUserAuthorization?.(step)) {
         c.recordAuthorization?.(step, row);
       }
-      await sleepPlayback(this._internalMs("im_message"));
+      // On-screen dwell is applied by _pacedHoldMs after the step (readable at 8×).
       return;
     }
 
     if (type === "switch_workspace" || type === "switch_bench") {
-      const ws = normalizeWorkspace(step.workspace || step.bench || "tracks");
+      const ws = normalizeWorkspace(step.workspace || step.bench || "im");
       c.workspaces?.switchWorkspace?.(ws);
       await sleepPlayback(this._internalMs("switch_workspace"));
       return;
     }
 
     if (type === "world") {
-      c.applyWorldEvent?.(step);
+      await c.applyWorldEvent?.(step);
       await sleepPlayback(this._internalMs("world"));
       return;
     }
 
     if (type === "notification" || type === "notify") {
-      c.applyNotification?.(step);
-      await sleepPlayback(this._internalMs("notification"));
+      await c.applyNotification?.(step);
+      // Email reading already paced inside deliverInboxItem; only pad non-mail.
+      if (step.channel !== "email" && step.channel !== "mail") {
+        await sleepPlayback(this._internalMs("notification"));
+      }
       return;
     }
 
@@ -183,7 +254,7 @@ export class WeddingScriptPlayer {
       }
       c.applySilentMutation?.(step);
       await sleepPlayback(this._internalMs("mutation") * 0.6);
-      c.pushMutationDiscovery?.(step);
+      await c.pushMutationDiscovery?.(step);
       await sleepPlayback(this._internalMs("mutation") * 0.4);
       return;
     }
@@ -218,9 +289,36 @@ export class WeddingScriptPlayer {
     }
 
     if (type === "bench_anim") {
-      const ws = normalizeWorkspace(step.workspace || step.bench || "tracks");
+      const ws = normalizeWorkspace(step.workspace || step.bench || "im");
       c.workspaces?.switchWorkspace?.(ws);
       await sleepPlayback(Math.max(this._internalMs("switch_workspace"), Number(step.durationMs) || 180));
+      return;
+    }
+
+    if (type === "calendar_upsert") {
+      c.upsertCalendarEvent?.(step.event || step, { reveal: step.reveal !== false });
+      await sleepPlayback(this._internalMs("mutation"));
+      return;
+    }
+
+    if (type === "calendar_cancel") {
+      c.cancelCalendarEvent?.(step.event || step, { reveal: step.reveal !== false });
+      await sleepPlayback(this._internalMs("mutation"));
+      return;
+    }
+
+    if (type === "files_update") {
+      c.workspaces?.setFilesState?.(step.files || [], {
+        reveal: step.reveal !== false,
+        highlight: step.highlight || step.file_highlight,
+      });
+      await sleepPlayback(this._internalMs("switch_workspace"));
+      return;
+    }
+
+    if (type === "web_update") {
+      c.workspaces?.setWebState?.({ ...(step.web || step), reveal: step.reveal !== false });
+      await sleepPlayback(this._internalMs("switch_workspace"));
       return;
     }
 
@@ -236,15 +334,33 @@ function normalizeWorkspace(id) {
     contracts: "contracts",
     contract: "contracts",
     booking: "booking",
-    vendor_status: "booking",
-    vendors: "booking",
-    comms: "booking",
+    vendor_status: "im",
+    vendors: "im",
+    comms: "im",
+    im: "im",
+    inbox: "mail",
+    mail: "mail",
+    email: "mail",
+    sms: "sms",
+    messages: "sms",
+    message: "sms",
+    menu: "menu",
+    dietary: "menu",
+    invites: "invites",
+    invite: "invites",
+    print: "invites",
+    files: "files",
+    file: "files",
+    docs: "files",
+    web: "web",
+    webpage: "web",
+    browser: "web",
     calendar: "calendar",
-    runbook: "calendar",
-    tracks: "tracks",
-    rsvp: "booking",
+    runbook: "runbook",
+    tracks: "im",
+    rsvp: "im",
   };
-  return map[id] || id || "tracks";
+  return map[id] || id || "im";
 }
 
 function pickStepText(step) {

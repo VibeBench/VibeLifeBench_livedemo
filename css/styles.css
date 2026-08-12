@@ -4828,57 +4828,115 @@ select {
   text-align: center;
 }
 
-/* Incoming SMS / 邮件 in the phone chat — amber/yellow (not green) */
+/* Incoming SMS / Mail cards in phone chat — Messages / Mail style */
 .bubble.sms-in {
   align-self: flex-start;
-  max-width: 88%;
+  max-width: 90%;
   padding: 0;
   background: transparent;
   border: none;
   animation: sms-arrive 0.55s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
 }
 
-.bubble.sms-in .sms-shell {
-  padding: 8px 11px 10px;
-  border-radius: 16px 16px 16px 5px;
-  background: linear-gradient(165deg, #fffbeb 0%, #fef3c7 100%);
-  border: 1px solid rgba(217, 119, 6, 0.32);
-  box-shadow: 0 4px 14px rgba(180, 83, 9, 0.1);
+.bubble.sms-in .sms-shell.imessage-card {
+  padding: 8px 10px 10px;
+  border-radius: 18px 18px 18px 5px;
+  background: #e9e9eb;
+  border: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.bubble.sms-in .sms-shell.mail-card {
+  padding: 10px 12px 11px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
 }
 
 .bubble.sms-in .sms-meta {
   display: flex;
   align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.bubble.sms-in .sms-meta > div {
+  display: flex;
+  align-items: center;
   gap: 6px;
-  margin-bottom: 4px;
+  min-width: 0;
 }
 
 .bubble.sms-in .sms-badge {
   padding: 1px 7px;
   border-radius: 999px;
-  background: #d97706;
+  background: #34c759;
   color: #fff;
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
 }
 
+.bubble.sms-in.mail-in .mail-card-meta em,
 .bubble.sms-in.mail-in .sms-badge {
-  background: #b45309;
+  background: #0a84ff;
+  color: #fff;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 999px;
 }
 
 .bubble.sms-in .sms-from {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  color: #92400e;
+  color: #111;
 }
 
 .bubble.sms-in .sms-text {
-  font-size: 13px;
+  font-size: 13.5px;
   line-height: 1.45;
-  color: #78350f;
+  color: #111;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.bubble.sms-in .mail-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.bubble.sms-in .mail-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.bubble.sms-in .mail-card-meta strong {
+  font-size: 12.5px;
+  color: #111;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bubble.sms-in .mail-card-subject {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 3px;
+}
+
+.bubble.sms-in.mail-in .sms-text {
+  font-size: 12px;
+  color: #4b5563;
 }
 
 .bubble.sms-in .bubble-time {
@@ -6011,19 +6069,101 @@ select {
 }
 
 .trip-ledger,
-.notion-ledger,
-.mail-inbox {
+.notion-ledger {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   padding: 10px 12px 14px;
 }
 
-.mail-item {
-  border: 1px solid var(--line);
-  border-radius: 12px;
+.phone-mail-app {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f2f2f7;
+}
+
+.phone-mail-chrome {
+  display: grid;
+  grid-template-columns: 52px 1fr 36px;
+  align-items: center;
+  padding: 8px 12px 6px;
+  background: rgba(248, 248, 250, 0.94);
+  border-bottom: 1px solid #e5e5ea;
+}
+
+.phone-mail-chrome h3 {
+  margin: 0;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #111;
+}
+
+.phone-mail-ghost {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #007aff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0;
+  text-align: left;
+  cursor: default;
+}
+
+.phone-mail-compose {
+  text-align: right;
+  font-size: 15px;
+}
+
+.phone-mail-search {
+  margin: 8px 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #e5e5ea;
+  color: #8e8e93;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mail-inbox {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 0 12px;
   background: #fff;
-  margin-bottom: 8px;
+}
+
+.phone-mail-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #8e8e93;
+  font-size: 12px;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+
+.phone-mail-empty span {
+  font-size: 28px;
+}
+
+.phone-mail-empty strong {
+  color: #111;
+  font-size: 14px;
+}
+
+.mail-item {
+  border: 0;
+  border-bottom: 1px solid #f1f1f4;
+  border-radius: 0;
+  background: #fff;
+  margin: 0;
   overflow: hidden;
 }
 
@@ -6031,11 +6171,11 @@ select {
   list-style: none;
   cursor: pointer;
   display: grid;
-  grid-template-columns: 28px 1fr;
+  grid-template-columns: 36px 1fr auto;
   grid-template-rows: auto auto auto;
-  column-gap: 8px;
+  column-gap: 10px;
   row-gap: 2px;
-  padding: 10px 12px;
+  padding: 11px 14px;
   align-items: start;
 }
 
@@ -6044,24 +6184,35 @@ select {
 }
 
 .mail-item.unread {
-  background: #f8fbff;
-  border-color: #bfdbfe;
+  background: #f7faff;
 }
 
-.mail-item.unread .mail-subject {
-  font-weight: 700;
+.mail-item.unread .mail-subject,
+.mail-item.unread .mail-from {
+  font-weight: 750;
+  color: #0f172a;
 }
 
-.mail-ico {
+.mail-avatar {
   grid-row: 1 / span 3;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: #eff6ff;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--av, #0a84ff);
+  color: #fff;
   display: grid;
   place-items: center;
-  font-size: 14px;
-  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 1px;
+}
+
+.mail-avatar.sm {
+  width: 26px;
+  height: 26px;
+  font-size: 11px;
+  grid-row: auto;
+  margin-top: 0;
 }
 
 .mail-meta {
@@ -6069,63 +6220,111 @@ select {
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
+  grid-column: 2;
 }
 
 .mail-from {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--blue-deep, #1d4ed8);
+  font-size: 12.5px;
+  font-weight: 650;
+  color: #111;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .mail-time {
-  font-size: 10px;
-  color: var(--muted);
+  font-size: 11px;
+  color: #8e8e93;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
+  grid-column: 2;
+  justify-self: end;
+}
+
+.mail-item summary .mail-time {
+  grid-column: 2;
 }
 
 .mail-subject {
-  font-size: 12px;
+  grid-column: 2;
+  font-size: 12.5px;
   font-weight: 600;
-  color: var(--ink);
+  color: #1f2937;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .mail-preview {
-  font-size: 11px;
-  color: var(--muted);
+  grid-column: 2;
+  font-size: 11.5px;
+  color: #8e8e93;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.mail-unread-dot {
+  grid-column: 3;
+  grid-row: 1 / span 3;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #007aff;
+  align-self: center;
+}
+
 .mail-body {
-  padding: 0 12px 12px 48px;
-  font-size: 12px;
-  line-height: 1.45;
+  padding: 0 14px 12px 60px;
+  font-size: 12.5px;
+  line-height: 1.5;
   color: var(--ink);
   white-space: normal;
-  border-top: 1px dashed #e2e8f0;
-  padding-top: 10px;
+  border-top: 1px solid #eef0f3;
+  padding-top: 12px;
   margin-top: 0;
+  background: #fafafa;
+}
+
+.mail-body-head strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: #111;
+}
+
+.mail-body-meta {
+  display: grid;
+  gap: 2px;
+  font-size: 11px;
+  color: #6b7280;
+  margin-bottom: 10px;
+}
+
+.mail-body-text {
+  color: #1f2937;
+}
+
+.mail-body-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 12px;
+  color: #007aff;
+  font-size: 11px;
+  font-weight: 650;
 }
 
 .mail-item.mail-flash {
-  box-shadow: 0 0 0 2px rgba(47, 107, 255, 0.35);
+  box-shadow: inset 0 0 0 2px rgba(10, 132, 255, 0.35);
   animation: mail-flash-pulse 1.1s ease;
 }
 
 @keyframes mail-flash-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(47, 107, 255, 0.45);
+    box-shadow: inset 0 0 0 0 rgba(10, 132, 255, 0.45);
   }
   100% {
-    box-shadow: 0 0 0 2px rgba(47, 107, 255, 0);
+    box-shadow: inset 0 0 0 2px rgba(10, 132, 255, 0);
   }
 }
 
@@ -8325,11 +8524,11 @@ body[data-scenario="ecom"] .phone-col.is-ecom-console {
 
 .ecom-chat-mode-tabs > span.is-pulse,
 .ecom-mode-chip.is-pulse {
-  animation: ecomModeChipPulse 0.42s ease-out;
+  animation: ecomModeChipPulse 0.55s ease-out;
 }
 
 @keyframes ecomModeChipPulse {
-  0% { transform: scale(0.98); opacity: 0.7; }
+  0% { transform: scale(0.995); opacity: 0.82; }
   100% { transform: none; opacity: 1; }
 }
 
@@ -9026,11 +9225,16 @@ html.is-replay-fast .ecom-play-panel {
 }
 
 .ecom-app-msg.is-new .ecom-app-bubble {
-  animation: ecomMsgArrive 0.45s ease-out;
+  animation: ecomMsgArriveSoft 0.42s cubic-bezier(0.22, 0.8, 0.28, 1);
 }
 
 @keyframes ecomMsgArrive {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0.55; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ecomMsgArriveSoft {
+  from { opacity: 0.5; transform: translateY(5px); }
   to { opacity: 1; transform: none; }
 }
 
@@ -9356,7 +9560,7 @@ html.is-replay-fast .ecom-play-panel {
 .ecom-app-bubble.is-typing i:nth-child(3) { animation-delay: 0.3s; }
 
 .ecom-app-msg.is-typing {
-  animation: ecomMsgArrive 0.3s ease-out;
+  animation: ecomMsgArriveSoft 0.36s cubic-bezier(0.22, 0.8, 0.28, 1);
 }
 
 .ecom-app-msg .ecom-rich {
@@ -10787,7 +10991,8 @@ html.is-replay-fast .ecom-play-panel {
 .ecom-thinking.is-leaving,
 .wedding-thinking.is-leaving {
   opacity: 0;
-  transition: opacity 0.12s ease-out;
+  transform: translateY(2px);
+  transition: opacity 0.24s ease, transform 0.24s ease;
   pointer-events: none;
 }
 
@@ -13941,21 +14146,25 @@ html.is-replay-fast .ecom-play-panel {
   font-weight: 600;
 }
 
-/* Prefer the softer chat fade; avoid double opacity flashes during replay rebuilds. */
+/* Prefer a soft chat fade — avoid hard opacity flashes. */
 .ecom-stream-item.is-arrive:not(.ecom-chat .ecom-stream-item) {
-  animation: ecomStreamArrive 0.2s ease-out;
+  animation: streamItemInSoft 0.38s cubic-bezier(0.22, 0.8, 0.28, 1);
 }
 
 @keyframes ecomStreamArrive {
-  from { opacity: 0.35; transform: translateY(3px); }
+  from { opacity: 0.55; transform: translateY(4px); }
   to { opacity: 1; transform: none; }
 }
 
+/* Keep a gentle fade even in 8× replay — don't snap in. */
 html.is-replay-fast .ecom-stream-item.is-arrive,
-html.is-replay-fast .wedding-stream-item.is-arrive,
+html.is-replay-fast .wedding-stream-item.is-arrive {
+  animation: streamItemInSoft 0.26s ease-out !important;
+}
+
 html.is-replay-fast .ecom-thinking,
 html.is-replay-fast .wedding-thinking {
-  animation: none !important;
+  animation: weddingThinkIn 0.22s ease-out !important;
 }
 
 html.is-replay-fast .wedding-track-window {
@@ -14713,7 +14922,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   grid-column: 1;
   grid-row: 2;
   display: grid;
-  grid-template-rows: 62px auto 42px minmax(0, 1fr);
+  grid-template-rows: 62px 42px minmax(0, 1fr);
   gap: 8px;
 }
 
@@ -14863,101 +15072,6 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   opacity: 0.48;
 }
 
-.wedding-part-strip {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-  gap: 8px;
-  align-items: stretch;
-  min-height: 52px;
-  padding: 6px 8px;
-  border: 1px solid rgba(15, 118, 110, 0.14);
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(240, 253, 250, 0.95), rgba(255, 255, 255, 0.92));
-}
-
-.wedding-part-strip.is-live {
-  border-color: rgba(13, 148, 136, 0.35);
-  box-shadow: 0 0 0 1px rgba(13, 148, 136, 0.08);
-}
-
-.wedding-part-chips {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
-  min-width: 0;
-}
-
-.wedding-part-chip {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-  padding: 5px 6px;
-  border: 1px solid rgba(15, 118, 110, 0.12);
-  border-radius: 9px;
-  background: #fff;
-  color: var(--wedding-ink, #134e4a);
-  text-align: left;
-  cursor: default;
-}
-
-.wedding-part-chip b {
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  color: var(--wedding-muted, #5f7c78);
-}
-
-.wedding-part-chip span {
-  overflow: hidden;
-  font-size: 11px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wedding-part-chip.is-active {
-  border-color: rgba(13, 148, 136, 0.55);
-  background: rgba(13, 148, 136, 0.1);
-}
-
-.wedding-part-chip.is-done {
-  opacity: 0.72;
-}
-
-.wedding-part-hard {
-  display: grid;
-  align-content: center;
-  gap: 2px;
-  min-width: 0;
-  padding: 2px 4px 2px 8px;
-  border-left: 1px solid rgba(15, 118, 110, 0.12);
-}
-
-.wedding-part-hard small {
-  color: var(--wedding-muted, #5f7c78);
-  font-size: 9px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.wedding-part-hard strong,
-.wedding-part-hard em {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wedding-part-hard strong {
-  color: var(--wedding-ink, #134e4a);
-  font-size: 12px;
-  font-weight: 750;
-}
-
-.wedding-part-hard em {
-  color: #0f766e;
-  font-size: 10px;
-  font-style: normal;
-}
-
 .wedding-track-rail {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -14966,16 +15080,6 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   min-height: 42px;
   max-height: 42px;
   overflow: hidden;
-}
-
-.wedding-track-pill.is-stressed {
-  border-color: rgba(13, 148, 136, 0.45);
-  background: rgba(204, 251, 241, 0.85);
-}
-
-.wedding-track-pill.is-stressed em {
-  color: #0f766e;
-  font-weight: 700;
 }
 
 .wedding-track-pill {
@@ -15142,7 +15246,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-message.is-agent,
-.wedding-stream-item:not(.mine):not(.wedding-event):not(.wedding-output) {
+.wedding-stream-item:not(.mine):not(.wedding-event):not(.wedding-output):not(.wedding-inbound-tip) {
   align-self: flex-start;
   padding: 0 2px;
 }
@@ -15512,18 +15616,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 
 @media (max-width: 880px) {
   body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
-    grid-template-rows: 62px auto 42px minmax(0, 1fr);
-  }
-
-  .wedding-part-strip {
-    grid-template-columns: 1fr;
-  }
-
-  .wedding-part-hard {
-    border-left: 0;
-    border-top: 1px solid rgba(15, 118, 110, 0.12);
-    padding-left: 4px;
-    padding-top: 6px;
+    grid-template-rows: 62px 42px minmax(0, 1fr);
   }
 
   .wedding-top {
@@ -15629,11 +15722,12 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-stream-item.is-user {
-  align-self: flex-end;
-  padding: 8px 11px;
-  border-radius: 12px 12px 3px 12px;
-  background: var(--wedding-red);
-  color: #fff;
+  align-self: flex-start;
+  max-width: 92%;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--wedding-ink);
 }
 
 .wedding-stream-item.is-agent {
@@ -15642,7 +15736,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-stream-item.is-arrive {
-  animation: weddingFadeIn calc(0.18s / var(--demo-speed)) ease-out;
+  animation: streamItemInSoft 0.4s cubic-bezier(0.22, 0.8, 0.28, 1);
 }
 
 .wedding-stream-who {
@@ -15653,8 +15747,9 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-stream-item.is-user .wedding-stream-who {
-  color: rgba(255, 255, 255, 0.72);
-  text-align: right;
+  color: var(--wedding-muted);
+  text-align: left;
+  justify-content: flex-start;
 }
 
 .wedding-msg-bubble {
@@ -15731,6 +15826,91 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   background: #f5faf7;
 }
 
+.wedding-inbound-tip {
+  align-self: stretch !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+  margin: 0;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  display: block !important;
+}
+
+.wedding-inbound-tip-btn {
+  width: 100%;
+  box-sizing: border-box;
+  appearance: none;
+  border: 1px solid #cfe0f8;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f5f9ff 0%, #eef5ff 100%);
+  padding: 9px 10px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 52px;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.wedding-inbound-tip-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.1);
+}
+
+.wedding-inbound-tip-ico {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  border: 1px solid #dbe7f8;
+  font-size: 14px;
+}
+
+.wedding-inbound-tip-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.wedding-inbound-tip-copy strong {
+  font-size: 12.5px;
+  font-weight: 750;
+  color: #1e3a5f;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wedding-inbound-tip-copy em {
+  font-style: normal;
+  font-size: 11px;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wedding-inbound-tip-go {
+  width: 52px;
+  box-sizing: border-box;
+  justify-self: end;
+  text-align: center;
+  padding: 4px 0;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+
 .wedding-output-icon {
   display: grid;
   place-items: center;
@@ -15794,23 +15974,44 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 .wedding-thinking {
   display: flex;
   align-items: center;
-  gap: 4px;
-  min-height: 24px;
-  margin: 6px 0 2px 20px;
+  gap: 5px;
+  min-height: 26px;
+  margin: 8px 0 4px 20px;
   color: var(--wedding-muted);
-  font-size: 9px;
-  animation: streamItemIn 0.2s ease-out;
+  font-size: 11px;
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.24s ease, transform 0.24s ease;
+}
+
+.wedding-thinking.is-enter {
+  opacity: 0;
+  transform: translateY(4px);
 }
 
 .wedding-thinking i {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: #b7c7c3;
+  background: #9bb0aa;
+  animation: weddingThinkDot 1.15s ease-in-out infinite;
 }
+
+.wedding-thinking i:nth-child(2) { animation-delay: 0.18s; }
+.wedding-thinking i:nth-child(3) { animation-delay: 0.36s; }
 
 .wedding-thinking span {
   margin-left: 4px;
+}
+
+@keyframes weddingThinkIn {
+  from { opacity: 0.35; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes weddingThinkDot {
+  0%, 80%, 100% { opacity: 0.35; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
 }
 
 .wedding-workspace-panel {
@@ -16190,7 +16391,8 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-stream-item.is-user {
-  flex-direction: row-reverse;
+  flex-direction: row; /* avatar on the left — couple speaks as a person in the thread */
+  align-self: flex-start;
 }
 
 .wedding-message-avatar {
@@ -16205,6 +16407,16 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   background: var(--wedding-red-soft);
   font-size: 8px;
   font-weight: 800;
+}
+
+img.wedding-message-avatar,
+.wedding-message-avatar.is-photo {
+  display: block;
+  object-fit: cover;
+  padding: 0;
+  color: transparent;
+  background: #eef5f3;
+  border-color: #dceae6;
 }
 
 .wedding-stream-item.is-agent .wedding-message-avatar {
@@ -16233,7 +16445,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 }
 
 .wedding-stream-item.is-user .wedding-stream-who {
-  justify-content: flex-end;
+  justify-content: flex-start;
   color: var(--wedding-muted);
 }
 
@@ -16249,9 +16461,9 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 
 .wedding-stream-item.is-user .wedding-msg-bubble {
   border-color: #cfe5e0;
-  border-radius: 11px 11px 3px 11px;
+  border-radius: 11px 11px 11px 3px;
   color: #1c2422;
-  background: var(--agent-teal-soft, #e8f7f4);
+  background: #f7fbfa;
 }
 
 .wedding-calendar-app {
@@ -16751,108 +16963,6 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   background: #fff;
   box-shadow: inset 3px 0 0 var(--agent-teal, #5fbfb0);
   animation: none;
-}
-
-.wedding-track-window.is-stressed {
-  border-color: rgba(13, 148, 136, 0.42);
-  box-shadow: inset 3px 0 0 #0d9488;
-}
-
-.wedding-track-window.is-stressed .wedding-window-bar > em {
-  color: #0f766e;
-}
-
-.wedding-conflict-chip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  margin: 0 0 6px;
-  padding: 4px 7px;
-  border-radius: 8px;
-  background: rgba(13, 148, 136, 0.1);
-  color: #0f766e;
-  font-size: 10px;
-  font-weight: 650;
-}
-
-.wedding-conflict-chip b {
-  overflow: hidden;
-  font-weight: 780;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wedding-challenge-card {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  gap: 10px;
-  align-items: start;
-  padding: 12px 12px 12px 0;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(240, 253, 250, 0.95), rgba(255, 255, 255, 0.96));
-  box-shadow: inset 0 0 0 1px rgba(13, 148, 136, 0.18);
-}
-
-.wedding-challenge-mark {
-  display: grid;
-  place-items: center;
-  min-height: 52px;
-  border-radius: 10px;
-  background: #0f766e;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 780;
-  letter-spacing: 0.02em;
-  text-align: center;
-  line-height: 1.2;
-  padding: 6px;
-}
-
-.wedding-challenge-body {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.wedding-challenge-body small {
-  color: #0f766e;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.wedding-challenge-body strong {
-  color: #134e4a;
-  font-size: 13px;
-  font-weight: 780;
-  line-height: 1.35;
-}
-
-.wedding-challenge-body p {
-  margin: 0;
-  color: #315e59;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.wedding-challenge-body p em {
-  display: inline-block;
-  margin-right: 6px;
-  color: #0f766e;
-  font-style: normal;
-  font-weight: 700;
-}
-
-.wedding-challenge-body aside {
-  margin-top: 2px;
-  padding: 7px 8px;
-  border-radius: 8px;
-  background: rgba(15, 118, 110, 0.06);
-  color: #3f6b66;
-  font-size: 11px;
-  line-height: 1.45;
 }
 
 .wedding-track-window.is-alert {
@@ -17820,11 +17930,16 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 
 .ecom-chat .ecom-stream-item.is-arrive,
 .wedding-stream-item.is-arrive {
-  animation: streamItemIn 0.28s ease-out;
+  animation: streamItemInSoft 0.4s cubic-bezier(0.22, 0.8, 0.28, 1);
 }
 
 @keyframes streamItemIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0.4; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes streamItemInSoft {
+  from { opacity: 0.55; transform: translateY(5px); }
   to { opacity: 1; transform: none; }
 }
 
@@ -18042,6 +18157,13 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   background: var(--agent-teal-soft, #e8f7f4);
 }
 
+.wedding-stream-item.is-user img.wedding-message-avatar,
+.wedding-stream-item.is-user .wedding-message-avatar.is-photo {
+  color: transparent;
+  background: #eef5f3;
+  border-color: #dceae6;
+}
+
 .wedding-track-pill.is-active {
   border-color: #b9ddd6;
   background: #f3fbf9;
@@ -18106,8 +18228,887 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   border-color: #b9ddd6;
 }
 
-.ecom-brand-mark,
-.wedding-brand-mark {
+.ecom-brand-mark {
   background: var(--agent-teal, #5fbfb0);
   color: #fff;
 }
+
+.wedding-brand-mark {
+  display: none !important;
+}
+
+/* ===== Wedding ecom-style single playground ===== */
+.wedding-body-manus {
+  grid-template-columns: minmax(320px, 36%) minmax(0, 1fr);
+}
+
+.wedding-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wedding-agent-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.wedding-chat-mode-tabs {
+  flex: 0 0 auto;
+}
+
+.wedding-mode-chip {
+  /* inherits .ecom-mode-chip */
+}
+
+.wedding-playground {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+}
+
+.wedding-play-foot,
+.wedding-wall {
+  display: none !important;
+}
+
+.wedding-play-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--wedding-line, #dceae6);
+  background: #fff;
+}
+
+.wedding-play-kicker {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--agent-teal-deep, #3d9b8a);
+}
+
+.wedding-play-head h2 {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 720;
+  color: #14201d;
+}
+
+.wedding-play-status {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #7a8a86;
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wedding-bench-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.wedding-bench-strip button {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid #d5e5e0;
+  background: #f7fbfa;
+  color: #5a6d68;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+}
+
+.wedding-bench-strip .w-tab-emoji {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif;
+  font-size: 16px;
+  line-height: 1;
+  color: initial;
+  filter: none;
+  -webkit-text-fill-color: initial;
+}
+
+.wedding-bench-strip button.is-active {
+  background: var(--agent-teal-soft, #e8f7f4);
+  color: var(--agent-teal-deep, #3d9b8a);
+  border-color: #b9ddd6;
+}
+
+.wedding-bench-strip button.is-active .w-tab-emoji {
+  transform: scale(1.06);
+}
+
+.wedding-bench-strip button.has-badge::after {
+  content: attr(data-badge);
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #d97757;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
+
+.wedding-play-stage {
+  min-height: 0;
+  overflow: auto;
+  background: linear-gradient(180deg, #f7fbfa 0%, #fff 48px);
+}
+
+.wedding-play-stage.is-switching .wedding-workspace-panel {
+  animation: weddingSurfaceSwitch 0.34s cubic-bezier(0.22, 0.8, 0.28, 1);
+}
+
+@keyframes weddingSurfaceSwitch {
+  from { opacity: 0.55; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+
+.wedding-play-stage .wedding-workspace-panel {
+  height: 100%;
+  min-height: 0;
+}
+
+.wedding-play-foot {
+  border-top: 1px solid var(--wedding-line, #dceae6);
+  padding: 8px 12px;
+  background: #fff;
+  max-height: 88px;
+  overflow: auto;
+}
+
+.wedding-comms-app {
+  height: 100%;
+  min-height: 360px;
+}
+
+.wedding-menu-board,
+.wedding-runbook-board {
+  padding: 14px 16px 18px;
+}
+
+/* —— Wedding Mail / Messages dual apps —— */
+.w-msg-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 0 12px 10px;
+  padding: 3px;
+  border-radius: 12px;
+  background: #e8eeec;
+}
+
+.w-msg-seg button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  color: #5a6d68;
+  cursor: pointer;
+}
+
+.w-msg-seg button.is-active {
+  background: #fff;
+  color: #14201d;
+  box-shadow: 0 1px 3px rgba(20, 40, 36, 0.12);
+}
+
+.w-msg-seg em,
+.w-msg-seg i {
+  font-style: normal;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.w-msg-seg em {
+  background: #ff3b30;
+  color: #fff;
+}
+
+.w-msg-seg i {
+  background: #d5e2de;
+  color: #3d534e;
+}
+
+.w-msg-seg-ico {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.w-mail-app,
+.w-sms-app {
+  margin: 10px 12px 12px;
+  border: 1px solid #d5e3df;
+  border-radius: 16px;
+  background: #f2f4f7;
+  overflow: hidden;
+  min-height: 460px;
+  height: calc(100% - 22px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 28px rgba(24, 48, 42, 0.08);
+}
+
+.w-msg-seg {
+  display: none !important;
+}
+
+.w-mail-chrome,
+.w-sms-chrome {
+  display: grid;
+  grid-template-columns: 64px 1fr 40px;
+  align-items: center;
+  padding: 10px 12px 8px;
+  background: rgba(248, 250, 252, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.w-mail-chrome strong,
+.w-sms-chrome strong {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.w-chrome-ghost {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #007aff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: default;
+  padding: 0;
+  text-align: left;
+}
+
+.w-mail-chrome .w-chrome-ghost:last-child,
+.w-sms-chrome .w-chrome-ghost:last-child {
+  text-align: right;
+  font-size: 16px;
+}
+
+.w-mail-search,
+.w-sms-search {
+  margin: 0 12px 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #e5e7eb;
+  color: #6b7280;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.w-mail-split,
+.w-sms-split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, 38%) 1fr;
+  background: #fff;
+}
+
+.w-mail-list,
+.w-sms-list {
+  border-right: 1px solid #eceff3;
+  overflow-y: auto;
+  max-height: 460px;
+  background: #fff;
+}
+
+.w-mail-row,
+.w-sms-row {
+  width: 100%;
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid #f1f3f5;
+  background: #fff;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 10px;
+  align-items: start;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.w-mail-row:hover,
+.w-sms-row:hover {
+  background: #f8fafc;
+}
+
+.w-mail-row.is-active,
+.w-sms-row.is-active {
+  background: #eaf2ff;
+}
+
+.w-mail-row.is-unread .w-mail-subject,
+.w-sms-row.is-unread strong {
+  font-weight: 750;
+  color: #0f172a;
+}
+
+.w-mail-row.is-warn {
+  box-shadow: inset 3px 0 0 #ff9f0a;
+}
+
+.w-mail-row.is-arriving {
+  animation: w-mail-arrive 0.55s ease;
+  background: #fff8e8;
+  box-shadow: inset 3px 0 0 #f5a524;
+}
+
+.w-mail-row.is-reading {
+  background: #eaf2ff;
+  box-shadow: inset 3px 0 0 #0a84ff;
+}
+
+.w-mail-reader.is-reading {
+  outline: 2px solid rgba(10, 132, 255, 0.28);
+  outline-offset: -2px;
+}
+
+.w-mail-reading-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #0a84ff;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+
+.w-mail-reading-chip[hidden] {
+  display: none !important;
+}
+
+@keyframes w-mail-arrive {
+  0% {
+    transform: translateX(-8px);
+    background: #ffe8a8;
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.w-mail-avatar,
+.w-sms-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--av, #0a84ff);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.w-mail-avatar.lg,
+.w-sms-avatar.lg {
+  width: 40px;
+  height: 40px;
+  font-size: 15px;
+}
+
+.w-mail-main,
+.w-sms-main {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.w-mail-top,
+.w-sms-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.w-mail-top strong,
+.w-sms-top strong {
+  font-size: 13px;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.w-mail-top time,
+.w-sms-top time {
+  font-size: 11px;
+  color: #8b949e;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.w-mail-subject {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1f2937;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.w-mail-preview,
+.w-sms-preview {
+  font-size: 11.5px;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.w-mail-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #007aff;
+  margin-top: 12px;
+}
+
+.w-sms-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #34c759;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-grid;
+  place-items: center;
+  margin-top: 8px;
+}
+
+.w-mail-reader,
+.w-sms-thread {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  max-height: 460px;
+}
+
+.w-mail-reader.is-empty,
+.w-sms-thread.is-empty {
+  align-items: center;
+  justify-content: center;
+  color: #9aa3ad;
+  font-size: 13px;
+}
+
+.w-mail-reader-head {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #eef1f4;
+}
+
+.w-mail-reader-head h3 {
+  margin: 0 0 12px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.3;
+}
+
+.w-mail-reader-meta {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.w-mail-reader-meta strong {
+  display: block;
+  font-size: 13px;
+  color: #111827;
+}
+
+.w-mail-reader-meta small {
+  display: block;
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.w-mail-addr {
+  color: #9ca3af !important;
+}
+
+.w-mail-reader-meta time {
+  font-size: 11px;
+  color: #8b949e;
+}
+
+.w-mail-toolbar {
+  display: flex;
+  gap: 14px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: #007aff;
+  font-weight: 600;
+}
+
+.w-mail-reader-body {
+  padding: 16px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #1f2937;
+  overflow-y: auto;
+  white-space: normal;
+}
+
+.w-sms-thread {
+  background: #e9e9eb;
+}
+
+.w-sms-thread-head {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(248, 248, 250, 0.94);
+  border-bottom: 1px solid #d8d8dc;
+}
+
+.w-sms-thread-head strong {
+  display: block;
+  font-size: 14px;
+  color: #111;
+}
+
+.w-sms-thread-head small {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.w-sms-signal {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.w-sms-thread-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.w-sms-daychip {
+  align-self: center;
+  margin: 0 0 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  color: #4b5563;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.w-sms-bubble-wrap {
+  align-self: flex-start;
+  max-width: 86%;
+  display: grid;
+  gap: 3px;
+}
+
+.w-sms-bubble {
+  padding: 9px 12px;
+  border-radius: 18px 18px 18px 5px;
+  background: #fff;
+  color: #111;
+  font-size: 13.5px;
+  line-height: 1.45;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.w-sms-bubble.is-warn {
+  background: #fff7ed;
+  box-shadow: inset 0 0 0 1px #fdba74;
+}
+
+.w-sms-bubble-wrap time {
+  font-size: 10px;
+  color: #6b7280;
+  padding-left: 6px;
+}
+
+.w-sms-composer {
+  display: grid;
+  grid-template-columns: 1fr 34px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px 10px;
+  background: #f2f2f7;
+  border-top: 1px solid #d8d8dc;
+}
+
+.w-sms-composer span {
+  padding: 9px 12px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid #d1d1d6;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.w-sms-composer button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: #34c759;
+  color: #fff;
+  font-size: 14px;
+  cursor: default;
+}
+
+.w-app-empty {
+  padding: 48px 20px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.w-app-empty-ico {
+  display: block;
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.w-app-empty strong {
+  display: block;
+  color: #111827;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.w-app-empty small {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .w-mail-split,
+  .w-sms-split {
+    grid-template-columns: 1fr;
+  }
+  .w-mail-reader,
+  .w-sms-thread {
+    border-top: 1px solid #eceff3;
+    min-height: 220px;
+  }
+}
+
+.wedding-menu-hero,
+.wedding-ledger-hero {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.wedding-menu-hero > div,
+.wedding-runbook-list li {
+  border: 1px solid #dceae6;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.wedding-menu-hero > div {
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.wedding-menu-hero span {
+  font-size: 11px;
+  color: #7a8a86;
+}
+
+.wedding-menu-hero b {
+  font-size: 16px;
+  color: #14201d;
+}
+
+.wedding-menu-dishes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.wedding-menu-dishes li {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--agent-teal-soft, #e8f7f4);
+  color: var(--agent-teal-deep, #3d9b8a);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.wedding-runbook-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.wedding-runbook-list li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+}
+
+.wedding-runbook-list li em {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  background: #eef5f3;
+  color: #5a6d68;
+}
+
+.wedding-runbook-list li.is-done {
+  border-color: #b9ddd6;
+  background: #f3fbf9;
+}
+
+.wedding-runbook-list li.is-done em {
+  background: var(--agent-teal, #5fbfb0);
+  color: #fff;
+}
+
+.wedding-runbook-list li b {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7a8a86;
+}
+
+.wedding-runbook-list li.is-done b {
+  color: var(--agent-teal-deep, #3d9b8a);
+}
+
+.wedding-runbook-handoff {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #14201d;
+  color: #e8f7f4;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ecom-app-msg.is-scam .ecom-app-bubble {
+  border-color: #f0c9a8;
+  background: #fff6ef;
+}
+
+@media (max-width: 1100px) {
+  .wedding-body-manus {
+    grid-template-columns: 1fr;
+  }
+  .wedding-comms-app {
+    min-height: 280px;
+  }
+}
+
+.wedding-comms-contact img.wedding-comms-avatar,
+.ecom-comms-contact img.wedding-comms-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex: 0 0 36px;
+  background: #eef5f3;
+}
+
+.wedding-files-board, .wedding-web-board { padding: 14px 16px 18px; }
+.wedding-files-list { list-style:none; margin:12px 0 0; padding:0; display:grid; gap:8px; }
+.wedding-file-row {
+  display:grid; grid-template-columns:52px minmax(0,1fr); gap:10px; align-items:start;
+  padding:12px 14px; border:1px solid #dceae6; border-radius:12px; background:#fff;
+}
+.wedding-file-row.is-hot { border-color:#5fbfb0; background:#f3fbf9; }
+.wedding-file-row em {
+  font-style:normal; font-size:10px; font-weight:800; color:#3d9b8a;
+  background:#e8f7f4; border-radius:8px; padding:6px 0; text-align:center;
+}
+.wedding-file-row strong { display:block; font-size:13px; color:#14201d; }
+.wedding-file-row small { color:#7a8a86; font-size:11px; }
+.wedding-file-row p { margin:6px 0 0; font-size:12px; color:#5a6d68; line-height:1.4; }
+.wedding-web-chrome {
+  display:flex; align-items:center; gap:6px; padding:8px 10px; margin-top:10px;
+  border:1px solid #dceae6; border-radius:10px 10px 0 0; background:#f4f7f6;
+}
+.wedding-web-chrome i { width:8px; height:8px; border-radius:50%; background:#c9d6d2; }
+.wedding-web-chrome em { font-style:normal; font-size:11px; color:#7a8a86; margin-left:6px; }
+.wedding-web-body {
+  border:1px solid #dceae6; border-top:0; border-radius:0 0 10px 10px;
+  padding:14px; background:#fff; display:grid; gap:10px;
+}
+.wedding-web-body.is-mismatch { background:#fff8f3; border-color:#f0c9a8; }
+.wedding-web-body p { margin:0; display:flex; justify-content:space-between; gap:12px; font-size:13px; }
+.wedding-web-body span { color:#7a8a86; }
+.wedding-web-note { font-size:12px !important; color:#8a5a3a !important; display:block !important; }
+.wedding-calendar-list li.is-unavailable { opacity:.55; text-decoration:line-through; }

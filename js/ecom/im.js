@@ -2,8 +2,8 @@
  * Mock OpenClaw / agent workspace stream (center column).
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-smooth";
-import { isReplayMode } from "../playback.js?v=20260812-smooth";
+import { L, getLocale } from "../i18n.js?v=20260812-smooth-chat";
+import { isReplayMode } from "../playback.js?v=20260812-smooth-chat";
 
 function esc(s) {
   return String(s ?? "")

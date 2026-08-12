@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin />
     <link rel="dns-prefetch" href="https://server.arcgisonline.com" />
     <link rel="preload" href="./data/routes.json" as="fetch" crossorigin />
-    <link rel="stylesheet" href="./css/styles.css?v=20260812-travel-default" />
+    <link rel="stylesheet" href="./css/styles.css?v=20260812-no-vlb" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
@@ -173,11 +173,15 @@
                 <div class="trip-ledger" id="tripLedger"></div>
               </div>
               <div class="phone-screen-pane" data-pane="mail" id="paneMail" hidden>
-                <div class="phone-pane-head">
-                  <h3 data-i18n="phone.mailTitle">收件箱</h3>
-                  <p data-i18n="phone.mailSub">通知 · 资讯 · 邮件归档</p>
+                <div class="phone-mail-app">
+                  <header class="phone-mail-chrome">
+                    <button type="button" class="phone-mail-ghost" tabindex="-1" data-i18n="phone.mailBoxes">信箱</button>
+                    <h3 data-i18n="phone.mailTitle">收件箱</h3>
+                    <button type="button" class="phone-mail-ghost phone-mail-compose" tabindex="-1" aria-label="compose">✎</button>
+                  </header>
+                  <div class="phone-mail-search" aria-hidden="true"><span>⌕</span><span data-i18n="phone.mailSearch">搜索邮件</span></div>
+                  <div class="mail-inbox" id="mailInbox"></div>
                 </div>
-                <div class="mail-inbox" id="mailInbox"></div>
               </div>
               <div class="phone-screen-pane" data-pane="notes" id="paneNotes" hidden>
                 <div class="phone-pane-head">
@@ -400,14 +404,12 @@
         <span id="ecomBenchSub" hidden></span>
       </section>
 
-      <!-- Wedding · fixed-date, five-track deterministic cockpit -->
+      <!-- Wedding · ecom-style: main couple chat + single playground -->
       <section class="wedding-cockpit" id="weddingCockpit" hidden aria-hidden="true">
         <header class="wedding-top">
           <div class="wedding-brand">
-            <span class="wedding-brand-mark" data-i18n="wedding.brandMark" aria-hidden="true">囍</span>
             <div>
-              <strong>VibeLifeBench</strong>
-              <span id="weddingProjectName" data-i18n="wedding.projectFallback">固定婚期 · 五轨筹备</span>
+              <strong id="weddingProjectName" data-i18n="wedding.projectFallback">固定婚期 · 五轨筹备</strong>
             </div>
           </div>
           <div class="wedding-top-kpis" id="weddingTopKpis" data-i18n-aria="wedding.kpiAria" aria-label="婚礼关键状态"></div>
@@ -418,20 +420,21 @@
           </div>
         </header>
 
-        <div class="wedding-part-strip" id="weddingPartStrip" data-i18n-aria="wedding.partStrip" aria-label="Part 难点框架"></div>
         <div class="wedding-track-rail" id="weddingTrackRail" data-i18n-aria="wedding.tracksAria" aria-label="五轨进度"></div>
 
-        <div class="wedding-body">
+        <div class="wedding-body wedding-body-manus">
           <main class="wedding-chat">
             <header class="wedding-chat-head">
-              <div>
+              <div class="wedding-agent-bar">
                 <span class="wedding-live-dot" id="weddingLiveDot" aria-hidden="true"></span>
                 <span class="wedding-agent-copy">
                   <strong>AI Agent</strong>
                   <small data-i18n="wedding.agentSub">Dots Note</small>
                 </span>
               </div>
-              <span data-i18n="wedding.dialogue">对话</span>
+              <div class="wedding-chat-mode-tabs" aria-live="polite">
+                <span class="ecom-mode-chip wedding-mode-chip is-active"><i aria-hidden="true"></i><em data-i18n="wedding.mode.main">主对话</em></span>
+              </div>
             </header>
             <div class="wedding-stream-wrap">
               <div class="wedding-welcome" id="weddingWelcome" hidden></div>
@@ -444,7 +447,27 @@
           </main>
 
           <aside class="wedding-playground">
-            <div class="wedding-workspace" id="weddingWorkspaceStage"></div>
+            <header class="wedding-play-head">
+              <div>
+                <span class="wedding-play-kicker" data-i18n="wedding.playTitle">Playground</span>
+                <h2 id="weddingWorkspaceTitle">—</h2>
+                <small class="wedding-play-status" id="weddingWorkspaceStatus"></small>
+              </div>
+              <nav class="wedding-bench-strip" id="weddingWorkspaceTabs" role="tablist" data-i18n-aria="wedding.benchAria" aria-label="工具台">
+                <button type="button" class="is-active" data-wedding-workspace="im" data-i18n-title="wedding.tabs.im" title="协作消息"><span class="w-tab-emoji" aria-hidden="true">💬</span></button>
+                <button type="button" data-wedding-workspace="mail" data-i18n-title="wedding.tabs.mail" title="邮件"><span class="w-tab-emoji" aria-hidden="true">📧</span></button>
+                <button type="button" data-wedding-workspace="sms" data-i18n-title="wedding.tabs.sms" title="短信"><span class="w-tab-emoji" aria-hidden="true">📱</span></button>
+                <button type="button" data-wedding-workspace="menu" data-i18n-title="wedding.tabs.menu" title="菜单忌口"><span class="w-tab-emoji" aria-hidden="true">🍽️</span></button>
+                <button type="button" data-wedding-workspace="invites" data-i18n-title="wedding.tabs.invites" title="请柬印刷"><span class="w-tab-emoji" aria-hidden="true">💌</span></button>
+                <button type="button" data-wedding-workspace="files" data-i18n-title="wedding.tabs.files" title="本地文件"><span class="w-tab-emoji" aria-hidden="true">📁</span></button>
+                <button type="button" data-wedding-workspace="web" data-i18n-title="wedding.tabs.web" title="网页核验"><span class="w-tab-emoji" aria-hidden="true">🌐</span></button>
+                <button type="button" data-wedding-workspace="ledger" data-i18n-title="wedding.tabs.ledger" title="预算账本"><span class="w-tab-emoji" aria-hidden="true">📒</span></button>
+                <button type="button" data-wedding-workspace="contracts" data-i18n-title="wedding.tabs.contracts" title="合同比对"><span class="w-tab-emoji" aria-hidden="true">📝</span></button>
+                <button type="button" data-wedding-workspace="calendar" data-i18n-title="wedding.tabs.calendar" title="日历"><span class="w-tab-emoji" aria-hidden="true">📅</span></button>
+                <button type="button" data-wedding-workspace="runbook" data-i18n-title="wedding.tabs.runbook" title="当日 Runbook"><span class="w-tab-emoji" aria-hidden="true">✅</span></button>
+              </nav>
+            </header>
+            <div class="wedding-play-stage wedding-workspace" id="weddingWorkspaceStage"></div>
           </aside>
         </div>
       </section>
@@ -452,6 +475,6 @@
 
     <div class="toast" id="toast" hidden></div>
 
-    <script type="module" src="./js/app.js?v=20260812-travel-default"></script>
+    <script type="module" src="./js/app.js?v=20260812-no-vlb"></script>
   </body>
 </html>

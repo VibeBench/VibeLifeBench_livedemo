@@ -2,12 +2,21 @@
  * Ecom trajectory player — Manus pacing (slower holds + tool visibility).
  */
 
-import { sleepPlayback, setReplayMode } from "../playback.js?v=20260812-smooth";
-import { getLocale, L } from "../i18n.js?v=20260812-smooth";
+import { sleepPlayback, setReplayMode, chatPlaybackMs } from "../playback.js?v=20260812-smooth-chat";
+import { getLocale, L } from "../i18n.js?v=20260812-smooth-chat";
 
 /** Slow factor vs baked holdMs at 1× (still readable; 4×/8× scale via playbackMs). */
 const HOLD_SCALE = 2.2;
 const HOLD_FLOOR = 700;
+
+function isHumanChatSender(from = "") {
+  const id = String(from || "").toLowerCase();
+  return Boolean(id) && id !== "agent" && id !== "system" && id !== "world";
+}
+
+function stepTextLen(step = {}) {
+  return String(step?.text_zh || step?.text_en || step?.text || "").replace(/<[^>]+>/g, "").length;
+}
 
 export class EcomScriptPlayer {
   constructor(cockpit) {
@@ -39,9 +48,19 @@ export class EcomScriptPlayer {
         onProgress?.({ index: i, total, step: this.steps[i] });
         await this._runStep(this.steps[i]);
         if (epoch !== this._epoch) return { ok: false, aborted: true };
-        const raw = Number(this.steps[i].holdMs) || 0;
-        const hold = Math.max(HOLD_FLOOR, Math.round(raw * HOLD_SCALE));
-        if (hold > 0) await sleepPlayback(hold, { min: HOLD_FLOOR, max: Math.max(hold, HOLD_FLOOR) });
+        const step = this.steps[i];
+        const raw = Number(step.holdMs) || 0;
+        const isChat = step.type === "im_message" || step.type === "user_authorization";
+        if (isChat) {
+          const human = isHumanChatSender(step.from);
+          const chars = stepTextLen(step);
+          const base = Math.max(raw * HOLD_SCALE, human ? 900 + chars * 18 : 480 + chars * 12);
+          const wait = chatPlaybackMs(base, { human, chars });
+          if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+        } else {
+          const hold = Math.max(HOLD_FLOOR, Math.round(raw * HOLD_SCALE));
+          if (hold > 0) await sleepPlayback(hold, { min: HOLD_FLOOR, max: Math.max(hold, HOLD_FLOOR) });
+        }
       }
       return { ok: true };
     } finally {
@@ -128,13 +147,15 @@ export class EcomScriptPlayer {
             L("组织回复…", "Composing reply…"),
             L("先给可执行结论，细节落到工作台/交付物", "Lead with an actionable conclusion; park details on benches / outputs")
           );
-          await sleepPlayback(360, { min: 240, max: 560 });
+          await new Promise((r) => setTimeout(r, chatPlaybackMs(360, { human: false })));
           c.im.hideThinking?.();
         } else {
           c.benches?.showCommsTyping?.(thread);
-          await sleepPlayback(420, { min: 280, max: 640 });
+          await new Promise((r) => setTimeout(r, chatPlaybackMs(420, { human: false })));
           c.benches?.hideCommsTyping?.();
         }
+      } else if (isHumanChatSender(from)) {
+        await new Promise((r) => setTimeout(r, chatPlaybackMs(420, { human: true, chars: stepTextLen(step) })));
       }
       c.im.pushMessage(step);
       if (thread !== "boss") {

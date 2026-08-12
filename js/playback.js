@@ -48,17 +48,61 @@ function syncReplaySpeedClass() {
  * Scale a base duration: faster speed → shorter wait.
  * min/max are also divided by speed so floors (e.g. ecom HOLD_FLOOR) cannot
  * defeat 4×/8× — otherwise every step stays clamped near the 1× floor.
+ *
+ * Options:
+ * - protectMin: keep `min` as an absolute floor (not divided by speed)
+ * - softMaxSpeed: cap the divisor so waits don't collapse at 8× (chat readability)
  */
-export function playbackMs(baseMs, { min = 0, max = Number.POSITIVE_INFINITY } = {}) {
+export function playbackMs(baseMs, { min = 0, max = Number.POSITIVE_INFINITY, protectMin = false, softMaxSpeed = null } = {}) {
   const raw = Number(baseMs);
-  const s = Math.max(Number(speed) || 1, 0.5);
-  const scaledMin = Math.max(0, Math.round((Number(min) || 0) / s));
+  const sFull = Math.max(Number(speed) || 1, 0.5);
+  const s =
+    softMaxSpeed != null && Number.isFinite(Number(softMaxSpeed))
+      ? Math.min(sFull, Math.max(1, Number(softMaxSpeed)))
+      : sFull;
+  const scaledMin = protectMin
+    ? Math.max(0, Math.round(Number(min) || 0))
+    : Math.max(0, Math.round((Number(min) || 0) / sFull));
   const scaledMax = Number.isFinite(max)
-    ? Math.max(scaledMin, Math.round(Number(max) / s))
+    ? Math.max(scaledMin, Math.round(Number(max) / (protectMin ? 1 : sFull)))
     : Number.POSITIVE_INFINITY;
   if (!Number.isFinite(raw) || raw <= 0) return scaledMin;
   const scaled = Math.round(raw / s);
   return Math.min(scaledMax, Math.max(scaledMin, scaled));
+}
+
+/**
+ * Chat / IM dwell — stays readable at 8×, especially for human lines.
+ * Soft-caps speed so people can still read bubbles in the chat window.
+ */
+export function chatPlaybackMs(baseMs = 900, { human = false, chars = 0 } = {}) {
+  const s = Math.max(Number(speed) || 1, 0.5);
+  const n = Math.max(0, Number(chars) || 0);
+  const designed =
+    Number(baseMs) > 0
+      ? Number(baseMs)
+      : human
+        ? Math.min(2800, Math.max(900, 520 + n * 26))
+        : Math.min(1600, Math.max(420, 280 + n * 14));
+  // Never scale chat harder than ~2.4× for humans / ~3.5× for agent.
+  const softMax = human ? 2.4 : 3.5;
+  const floor = human
+    ? s >= 8
+      ? 780
+      : s >= 4
+        ? 900
+        : 720
+    : s >= 8
+      ? 300
+      : s >= 4
+        ? 380
+        : 320;
+  return playbackMs(designed, {
+    min: floor,
+    max: Math.max(designed, floor),
+    protectMin: true,
+    softMaxSpeed: softMax,
+  });
 }
 
 /**

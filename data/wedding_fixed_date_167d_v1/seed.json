@@ -12,7 +12,8 @@
       "id": "lin_qiao",
       "name_zh": "林乔",
       "name_en": "Lin Qiao",
-      "role": "user"
+      "role": "user",
+      "avatar_img": "assets/wedding/avatars/lin_qiao.webp"
     },
     "groom": {
       "id": "zhou_yu",
@@ -238,7 +239,10 @@
       "name_en": "Lin Qiao",
       "role": "user",
       "avatar": "乔",
-      "tab": "main"
+      "avatar_img": "assets/wedding/avatars/lin_qiao.webp",
+      "avatar_kind": "photo",
+      "tab": "main",
+      "channel": "main"
     },
     {
       "id": "zhou_yu",
@@ -246,31 +250,41 @@
       "name_en": "Zhou Yu",
       "role": "partner",
       "avatar": "屿",
-      "tab": "main"
+      "tab": "main",
+      "channel": "main"
     },
     {
       "id": "venue_yunting",
-      "name_zh": "云庭宴会中心",
-      "name_en": "Yunting Banquet",
+      "name_zh": "云庭·小陈",
+      "name_en": "Yunting · Chen",
       "role": "vendor",
       "avatar": "场",
-      "tab": "venue"
+      "tab": "venue",
+      "avatar_img": "assets/wedding/avatars/venue_yunting.webp",
+      "channel": "im",
+      "avatar_kind": "photo"
     },
     {
       "id": "photo_beian",
-      "name_zh": "北岸影像",
-      "name_en": "Beian Studio",
+      "name_zh": "北岸·阿凯",
+      "name_en": "Beian · Kai",
       "role": "vendor",
       "avatar": "摄",
-      "tab": "photo"
+      "tab": "photo",
+      "avatar_img": "assets/wedding/avatars/photo_beian.webp",
+      "channel": "im",
+      "avatar_kind": "photo"
     },
     {
       "id": "dress_baizhi",
-      "name_zh": "白栀婚纱",
-      "name_en": "Baizhi Bridal",
+      "name_zh": "白栀·小栀",
+      "name_en": "Baizhi · Zhi",
       "role": "vendor",
       "avatar": "纱",
-      "tab": "dress"
+      "tab": "dress",
+      "avatar_img": "assets/wedding/avatars/dress_baizhi.webp",
+      "channel": "im",
+      "avatar_kind": "photo"
     },
     {
       "id": "invite_zhijian",
@@ -278,7 +292,9 @@
       "name_en": "Zhijian Invites",
       "role": "vendor",
       "avatar": "柬",
-      "tab": "guest"
+      "tab": "guest",
+      "channel": "app",
+      "bench": "invites"
     },
     {
       "id": "finance",
@@ -286,7 +302,86 @@
       "name_en": "Wedding ledger",
       "role": "finance",
       "avatar": "账",
-      "tab": "ledger"
+      "tab": "ledger",
+      "channel": "app",
+      "bench": "ledger"
+    },
+    {
+      "id": "mc_weiyang",
+      "name_zh": "司仪未央",
+      "name_en": "MC Weiyang",
+      "role": "vendor",
+      "avatar": "仪",
+      "tab": "guest",
+      "avatar_img": "assets/wedding/avatars/mc_weiyang.webp",
+      "channel": "im",
+      "avatar_kind": "photo"
+    },
+    {
+      "id": "kitchen_yunting",
+      "name_zh": "云庭后厨·老周",
+      "name_en": "Kitchen · Zhou",
+      "role": "vendor",
+      "avatar": "厨",
+      "tab": "venue",
+      "avatar_img": "assets/wedding/avatars/kitchen_yunting.webp",
+      "channel": "im",
+      "avatar_kind": "photo"
+    },
+    {
+      "id": "family_groom",
+      "name_zh": "新郎家长群",
+      "name_en": "Groom family",
+      "role": "family",
+      "avatar": "家",
+      "tab": "guest",
+      "avatar_img": "assets/wedding/avatars/family_groom.webp",
+      "channel": "im",
+      "avatar_kind": "group"
+    },
+    {
+      "id": "scam_yitiaolong",
+      "name_zh": "未知联系人",
+      "name_en": "Unknown contact",
+      "role": "untrusted",
+      "avatar": "!",
+      "tab": "ops",
+      "avatar_img": "assets/wedding/avatars/scam_yitiaolong.webp",
+      "channel": "im",
+      "avatar_kind": "photo"
+    },
+    {
+      "id": "jewelry_jinyi",
+      "name_zh": "金意珠宝·阿意",
+      "name_en": "Jinyi Jewelry · Yi",
+      "role": "vendor",
+      "avatar": "金",
+      "avatar_img": "assets/wedding/avatars/jewelry_jinyi.webp",
+      "avatar_kind": "photo",
+      "tab": "ledger",
+      "channel": "im"
+    },
+    {
+      "id": "fleet_anchi",
+      "name_zh": "安驰车队·师傅",
+      "name_en": "Anchi Fleet · Driver",
+      "role": "vendor",
+      "avatar": "车",
+      "avatar_img": "assets/wedding/avatars/fleet_anchi.webp",
+      "avatar_kind": "photo",
+      "tab": "guest",
+      "channel": "im"
+    },
+    {
+      "id": "family_bride",
+      "name_zh": "新娘家长群",
+      "name_en": "Bride family",
+      "role": "family",
+      "avatar": "家",
+      "avatar_img": "assets/wedding/avatars/family_bride.webp",
+      "avatar_kind": "photo",
+      "tab": "guest",
+      "channel": "im"
     }
   ],
   "media": {
@@ -323,5 +418,97 @@
       "Risk"
     ],
     "rows": []
-  }
+  },
+  "calendar": [
+    {
+      "id": "deposit_venue",
+      "date": "2026-05-31",
+      "zh": "场地定金截止",
+      "en": "Venue deposit due",
+      "status": "planned"
+    },
+    {
+      "id": "photo_hold",
+      "date": "2026-06-03",
+      "zh": "摄影 hold 到期",
+      "en": "Photo hold expiry",
+      "status": "planned"
+    },
+    {
+      "id": "fitting_1",
+      "date": "2026-06-28",
+      "zh": "第一次试穿",
+      "en": "Fitting 1",
+      "status": "booked"
+    },
+    {
+      "id": "invite_print",
+      "date": "2026-07-16",
+      "zh": "请柬印刷开机",
+      "en": "Invite press start",
+      "status": "planned"
+    },
+    {
+      "id": "rsvp_close",
+      "date": "2026-07-31",
+      "zh": "回执截止",
+      "en": "RSVP close",
+      "status": "fixed"
+    },
+    {
+      "id": "fitting_2",
+      "date": "2026-08-26",
+      "zh": "第二次试穿",
+      "en": "Fitting 2",
+      "status": "booked"
+    },
+    {
+      "id": "tasting",
+      "date": "2026-09-12",
+      "zh": "试菜",
+      "en": "Tasting",
+      "status": "planned"
+    },
+    {
+      "id": "wedding_day",
+      "date": "2026-10-03",
+      "zh": "婚礼当日",
+      "en": "Wedding day",
+      "status": "fixed"
+    }
+  ],
+  "files": [
+    {
+      "id": "contract_v1",
+      "name_zh": "云庭合同 v1.pdf",
+      "name_en": "Yunting contract v1.pdf",
+      "kind": "pdf",
+      "source_zh": "本地群文件",
+      "source_en": "Local group file"
+    },
+    {
+      "id": "photo_quote",
+      "name_zh": "北岸报价截图.png",
+      "name_en": "Beian quote screenshot.png",
+      "kind": "image",
+      "source_zh": "聊天保存",
+      "source_en": "Saved from chat"
+    },
+    {
+      "id": "dress_sheet",
+      "name_zh": "白栀报价单.xlsx",
+      "name_en": "Baizhi quote.xlsx",
+      "kind": "sheet",
+      "source_zh": "邮件附件",
+      "source_en": "Email attachment"
+    },
+    {
+      "id": "gold_note",
+      "name_zh": "四金口信备忘.txt",
+      "name_en": "Gold jewellery note.txt",
+      "kind": "note",
+      "source_zh": "长辈口述",
+      "source_en": "Elder verbal"
+    }
+  ]
 }

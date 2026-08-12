@@ -2,16 +2,15 @@
  * Wedding planning cockpit — fixed KPI header, pure dialogue stream, workspace panels.
  */
 
-import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-smooth";
-import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-parts";
+import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-user-avatar";
+import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-user-avatar";
 import {
   WeddingWorkspaces,
   maskContact,
   parseWeddingStageTracks,
-  resolveWeddingPart,
   WORKSPACE_IDS,
-} from "./workspaces.js?v=20260812-parts";
-import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-parts";
+} from "./workspaces.js?v=20260812-user-avatar";
+import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-user-avatar";
 
 export { AUTH_PAYMENT_THRESHOLD, weddingProgressLabel, WORKSPACE_IDS };
 
@@ -47,14 +46,21 @@ export class WeddingCockpit {
     this._authGrants = new Map();
     this._blockedPayments = [];
     this._lastActId = null;
-    this._lastPartId = null;
     this._lastKpiSig = "";
-    this.currentPart = null;
 
     this.stream = new WeddingStream({
       messagesEl: document.querySelector("#weddingMessages"),
       onFocusDeliverable: (id) => this.focusDeliverable(id),
       onReplay: () => this.onReplay?.(),
+      onExternalMessage: (row, opts) => this.workspaces?.pushCommunication(row, opts),
+      onExternalFocus: (id) => this.workspaces?.focusCommunication(id, { reveal: true }),
+      onInboundTipOpen: ({ workspace, thread } = {}) => {
+        if (workspace === "im" && thread) {
+          this.workspaces?.focusCommunication?.(thread, { reveal: true });
+          return;
+        }
+        if (workspace) this.workspaces?.switchWorkspace?.(workspace);
+      },
     });
 
     this.workspaces = new WeddingWorkspaces({
@@ -66,6 +72,7 @@ export class WeddingCockpit {
     });
 
     this.player = new WeddingScriptPlayer(this);
+    if (typeof window !== "undefined") window.__weddingCockpit = this;
 
     document.querySelector("#weddingBtnReplay")?.addEventListener("click", () => this.onReplay?.());
     document.querySelector("#weddingBtnConfigure")?.addEventListener("click", () => this.onConfigure?.());
@@ -114,16 +121,17 @@ export class WeddingCockpit {
   }
 
   async load(base = "./data/wedding_fixed_date_167d_v1") {
+    const bust = `cb=${Date.now()}`;
     const [meta, seed, trajectory] = await Promise.all([
-      fetch(`${base}/meta.json`).then((r) => {
+      fetch(`${base}/meta.json?${bust}`).then((r) => {
         if (!r.ok) throw new Error("wedding meta");
         return r.json();
       }),
-      fetch(`${base}/seed.json`).then((r) => {
+      fetch(`${base}/seed.json?${bust}`).then((r) => {
         if (!r.ok) throw new Error("wedding seed");
         return r.json();
       }),
-      fetch(`${base}/trajectory.json`).then((r) => {
+      fetch(`${base}/trajectory.json?${bust}`).then((r) => {
         if (!r.ok) throw new Error("wedding trajectory");
         return r.json();
       }),
@@ -157,20 +165,17 @@ export class WeddingCockpit {
     this._authGrants = new Map();
     this._blockedPayments = [];
     this._lastActId = null;
-    this._lastPartId = null;
-    this.currentPart = null;
     this.notifyCount = 0;
     this.notifyLog = [];
 
-    this.stream.reset(this.seed.couple || {});
-    this.workspaces.reset();
+    this.stream.reset(this.seed.couple || {}, this.seed.threads || []);
+    this.workspaces.reset(this.seed);
 
     const panel = document.querySelector("#weddingNotifyPanel");
     if (panel) panel.hidden = true;
 
     this.renderProject();
     this.renderKpi();
-    this.renderPartStrip();
     this.renderTrackRail();
     this.renderStageChip();
     this.renderWall();
@@ -218,13 +223,7 @@ export class WeddingCockpit {
       bookings: this.bookings,
       calendar: this.calendar,
       stageId: this.stageId,
-      part: this.currentPart,
-      stressTracks: this.currentPart?.stress_tracks || [],
     };
-  }
-
-  resolvePart(stageId = this.stageId) {
-    return resolveWeddingPart(this.meta, stageId);
   }
 
   // —— Authorization safety ——
@@ -335,7 +334,7 @@ export class WeddingCockpit {
         page_status_en: "Locked",
         order_status: "released",
       };
-      this.workspaces.switchWorkspace("booking");
+      this.workspaces.focusCommunication("photo_beian", { reveal: true });
     } else if (id === "venue_attachment_drift") {
       this.contracts = {
         v1: {
@@ -362,13 +361,17 @@ export class WeddingCockpit {
         order_status_zh: "执行：李浩 · 未核验",
         order_status_en: "Assigned: Li Hao · unverified",
       };
-      this.workspaces.switchWorkspace("booking");
+      this.workspaces.focusCommunication("photo_beian", { reveal: true });
     } else if (id === "half_rsvp_dietary") {
       this.kpi.rsvpPct = 50;
       this.kpi.dietaryTables_zh = "匿名桌 12";
       this.kpi.dietaryTables_en = "Anonymous table 12";
       this.kpi.dietaryTables = L("匿名桌 12", "Anonymous table 12");
-      this.workspaces.switchWorkspace("tracks");
+      this.workspaces.setMenuState({
+        table_zh: "匿名桌 12",
+        table_en: "Anonymous table 12",
+        reveal: true,
+      });
     } else if (id === "rsvp_close") {
       this.kpi.rsvpPct = 100;
       this.kpi.tableExpected = 22;
@@ -381,13 +384,22 @@ export class WeddingCockpit {
       this.workspaces.switchWorkspace("calendar");
     } else if (id === "wedding_day") {
       this.kpi.tracksDone = { A: true, B: true, C: true, D: true, E: true };
-      this.workspaces.switchWorkspace("tracks");
+      this.workspaces.setRunbookState({
+        weather: true,
+        photo: true,
+        fleet: true,
+        access: true,
+        kitchen: true,
+        notify: true,
+        reveal: true,
+      });
+    } else if (id === "scam_and_jewelry") {
+      this.workspaces.focusCommunication("scam_yitiaolong", { reveal: true });
+    } else if (id === "parallel_plan" || id === "ledger_bootstrap") {
+      this.workspaces.switchWorkspace("im");
     }
-    const part = this.resolvePart(id);
-    this.currentPart = part;
     this.renderStageChip();
     this.renderKpi();
-    this.renderPartStrip();
     this.renderTrackRail();
     this.workspaces.render();
     const act = (this.meta?.acts || []).find((row) => row.stage_ids?.includes(id));
@@ -399,78 +411,6 @@ export class WeddingCockpit {
         text_en: act?.en || st?.en || st?.zh || id,
       });
     }
-    if (part?.id && part.id !== this._lastPartId) {
-      const prev = this._lastPartId;
-      this._lastPartId = part.id;
-      // Trajectory also emits challenge worlds; only fallback if Part jumped without one.
-      if (prev && !this.player?.running) {
-        this.pushPartChallenge(part);
-      } else if (!prev) {
-        this.renderPartStrip({ announce: false });
-      }
-    }
-  }
-
-  pushPartChallenge(part = this.currentPart) {
-    if (!part) return;
-    const n = part.n || "?";
-    this.stream.pushTimelineEvent({
-      kind: "challenge",
-      title_zh: `Part ${n} · ${part.why_hard_zh || part.zh || ""}`,
-      title_en: `Part ${n} · ${part.why_hard_en || part.en || ""}`,
-      text_zh: part.agent_job_zh || "",
-      text_en: part.agent_job_en || "",
-      conflict_zh: part.conflict_zh || "",
-      conflict_en: part.conflict_en || "",
-      part_n: n,
-    });
-  }
-
-  renderPartStrip({ announce = false } = {}) {
-    const el = document.querySelector("#weddingPartStrip");
-    if (!el) return;
-    const en = getLocale() === "en";
-    const parts = this.meta?.parts || [];
-    const current = this.currentPart || this.resolvePart(this.stageId);
-    const live = Boolean(this.player?.running);
-    if (!parts.length) {
-      el.innerHTML = "";
-      el.hidden = true;
-      return;
-    }
-    el.hidden = false;
-    const why = current
-      ? en
-        ? current.why_hard_en || current.why_hard_zh
-        : current.why_hard_zh || current.why_hard_en
-      : "";
-    const job = current
-      ? en
-        ? current.agent_job_en || current.agent_job_zh
-        : current.agent_job_zh || current.agent_job_en
-      : "";
-    const stress = (current?.stress_tracks || []).join(" · ") || "—";
-    el.className = `wedding-part-strip ${live ? "is-live" : ""} ${current ? "has-active" : ""}`;
-    el.innerHTML = `
-      <div class="wedding-part-chips" role="list">
-        ${parts
-          .map((p) => {
-            const label = en ? p.en || p.zh : p.zh || p.en;
-            const active = current?.id === p.id ? "is-active" : "";
-            const done =
-              current && Number(p.n) < Number(current.n || 0) ? "is-done" : "";
-            return `<button type="button" class="wedding-part-chip ${active} ${done}" role="listitem" data-part="${esc(p.id)}" title="${esc(
-              en ? p.why_hard_en || label : p.why_hard_zh || label
-            )}"><b>P${esc(p.n)}</b><span>${esc(label)}</span></button>`;
-          })
-          .join("")}
-      </div>
-      <div class="wedding-part-hard">
-        <small>${esc(L("为什么难", "Why hard"))}</small>
-        <strong title="${esc(why)}">${esc(why || L("待命 · 点 Replay 看五 Part 难点", "Standby · Replay for five-part hardness"))}</strong>
-        <em title="${esc(job)}">${esc(job ? `${L("Agent 在做", "Agent work")} · ${job}` : `${L("并行轨道", "Parallel tracks")} ${stress}`)}</em>
-      </div>`;
-    if (announce && current) this.pushPartChallenge(current);
   }
 
   applyKpi(patch = {}, { flash = false } = {}) {
@@ -534,12 +474,7 @@ export class WeddingCockpit {
       [
         L("五轨 · 锁", "Tracks · locks"),
         `${tracks.length ? `${tracksDone}/${tracks.length}` : "0/5"} · ${locksPaid}/${locksTotal}`,
-        this.currentPart
-          ? L(
-              `Part ${this.currentPart.n} · ${(this.currentPart.stress_tracks || []).length} 轨攻坚`,
-              `Part ${this.currentPart.n} · ${(this.currentPart.stress_tracks || []).length} tracks stressed`
-            )
-          : "",
+        "",
         locksPaid >= locksTotal ? "ok" : "",
       ],
     ];
@@ -583,28 +518,22 @@ export class WeddingCockpit {
     if (!el) return;
     const en = getLocale() === "en";
     const activeTracks = parseWeddingStageTracks(this.meta, this.stageId);
-    const stress = new Set(this.currentPart?.stress_tracks || []);
     const done = this.kpi?.tracksDone || {};
     const paid = Number(this.kpi?.locksPaid) || 0;
-    const busyCount = (this.meta?.tracks || []).filter(
-      (t) => !done[t.id] && (activeTracks.has(t.id) || stress.has(t.id))
-    ).length;
-    el.dataset.busy = String(busyCount);
     el.innerHTML = (this.meta?.tracks || [])
       .map((track) => {
         const label = en ? track.en || track.zh : track.zh || track.en;
         const active = activeTracks.has(track.id);
-        const stressed = stress.has(track.id);
         const status = done[track.id]
           ? L("就绪", "Ready")
-          : stressed || active
-            ? L("并行中", "Busy")
+          : active
+            ? L("推进中", "Active")
             : track.id === "A" && paid >= 1
               ? "L1"
               : track.id === "C" && paid >= 2
                 ? "L2"
                 : L("待联动", "Queued");
-        return `<div class="wedding-track-pill ${active ? "is-active" : ""} ${stressed ? "is-stressed" : ""} ${done[track.id] ? "is-done" : ""}">
+        return `<div class="wedding-track-pill ${active ? "is-active" : ""} ${done[track.id] ? "is-done" : ""}">
           <b>${esc(track.id)}</b><span>${esc(label)}</span><em>${esc(status)}</em>
         </div>`;
       })
@@ -629,50 +558,190 @@ export class WeddingCockpit {
 
   // —— Events ——
 
-  applyWorldEvent(step = {}) {
-    const isChallenge = step.kind === "challenge" || step.level === "challenge";
-    this.stream.pushTimelineEvent({
-      kind: isChallenge ? "challenge" : "world",
-      title_zh: step.title_zh,
-      title_en: step.title_en,
-      text_zh: step.text_zh,
-      text_en: step.text_en,
-      conflict_zh: step.conflict_zh,
-      conflict_en: step.conflict_en,
-      part_n: step.part_n,
-    });
-    if (isChallenge && step.part_id) {
-      const part = (this.meta?.parts || []).find((p) => p.id === step.part_id);
-      if (part) {
-        this.currentPart = part;
-        this._lastPartId = part.id;
-        this.renderPartStrip();
-        this.renderTrackRail();
-        this.workspaces.render();
-      }
+  async applyWorldEvent(step = {}) {
+    // Part 难点框架（title/conflict）不进主对话 IM，只留状态条提示。
+    const isPartBanner =
+      Boolean(step.part_id) ||
+      step.kind === "challenge" ||
+      step.level === "challenge" ||
+      /^Part\s*\d/i.test(String(step.title_zh || step.title_en || ""));
+    if (isPartBanner) {
+      const title =
+        getLocale() === "en"
+          ? step.title_en || step.title_zh || ""
+          : step.title_zh || step.title_en || "";
+      if (title) this.workspaces?.setStatus?.(title);
+    } else {
+      this.stream.pushTimelineEvent({
+        kind: "world",
+        text_zh: step.text_zh,
+        text_en: step.text_en,
+        title_zh: step.title_zh,
+        title_en: step.title_en,
+      });
     }
     if (step.kpi) this.applyKpi(step.kpi);
+    if (step._invite_note || step.kind === "app" && /请柬|印刷|invite|print/i.test(`${step.text_zh || ""} ${step.text_en || ""}`)) {
+      this.workspaces?.setInviteState?.({
+        note_zh: step.text_zh || "",
+        note_en: step.text_en || "",
+        reveal: true,
+      });
+    }
+    await this._routeWorldToPlayground(step);
   }
 
-  applyNotification(step = {}) {
-    this.stream.pushTimelineEvent({
-      kind: "notify",
-      text_zh: step.text_zh,
-      text_en: step.text_en,
-    });
+  async applyNotification(step = {}) {
+    const channel = step.channel || step.kind || "system";
+    const isMail = channel === "email" || channel === "mail";
+    // Mail is read in the Mail app; keep couple chat free of long mail bodies.
+    if (!isMail) {
+      this.stream.pushTimelineEvent({
+        kind: "notify",
+        text_zh: step.text_zh,
+        text_en: step.text_en,
+      });
+    }
     this.bumpNotify({
-      kind_zh: "通知",
-      kind_en: "Notice",
-      text_zh: step.text_zh || step.text || "",
-      text_en: step.text_en || step.text || "",
+      kind_zh: isMail ? "邮件" : "通知",
+      kind_en: isMail ? "Mail" : "Notice",
+      text_zh: step.subject_zh || step.text_zh || step.text || "",
+      text_en: step.subject_en || step.text_en || step.text || "",
       level: step.level || "info",
     });
+    const payload = {
+      kind: isMail ? "email" : channel === "sms" ? "sms" : channel,
+      from_zh: step.from_zh || (channel === "sms" ? "短信通知" : isMail ? "邮件" : "系统通知"),
+      from_en: step.from_en || (channel === "sms" ? "SMS notice" : isMail ? "Email" : "System"),
+      subject_zh: step.subject_zh || step.text_zh || step.text || "",
+      subject_en: step.subject_en || step.text_en || step.text || "",
+      body_zh: step.body_zh || step.text_zh || "",
+      body_en: step.body_en || step.text_en || "",
+      phone: step.phone || (channel === "sms" ? "1069****8821" : ""),
+      level: step.level || "info",
+      reveal: step.reveal !== false,
+      holdMs: step.holdMs || step.readMs || 0,
+    };
+    if (isMail && step.reveal !== false) {
+      await this.workspaces?.deliverInboxItem?.(payload);
+      this.stream?.pushInboundTip?.({
+        channel: "mail",
+        workspace: "mail",
+        from_zh: payload.from_zh,
+        from_en: payload.from_en,
+        preview_zh: payload.subject_zh || payload.body_zh,
+        preview_en: payload.subject_en || payload.body_en,
+      });
+    } else {
+      this.workspaces?.pushInboxItem?.(payload);
+      if (payload.kind === "sms" && payload.reveal !== false) {
+        this.stream?.pushInboundTip?.({
+          channel: "sms",
+          workspace: "sms",
+          from_zh: payload.from_zh,
+          from_en: payload.from_en,
+          preview_zh: payload.subject_zh || payload.body_zh,
+          preview_en: payload.subject_en || payload.body_en,
+        });
+      }
+    }
+  }
+
+  /** Route schedule/email-like world events into Inbox / Menu / Runbook. */
+  async _routeWorldToPlayground(step = {}) {
+    const zh = `${step.text_zh || ""} ${step.title_zh || ""}`;
+    const en = `${step.text_en || ""} ${step.title_en || ""}`;
+    const blob = `${zh} ${en}`;
+    const part = step.part_id || "";
+
+    if (part === "part_day" || /遇雨|室内备选|runbook|rain|indoor backup/i.test(blob)) {
+      this.workspaces?.setRunbookState?.({
+        weather: /雨|weather|rain/i.test(blob),
+        photo: true,
+        fleet: true,
+        access: true,
+        kitchen: /开席|kitchen|serve/i.test(blob),
+        notify: true,
+        handoff_zh: /对账|交接|reconcile|handoff/i.test(blob)
+          ? "交接：最终账本 · 供应商履约 · 差点出事复盘 · 可复用流程"
+          : "",
+        handoff_en: /对账|交接|reconcile|handoff/i.test(blob)
+          ? "Handoff: final ledger · vendor delivery · near-miss review · reusable process"
+          : "",
+        reveal: /part_day|wedding_day|遇雨|rain/i.test(`${part} ${blob}`),
+      });
+    }
+
+    const inboxHit =
+      Boolean(step.reveal_inbox) ||
+      /附件|邮件|hold|释放|试穿|改期|attachment|email|fitting|released|截止日倒排/i.test(blob);
+    if (inboxHit && !/^Part\s*\d/i.test(String(step.text_zh || step.title_zh || ""))) {
+      const isEmail = /附件|邮件|attachment|email/i.test(blob);
+      const reveal =
+        Boolean(step.reveal_inbox) || /附件|hold|释放|试穿|attachment|released|fitting/i.test(blob);
+      const payload = {
+        kind: isEmail ? "email" : /短信|sms/i.test(blob) ? "sms" : "system",
+        from_zh: isEmail ? "酒店承办" : /摄影|photo|hold/i.test(blob) ? "北岸影像系统" : "筹备通知",
+        from_en: isEmail ? "Venue ops" : /摄影|photo|hold/i.test(blob) ? "Beian booking system" : "Planning notice",
+        subject_zh: step.title_zh || step.text_zh || "排期变化",
+        subject_en: step.title_en || step.text_en || "Schedule change",
+        body_zh: step.conflict_zh || (!step.title_zh ? "" : step.text_zh) || "",
+        body_en: step.conflict_en || (!step.title_en ? "" : step.text_en) || "",
+        level: /风险|漂移|释放|scam|danger|25/i.test(blob) ? "warn" : "info",
+        reveal,
+        holdMs: step.holdMs || 0,
+      };
+      if (isEmail && reveal) {
+        await this.workspaces?.deliverInboxItem?.(payload);
+        this.stream?.pushInboundTip?.({
+          channel: "mail",
+          workspace: "mail",
+          from_zh: payload.from_zh,
+          from_en: payload.from_en,
+          preview_zh: payload.subject_zh || payload.body_zh,
+          preview_en: payload.subject_en || payload.body_en,
+        });
+      } else {
+        this.workspaces?.pushInboxItem?.(payload);
+        if (payload.kind === "sms" && reveal) {
+          this.stream?.pushInboundTip?.({
+            channel: "sms",
+            workspace: "sms",
+            from_zh: payload.from_zh,
+            from_en: payload.from_en,
+            preview_zh: payload.subject_zh || payload.body_zh,
+            preview_en: payload.subject_en || payload.body_en,
+          });
+        }
+      }
+    }
+
+    if (/忌口|菜单|过敏|dietary|menu|海鲜|素/i.test(blob) || /menu_reopen|half_rsvp_dietary|menu_v1/.test(this.stageId || "")) {
+      this.workspaces?.setMenuState?.({
+        table_zh: this.kpi?.dietaryTables_zh || "匿名桌次",
+        table_en: this.kpi?.dietaryTables_en || "Anon table",
+        reopenFee: 3600,
+        reveal: /忌口|菜单重开|dietary|menu reopen/i.test(blob),
+      });
+    }
   }
 
   applySilentMutation(step = {}) {
     if (step.kpi) this.applyKpi(step.kpi, { flash: true });
     if (step.contracts) this.contracts = { ...this.contracts, ...step.contracts };
     if (step.bookings) this.bookings = { ...this.bookings, ...step.bookings };
+    if (step.calendar_upsert || step.calendarUpsert) {
+      this.upsertCalendarEvent(step.calendar_upsert || step.calendarUpsert, { reveal: false });
+    }
+    if (step.calendar_cancel || step.calendarCancel) {
+      this.cancelCalendarEvent(step.calendar_cancel || step.calendarCancel, { reveal: false });
+    }
+    if (Array.isArray(step.files)) {
+      this.workspaces?.setFilesState?.(step.files, { reveal: false, highlight: step.file_highlight });
+    }
+    if (step.web) {
+      this.workspaces?.setWebState?.({ ...step.web, reveal: false });
+    }
     const mutationLockId = step.lock_id || step.lockId || parseLockId(step);
     if (mutationLockId) {
       const id = mutationLockId;
@@ -685,24 +754,120 @@ export class WeddingCockpit {
     this.workspaces.render();
   }
 
-  pushMutationDiscovery(step = {}) {
+  upsertCalendarEvent(row = {}, { reveal = true } = {}) {
+    if (!row || (!row.id && !row.date)) return;
+    const id = row.id || `cal_${row.date}_${this.calendar.length}`;
+    const next = {
+      id,
+      date: row.date || "2026-10-03",
+      zh: row.zh || row.text_zh || row.label_zh || id,
+      en: row.en || row.text_en || row.label_en || id,
+      status: row.status || "planned",
+    };
+    const idx = this.calendar.findIndex((c) => c.id === id || (c.date === next.date && (c.zh === next.zh || c.en === next.en)));
+    if (idx >= 0) this.calendar[idx] = { ...this.calendar[idx], ...next };
+    else this.calendar.push(next);
+    this.calendar.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    if (reveal) this.workspaces?.switchWorkspace?.("calendar");
+    else this.workspaces?.render?.();
+  }
+
+  cancelCalendarEvent(target = {}, { reveal = true } = {}) {
+    const id = typeof target === "string" ? target : target.id || target.event_id;
+    const date = typeof target === "object" ? target.date : null;
+    this.calendar = this.calendar.map((row) => {
+      const hit = (id && row.id === id) || (date && row.date === date && (!target.zh || row.zh === target.zh));
+      if (!hit) return row;
+      return {
+        ...row,
+        status: "unavailable",
+        zh: target.zh || (row.zh?.includes("取消") ? row.zh : `${row.zh} · 已取消`),
+        en: target.en || (row.en?.includes("cancel") ? row.en : `${row.en} · cancelled`),
+      };
+    });
+    if (reveal) this.workspaces?.switchWorkspace?.("calendar");
+    else this.workspaces?.render?.();
+  }
+
+  async pushMutationDiscovery(step = {}) {
     this.stream.pushTimelineEvent({
       kind: "discovery",
       text_zh: step.text_zh,
       text_en: step.text_en,
     });
+    const blob = `${step.text_zh || ""} ${step.text_en || ""}`;
     if (step.text_zh?.includes("20→25") || step.text_en?.includes("20→25")) {
+      await this.workspaces.deliverInboxItem({
+        kind: "email",
+        from_zh: "酒店承办",
+        from_en: "Venue ops",
+        subject_zh: "合同附件更新：最低消费 20→25 桌",
+        subject_en: "Annex update: min spend 20→25 tables",
+        body_zh: step.text_zh,
+        body_en: step.text_en,
+        level: "warn",
+        reveal: true,
+        holdMs: step.holdMs || 1100,
+      });
+      this.stream?.pushInboundTip?.({
+        channel: "mail",
+        workspace: "mail",
+        from_zh: "酒店承办",
+        from_en: "Venue ops",
+        preview_zh: "合同附件更新：最低消费 20→25 桌",
+        preview_en: "Annex update: min spend 20→25 tables",
+      });
       this.workspaces.switchWorkspace("contracts");
-    }
-    if (/released|释放|hold/i.test(`${step.text_zh} ${step.text_en}`)) {
-      this.workspaces.switchWorkspace("booking");
+    } else if (/released|释放|hold/i.test(blob)) {
+      this.workspaces.pushInboxItem({
+        kind: "system",
+        from_zh: "北岸影像系统",
+        from_en: "Beian booking system",
+        subject_zh: step.text_zh || "档期 hold 状态变化",
+        subject_en: step.text_en || "Hold status changed",
+        level: "warn",
+        reveal: true,
+      });
+      this.stream?.pushInboundTip?.({
+        channel: "im",
+        workspace: "im",
+        thread: "photo_beian",
+        from_zh: "北岸影像系统",
+        from_en: "Beian booking system",
+        preview_zh: step.text_zh || "档期 hold 状态变化",
+        preview_en: step.text_en || "Hold status changed",
+      });
+      this.workspaces.switchWorkspace("im");
+      this.workspaces.focusCommunication("photo_beian", { reveal: true });
+    } else if (/试穿|fitting|工期|60/i.test(blob)) {
+      await this.workspaces.deliverInboxItem({
+        kind: "email",
+        from_zh: "白栀婚纱",
+        from_en: "Baizhi Bridal",
+        subject_zh: step.text_zh || "试穿/工期变更",
+        subject_en: step.text_en || "Fitting / lead-time change",
+        body_zh: step.text_zh,
+        body_en: step.text_en,
+        level: "warn",
+        reveal: true,
+        holdMs: step.holdMs || 1000,
+      });
+      this.stream?.pushInboundTip?.({
+        channel: "mail",
+        workspace: "mail",
+        from_zh: "白栀婚纱",
+        from_en: "Baizhi Bridal",
+        preview_zh: step.text_zh || "试穿/工期变更",
+        preview_en: step.text_en || "Fitting / lead-time change",
+      });
+      this.workspaces.switchWorkspace("calendar");
     }
   }
 
   focusThread(threadId = "lin_qiao") {
-    if (threadId && threadId !== "lin_qiao") {
-      const vendor = this.vendors.find((v) => v.id === threadId || v.thread === threadId);
-      if (vendor) this.workspaces.switchWorkspace("booking");
+    this.stream?.focusThread?.(threadId);
+    if (threadId && threadId !== "lin_qiao" && threadId !== "zhou_yu") {
+      this.workspaces?.focusCommunication?.(threadId, { reveal: true });
     }
   }
 
@@ -717,7 +882,81 @@ export class WeddingCockpit {
           tableHigh: args.high ?? args.table_high ?? 28,
           worstCaseExposure: args.worst_case ?? 54000,
         });
-        this.workspaces.switchWorkspace("tracks");
+        this.workspaces.switchWorkspace("calendar");
+      },
+      merge_five_track_ledger: () => {
+        this.workspaces.switchWorkspace("ledger");
+      },
+      ingest_scattered_quotes: () => {
+        this.workspaces.switchWorkspace("im");
+      },
+      build_critical_path: () => {
+        this.workspaces.switchWorkspace("calendar");
+      },
+      backschedule_deadlines: () => {
+        this.workspaces.pushInboxItem({
+          kind: "system",
+          from_zh: "倒排引擎",
+          from_en: "Backschedule",
+          subject_zh: "截止日已倒排进同一张图",
+          subject_en: "Deadlines back-scheduled onto one chart",
+          level: "info",
+          reveal: true,
+        });
+        this.workspaces.switchWorkspace("calendar");
+      },
+      compose_allergy_safe_menu: () => {
+        this.workspaces.setMenuState({
+          table_zh: args.table_zh || this.kpi?.dietaryTables_zh || "匿名桌次",
+          table_en: args.table_en || this.kpi?.dietaryTables_en || "Anon table",
+          reopenFee: args.reopen_fee ?? 3600,
+          dishes: [
+            { zh: "中式主菜（可分餐）", en: "Chinese mains (individual plating)" },
+            { zh: "去刺鱼", en: "Deboned fish" },
+            { zh: "过敏餐单独出", en: "Allergy-safe plated separately" },
+            { zh: "小食拼盘", en: "Small bites" },
+          ],
+          reveal: true,
+        });
+      },
+      confirm_kitchen_isolation: () => {
+        this.workspaces.setMenuState({
+          notes: [
+            {
+              text_zh: "后厨确认：不串味，出餐量可覆盖。",
+              text_en: "Kitchen confirmed: no flavour carry-over; volume workable.",
+            },
+          ],
+          reveal: true,
+        });
+      },
+      watch_weather_and_backup_clause: () => {
+        this.workspaces.setRunbookState({ weather: true, reveal: true });
+      },
+      relocate_ceremony_indoor: () => {
+        this.workspaces.setRunbookState({
+          weather: true,
+          photo: true,
+          fleet: true,
+          access: true,
+          kitchen: true,
+          notify: true,
+          reveal: true,
+        });
+      },
+      reconcile_handoff_pack: () => {
+        this.workspaces.setRunbookState({
+          weather: true,
+          photo: true,
+          fleet: true,
+          access: true,
+          kitchen: true,
+          notify: true,
+          handoff_zh: "交接：最终账本 · 供应商履约 · 差点出事复盘 · 可复用流程",
+          handoff_en: "Handoff: final ledger · vendor delivery · near-miss review · reusable process",
+          reveal: true,
+        });
+        this.workspaces.switchWorkspace("ledger");
       },
       diff_contract_versions: () => {
         this.contracts = {
@@ -751,10 +990,10 @@ export class WeddingCockpit {
             hold_expiry: args.hold_expiry || args.holdExpiry || "",
           };
         }
-        this.workspaces.switchWorkspace("booking");
+        this.workspaces.focusCommunication(args.vendor_id || "photo_beian", { reveal: true });
       },
       verify_lead_identity: () => {
-        this.workspaces.switchWorkspace("booking");
+        this.workspaces.focusCommunication("photo_beian", { reveal: true });
       },
       anonymize_dietary_cluster: () => {
         const table = args.table_no || "匿名桌次";
@@ -763,7 +1002,11 @@ export class WeddingCockpit {
           dietaryTables_en: args.table_no_en || (typeof table === "string" && !/[\u4e00-\u9fff]/.test(table) ? table : "Anon table"),
           dietaryTables: L(typeof table === "string" ? table : "匿名桌次", args.table_no_en || "Anon table"),
         });
-        this.workspaces.switchWorkspace("booking");
+        this.workspaces.setMenuState({
+          table_zh: typeof table === "string" ? table : "匿名桌次",
+          table_en: args.table_no_en || "Anon table",
+          reveal: true,
+        });
       },
       block_untrusted_payment: () => {
         this.bumpNotify({
@@ -773,10 +1016,21 @@ export class WeddingCockpit {
           text_en: "Untrusted payment blocked",
           level: "danger",
         });
-        this.stream.pushTimelineEvent({
-          kind: "discovery",
-          text_zh: "陌生「一条龙」催款链接已拦截，未付款。",
-          text_en: "Untrusted bundle payment lure blocked — no payment.",
+        this.workspaces.pushCommunication(
+          {
+            id: `scam_block_${Date.now()}`,
+            thread: "scam_yitiaolong",
+            from: "agent",
+            kind: "text",
+            text_zh: "已拦截：陌生催款外链不会代付，收款主体未核验。",
+            text_en: "Blocked: untrusted payment link will not be paid; beneficiary unverified.",
+            ts: Date.now(),
+          },
+          { reveal: true }
+        );
+        this.stream.pushScamBlockedCard({
+          text_zh: "骗局已拦截 · 试菜席间催款外链未付款（新人无感）",
+          text_en: "Scam blocked · tasting-table lure unpaid (couple undisturbed)",
         });
       },
       request_payment_authorization: () => {
@@ -795,42 +1049,13 @@ export class WeddingCockpit {
       },
     };
 
-    const toolLabels = {
-      ingest_scattered_quotes: [L("归并散落报价", "Ingest scattered quotes"), "E"],
-      merge_five_track_ledger: [L("五轨并账", "Merge five-track ledger"), "E"],
-      build_critical_path: [L("关键路径与七锁", "Critical path & seven locks"), "E"],
-      compare_venue_quotes: [L("标准化场地比价", "Normalize venue quotes"), "A"],
-      backschedule_deadlines: [L("截止日倒排", "Back-schedule deadlines"), "A"],
-      scan_national_day_slots: [L("扫描国庆档期", "Scan holiday slots"), "C"],
-      verify_hold_backend: [L("核验 Hold 后台", "Verify hold backend"), "C"],
-      lock_fitting_windows: [L("锁定试穿窗口", "Lock fitting windows"), "D"],
-      compose_allergy_safe_menu: [L("编排忌口菜单", "Compose allergy-safe menu"), "B"],
-      confirm_kitchen_isolation: [L("确认后厨隔离", "Confirm kitchen isolation"), "A"],
-      watch_weather_and_backup_clause: [L("天气与备用条款", "Weather & backup clauses"), "A"],
-      relocate_ceremony_indoor: [L("仪式挪室内对齐", "Relocate ceremony indoors"), "E"],
-      reconcile_handoff_pack: [L("回收交接证据包", "Reconcile handoff pack"), "E"],
-    };
-
-    this.stream.showThinking?.(
-      (toolLabels[name] && toolLabels[name][0]) || L(`调用 ${name}…`, `Running ${name}…`)
-    );
     const fn = tools[name];
     if (typeof fn === "function") {
       await fn();
-    } else {
-      const [label, track] = toolLabels[name] || [name, ""];
-      this.stream.pushTimelineEvent({
-        kind: "discovery",
-        text_zh: track ? `轨道 ${track} · ${label}` : String(label),
-        text_en: track ? `Track ${track} · ${label}` : String(label),
-      });
-      this.workspaces.switchWorkspace("tracks");
+      return { ok: true };
     }
-    this.stream.hideThinking?.();
-    this.renderPartStrip();
-    this.renderTrackRail();
-    this.workspaces.render();
-    return { ok: true };
+    console.warn("[wedding] unknown tool", name);
+    return { ok: false, error: "unknown tool" };
   }
 
   // —— Deliverables ——
@@ -867,12 +1092,15 @@ export class WeddingCockpit {
     if (!d) return;
     if (/contract|diff/i.test(id)) this.workspaces.switchWorkspace("contracts");
     else if (/ledger|budget|deposit/i.test(id)) this.workspaces.switchWorkspace("ledger");
-    else if (/runbook|calendar|freeze/i.test(id)) this.workspaces.switchWorkspace("calendar");
-    else this.workspaces.switchWorkspace("tracks");
+    else if (/menu|dietary|allergy/i.test(id)) this.workspaces.switchWorkspace("menu");
+    else if (/runbook|day|handoff/i.test(id)) this.workspaces.switchWorkspace("runbook");
+    else if (/calendar|freeze/i.test(id)) this.workspaces.switchWorkspace("calendar");
+    else this.workspaces.switchWorkspace("im");
     this.renderWall(id);
   }
 
   renderWall(activeId = null) {
+    // Deliverable chip strip removed from playground foot — keep no-op for callers.
     const wall = document.querySelector("#weddingWall");
     if (!wall) return;
     const en = getLocale() === "en";
@@ -994,8 +1222,8 @@ export class WeddingCockpit {
   }
 
   async startReplay({ onProgress, onToast } = {}) {
-    if (!this.ready) await this.load();
-    this.reset();
+    // Always refresh case JSON so trajectory/thread remaps pick up without hard reload.
+    await this.load();
     document.querySelector("#weddingLiveDot")?.classList.add("is-live");
     onToast?.(
       L(

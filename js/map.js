@@ -16,9 +16,9 @@ import {
   buildDrivingPath,
   parseRoadGeom,
   loadPrecomputedRoutes,
-} from "./routing.js?v=20260812-map-fast";
-import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260812-smooth";
-import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260812-smooth";
+} from "./routing.js?v=20260812-smooth-chat";
+import { playbackMs, cardDisplayMs, isReplayMode } from "./playback.js?v=20260812-smooth-chat";
+import { t, L, getLocale, localizeUserState } from "./i18n.js?v=20260812-smooth-chat";
 
 /** Cook Strait ferry calendar day (case itinerary). */
 const FERRY_DATE = "2026-10-19";

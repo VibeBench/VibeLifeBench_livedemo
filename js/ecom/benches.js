@@ -2,8 +2,8 @@
  * Playground benches — call streaming transcript + agentic pack/video editing.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-smooth";
-import { sleepPlayback } from "../playback.js?v=20260812-smooth";
+import { L, getLocale } from "../i18n.js?v=20260812-smooth-chat";
+import { sleepPlayback } from "../playback.js?v=20260812-smooth-chat";
 
 function esc(s) {
   return String(s ?? "")

@@ -25,8 +25,8 @@ import {
   playHotelPinCinematic,
 } from "./map.js?v=20260807-loop21";
 import { groupLedgerByDate } from "./ledger.js?v=20260807-loop21";
-import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260812-smooth";
-import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260812-smooth";
+import { playbackMs, sleepPlayback, getPlaybackSpeed, cardDisplayMs, isReplayMode } from "./playback.js?v=20260812-smooth-chat";
+import { t, L, kindLabel, getLocale, geoDisplayName } from "./i18n.js?v=20260812-smooth-chat";
 
 function kindMeta(kind) {
   const base = {
@@ -800,13 +800,26 @@ export class UI {
     setTimeout(() => el.classList.remove("mail-flash"), 1200);
   }
 
+  _mailAvatar(name = "") {
+    const s = String(name || "?").trim();
+    const ch = /[\u4e00-\u9fff]/.test(s) ? s.slice(0, 1) : (s[0] || "?").toUpperCase();
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    const pal = ["#0a84ff", "#5e5ce6", "#ff375f", "#ff9f0a", "#30d158", "#64d2ff", "#bf5af2"];
+    return { initial: ch, color: pal[h % pal.length] };
+  }
+
   renderMailInbox() {
     const el = this.els.mailInbox || $("#mailInbox");
     if (!el) return;
     this.els.mailInbox = el;
     const list = this._inbox || [];
     if (!list.length) {
-      el.innerHTML = `<div class="ledger-empty">${L("通知、资讯与邮件会归档在这里。点顶部 Banner 也可跳转查看。", "Alerts, news and mail are archived here. Tap the top banner to jump in.")}</div>`;
+      el.innerHTML = `<div class="phone-mail-empty">
+        <span aria-hidden="true">📭</span>
+        <strong>${escapeHtml(t("phone.mailEmpty"))}</strong>
+        <small>${escapeHtml(t("phone.mailEmptyHint"))}</small>
+      </div>`;
       return;
     }
     const highlight = this._highlightMailKey;
@@ -816,18 +829,38 @@ export class UI {
         const open = m.open || m.key === highlight;
         const unread = m.unread ? " unread" : "";
         const flash = m.key === highlight ? " mail-flash" : "";
+        const from = m.from || m.app || t("sms.system");
+        const av = this._mailAvatar(from);
+        const isMail = (m.channel || m.kind || "mail") !== "sms";
         return `
-        <details class="mail-item${unread}${flash}" data-mail-key="${escapeHtml(m.key)}" ${open ? "open" : ""}>
+        <details class="mail-item${unread}${flash}${isMail ? " is-mail" : " is-sms"}" data-mail-key="${escapeHtml(m.key)}" ${
+          open ? "open" : ""
+        }>
           <summary>
-            <span class="mail-ico">${m.icon || "✉️"}</span>
+            <span class="mail-avatar" style="--av:${av.color}">${escapeHtml(av.initial)}</span>
             <span class="mail-meta">
-              <span class="mail-from">${escapeHtml(m.from || m.app)}</span>
+              <span class="mail-from">${escapeHtml(from)}</span>
               <span class="mail-time">${escapeHtml(stamp)}</span>
             </span>
             <span class="mail-subject">${escapeHtml(m.title)}</span>
             <span class="mail-preview">${escapeHtml(m.preview)}</span>
+            ${m.unread ? `<span class="mail-unread-dot" aria-hidden="true"></span>` : ""}
           </summary>
-          <div class="mail-body">${escapeHtml(m.body || m.title).replace(/\n/g, "<br>")}</div>
+          <div class="mail-body">
+            <div class="mail-body-head">
+              <strong>${escapeHtml(m.title)}</strong>
+              <div class="mail-body-meta">
+                <span>${escapeHtml(from)}</span>
+                <span>To: ${escapeHtml(t("phone.mailTo"))}</span>
+              </div>
+            </div>
+            <div class="mail-body-text">${escapeHtml(m.body || m.title).replace(/\n/g, "<br>")}</div>
+            <div class="mail-body-actions" aria-hidden="true">
+              <span>↩ ${escapeHtml(L("回复", "Reply"))}</span>
+              <span>↪ ${escapeHtml(L("转发", "Forward"))}</span>
+              <span>🗑</span>
+            </div>
+          </div>
         </details>`;
       })
       .join("");
@@ -836,7 +869,12 @@ export class UI {
       details.addEventListener("toggle", () => {
         const key = details.dataset.mailKey;
         const item = (this._inbox || []).find((m) => m.key === key);
-        if (item) item.open = details.open;
+        if (item) {
+          item.open = details.open;
+          if (details.open) item.unread = false;
+        }
+        details.classList.toggle("unread", Boolean(item?.unread));
+        details.querySelector(".mail-unread-dot")?.remove();
       });
     });
   }
@@ -2049,33 +2087,59 @@ export class UI {
     return wrap;
   }
 
-  /** Incoming SMS / email-style message (world / app notifications) — yellow shell. */
+  /** Incoming SMS / email-style message — real Messages / Mail card look. */
   appendSmsChat({
     text = "",
     from = null,
     time = null,
     channel = "sms",
     eventId = null,
+    title = null,
   } = {}) {
     const wrap = document.createElement("div");
     const isMail = channel === "email" || channel === "mail";
-    wrap.className = `bubble sms-in${isMail ? " mail-in" : ""}`;
+    wrap.className = `bubble sms-in${isMail ? " mail-in" : " imessage-in"}`;
     wrap.dataset.taskBubble = "1";
     if (eventId) wrap.dataset.eventId = eventId;
     const stamp = formatSimStamp(time);
     const timeHtml = stamp ? `<div class="bubble-time">${escapeHtml(stamp)}</div>` : "";
     const sender = String(from || t("sms.system")).trim() || t("sms.system");
     const body = String(text || "").trim();
-    wrap.innerHTML = `
-      ${timeHtml}
-      <div class="sms-shell">
-        <div class="sms-meta">
-          <span class="sms-badge">${isMail ? t("mail.badge") : t("sms.badge")}</span>
-          <span class="sms-from">${escapeHtml(sender)}</span>
-        </div>
-        <div class="sms-text"></div>
-      </div>`;
-    wrap.querySelector(".sms-text").textContent = body;
+    const av = this._mailAvatar(sender);
+    if (isMail) {
+      const subject = String(title || body.split("\n")[0] || t("mail.badge")).trim();
+      const preview = body.includes("\n") ? body.split("\n").slice(1).join("\n").trim() || body : body;
+      wrap.innerHTML = `
+        ${timeHtml}
+        <div class="sms-shell mail-card">
+          <div class="mail-card-top">
+            <span class="mail-avatar sm" style="--av:${av.color}">${escapeHtml(av.initial)}</span>
+            <div class="mail-card-meta">
+              <strong>${escapeHtml(sender)}</strong>
+              <em>${escapeHtml(t("mail.badge"))}</em>
+            </div>
+          </div>
+          <div class="mail-card-subject"></div>
+          <div class="sms-text"></div>
+        </div>`;
+      wrap.querySelector(".mail-card-subject").textContent = subject;
+      wrap.querySelector(".sms-text").textContent = preview === subject ? "" : preview;
+      if (preview === subject) wrap.querySelector(".sms-text").hidden = true;
+    } else {
+      wrap.innerHTML = `
+        ${timeHtml}
+        <div class="sms-shell imessage-card">
+          <div class="sms-meta">
+            <span class="mail-avatar sm" style="--av:${av.color}">${escapeHtml(av.initial)}</span>
+            <div>
+              <span class="sms-from">${escapeHtml(sender)}</span>
+              <span class="sms-badge">${escapeHtml(t("sms.badge"))}</span>
+            </div>
+          </div>
+          <div class="sms-text"></div>
+        </div>`;
+      wrap.querySelector(".sms-text").textContent = body;
+    }
     this.els.chatMessages.appendChild(wrap);
     this._scrollChatToBottom({ force: true });
     return wrap;

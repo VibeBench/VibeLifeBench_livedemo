@@ -3,7 +3,7 @@
  * onMockImEvent hook reserved for a real OpenClaw bridge.
  */
 
-import { getLocale } from "../i18n.js?v=20260812-smooth";
+import { getLocale } from "../i18n.js?v=20260812-smooth-chat";
 
 export function createEcomTools(ctx) {
   const {
