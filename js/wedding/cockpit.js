@@ -2,15 +2,15 @@
  * Wedding planning cockpit — fixed KPI header, pure dialogue stream, workspace panels.
  */
 
-import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-no-think-cards";
-import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-no-think-cards";
+import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-ws-tips";
+import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-ws-tips";
 import {
   WeddingWorkspaces,
   maskContact,
   parseWeddingStageTracks,
   WORKSPACE_IDS,
-} from "./workspaces.js?v=20260812-no-think-cards";
-import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-no-think-cards";
+} from "./workspaces.js?v=20260812-ws-tips";
+import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-ws-tips";
 
 export { AUTH_PAYMENT_THRESHOLD, weddingProgressLabel, WORKSPACE_IDS };
 
@@ -758,23 +758,37 @@ export class WeddingCockpit {
     this.calendar.sort((a, b) => String(a.date).localeCompare(String(b.date)));
     if (reveal) this.workspaces?.switchWorkspace?.("calendar");
     else this.workspaces?.render?.();
+    this.announceWorkspaceUpdate("calendar", {
+      preview_zh: `${next.date} · ${next.zh}`,
+      preview_en: `${next.date} · ${next.en}`,
+    });
   }
 
   cancelCalendarEvent(target = {}, { reveal = true } = {}) {
     const id = typeof target === "string" ? target : target.id || target.event_id;
     const date = typeof target === "object" ? target.date : null;
+    let labelZh = "";
+    let labelEn = "";
     this.calendar = this.calendar.map((row) => {
       const hit = (id && row.id === id) || (date && row.date === date && (!target.zh || row.zh === target.zh));
       if (!hit) return row;
+      labelZh = target.zh || (row.zh?.includes("取消") ? row.zh : `${row.zh} · 已取消`);
+      labelEn = target.en || (row.en?.includes("cancel") ? row.en : `${row.en} · cancelled`);
       return {
         ...row,
         status: "unavailable",
-        zh: target.zh || (row.zh?.includes("取消") ? row.zh : `${row.zh} · 已取消`),
-        en: target.en || (row.en?.includes("cancel") ? row.en : `${row.en} · cancelled`),
+        zh: labelZh,
+        en: labelEn,
       };
     });
     if (reveal) this.workspaces?.switchWorkspace?.("calendar");
     else this.workspaces?.render?.();
+    if (labelZh || labelEn) {
+      this.announceWorkspaceUpdate("calendar", {
+        preview_zh: labelZh || "日程已取消",
+        preview_en: labelEn || "Event cancelled",
+      });
+    }
   }
 
   async pushMutationDiscovery(step = {}) {
@@ -802,6 +816,10 @@ export class WeddingCockpit {
         preview_en: "Annex update: min spend 20→25 tables",
       });
       this.workspaces.switchWorkspace("contracts");
+      this.announceWorkspaceUpdate("contracts", {
+        preview_zh: "合同附件更新：最低消费 20→25 桌",
+        preview_en: "Annex update: min spend 20→25 tables",
+      });
     } else if (/released|释放|hold/i.test(blob)) {
       this.workspaces.pushInboxItem({
         kind: "system",
@@ -845,6 +863,10 @@ export class WeddingCockpit {
         preview_en: step.text_en || "Fitting / lead-time change",
       });
       this.workspaces.switchWorkspace("calendar");
+      this.announceWorkspaceUpdate("calendar", {
+        preview_zh: step.text_zh || "试穿/工期变更已同步日历",
+        preview_en: step.text_en || "Fitting / lead-time change synced to calendar",
+      });
     }
   }
 
@@ -853,6 +875,18 @@ export class WeddingCockpit {
     if (threadId && threadId !== "lin_qiao" && threadId !== "zhou_yu") {
       this.workspaces?.focusCommunication?.(threadId, { reveal: true });
     }
+  }
+
+  /** Surface workspace/app updates inside the main couple IM as tip cards. */
+  announceWorkspaceUpdate(workspace, { preview_zh = "", preview_en = "", title_zh = "", title_en = "" } = {}) {
+    if (!workspace || workspace === "im") return;
+    this.stream?.pushWorkspaceTip?.({
+      workspace,
+      preview_zh,
+      preview_en,
+      title_zh,
+      title_en,
+    });
   }
 
   // —— Tools (deterministic, no signing) ——
@@ -867,15 +901,31 @@ export class WeddingCockpit {
           worstCaseExposure: args.worst_case ?? 54000,
         });
         this.workspaces.switchWorkspace("calendar");
+        this.announceWorkspaceUpdate("calendar", {
+          preview_zh: `桌数区间 ${args.low ?? 18}/${args.expected ?? 22}/${args.high ?? 28} 已写入`,
+          preview_en: `Table band ${args.low ?? 18}/${args.expected ?? 22}/${args.high ?? 28} written`,
+        });
       },
       merge_five_track_ledger: () => {
         this.workspaces.switchWorkspace("ledger");
+        this.announceWorkspaceUpdate("ledger", {
+          preview_zh: "五轨科目已并成同一张账，并留应急预备金",
+          preview_en: "Five tracks merged into one ledger with reserve",
+        });
       },
       ingest_scattered_quotes: () => {
-        this.workspaces.switchWorkspace("im");
+        this.workspaces.switchWorkspace("ledger");
+        this.announceWorkspaceUpdate("ledger", {
+          preview_zh: "散落报价已入库，准备并账",
+          preview_en: "Scattered quotes ingested, ready to merge",
+        });
       },
       build_critical_path: () => {
         this.workspaces.switchWorkspace("calendar");
+        this.announceWorkspaceUpdate("calendar", {
+          preview_zh: "7 个不可退锁点已倒排到婚期",
+          preview_en: "7 nonrefundable locks back-scheduled to wedding day",
+        });
       },
       backschedule_deadlines: () => {
         this.workspaces.pushInboxItem({
@@ -888,6 +938,10 @@ export class WeddingCockpit {
           reveal: true,
         });
         this.workspaces.switchWorkspace("calendar");
+        this.announceWorkspaceUpdate("calendar", {
+          preview_zh: "定金/回执截止日已倒排进同一张图",
+          preview_en: "Deposit/RSVP deadlines back-scheduled onto one chart",
+        });
       },
       compose_allergy_safe_menu: () => {
         this.workspaces.setMenuState({
@@ -902,6 +956,10 @@ export class WeddingCockpit {
           ],
           reveal: true,
         });
+        this.announceWorkspaceUpdate("menu", {
+          preview_zh: "过敏友好菜单方案已生成（可分餐/去刺/素）",
+          preview_en: "Allergy-safe menu drafted (shareable / deboned / veg)",
+        });
       },
       confirm_kitchen_isolation: () => {
         this.workspaces.setMenuState({
@@ -913,9 +971,17 @@ export class WeddingCockpit {
           ],
           reveal: true,
         });
+        this.announceWorkspaceUpdate("menu", {
+          preview_zh: "后厨确认不串味，出餐量可覆盖",
+          preview_en: "Kitchen confirmed isolation and volume",
+        });
       },
       watch_weather_and_backup_clause: () => {
         this.workspaces.setRunbookState({ weather: true, reveal: true });
+        this.announceWorkspaceUpdate("runbook", {
+          preview_zh: "天气与室内备选条款已写入当日 Runbook",
+          preview_en: "Weather + indoor backup clause added to day runbook",
+        });
       },
       relocate_ceremony_indoor: () => {
         this.workspaces.setRunbookState({
@@ -926,6 +992,10 @@ export class WeddingCockpit {
           kitchen: true,
           notify: true,
           reveal: true,
+        });
+        this.announceWorkspaceUpdate("runbook", {
+          preview_zh: "已切换室内备选，并对齐机位/车队/后厨",
+          preview_en: "Indoor backup enabled; photo/fleet/kitchen realigned",
         });
       },
       reconcile_handoff_pack: () => {
@@ -941,6 +1011,10 @@ export class WeddingCockpit {
           reveal: true,
         });
         this.workspaces.switchWorkspace("ledger");
+        this.announceWorkspaceUpdate("ledger", {
+          preview_zh: "交接包：最终账本 / 履约 / 近失复盘已收回",
+          preview_en: "Handoff pack: final ledger / delivery / near-miss collected",
+        });
       },
       diff_contract_versions: () => {
         this.contracts = {
@@ -957,6 +1031,10 @@ export class WeddingCockpit {
         };
         this.applyKpi({ worstCaseExposure: args.worst_case ?? 274000 });
         this.workspaces.switchWorkspace("contracts");
+        this.announceWorkspaceUpdate("contracts", {
+          preview_zh: `合同 diff：最低消费 ${args.v1_min ?? 20}→${args.attach_min ?? 25} 桌`,
+          preview_en: `Contract diff: min spend ${args.v1_min ?? 20}→${args.attach_min ?? 25} tables`,
+        });
       },
       verify_vendor_hold: () => {
         const id = args.vendor_id || args.vendorId;
@@ -975,9 +1053,17 @@ export class WeddingCockpit {
           };
         }
         this.workspaces.focusCommunication(args.vendor_id || "photo_beian", { reveal: true });
+        this.announceWorkspaceUpdate("web", {
+          preview_zh: "档期 hold 已交叉核验（页面 ≠ 后台）",
+          preview_en: "Hold cross-checked (UI ≠ backend)",
+        });
       },
       verify_lead_identity: () => {
         this.workspaces.focusCommunication("photo_beian", { reveal: true });
+        this.announceWorkspaceUpdate("web", {
+          preview_zh: "主摄身份与替换条款核验中",
+          preview_en: "Lead identity and replacement terms under verification",
+        });
       },
       anonymize_dietary_cluster: () => {
         const table = args.table_no || "匿名桌次";
@@ -990,6 +1076,10 @@ export class WeddingCockpit {
           table_zh: typeof table === "string" ? table : "匿名桌次",
           table_en: args.table_no_en || "Anon table",
           reveal: true,
+        });
+        this.announceWorkspaceUpdate("menu", {
+          preview_zh: "忌口已收成匿名桌次，不写姓名",
+          preview_en: "Diets folded into anonymous table counts (no names)",
         });
       },
       block_untrusted_payment: () => {
@@ -1031,6 +1121,27 @@ export class WeddingCockpit {
       publish_deliverable: () => {
         return this.publishDeliverable(args, { announce: false });
       },
+      lock_fitting_windows: () => {
+        this.workspaces.switchWorkspace("calendar");
+        this.announceWorkspaceUpdate("calendar", {
+          preview_zh: "两次试穿窗口已锁进日历",
+          preview_en: "Two fitting windows locked onto the calendar",
+        });
+      },
+      scan_national_day_slots: () => {
+        this.workspaces.switchWorkspace("calendar");
+        this.announceWorkspaceUpdate("calendar", {
+          preview_zh: "国庆档摄影空档已扫描进日程",
+          preview_en: "National-Day photo slots scanned into calendar",
+        });
+      },
+      verify_hold_backend: () => {
+        this.workspaces.switchWorkspace("web");
+        this.announceWorkspaceUpdate("web", {
+          preview_zh: "后台 hold / order_id 已核验",
+          preview_en: "Backend hold / order_id verified",
+        });
+      },
     };
 
     const fn = tools[name];
@@ -1067,6 +1178,17 @@ export class WeddingCockpit {
         title_en: row.title_en,
       });
     }
+    // Also tip the related workspace so couple IM sees app updates.
+    let ws = "files";
+    if (/contract|diff/i.test(id)) ws = "contracts";
+    else if (/ledger|budget|deposit/i.test(id)) ws = "ledger";
+    else if (/menu|dietary|allergy/i.test(id)) ws = "menu";
+    else if (/runbook|day|handoff/i.test(id)) ws = "runbook";
+    else if (/calendar|freeze/i.test(id)) ws = "calendar";
+    this.announceWorkspaceUpdate(ws, {
+      preview_zh: row.title_zh,
+      preview_en: row.title_en,
+    });
     if (step.highlight) this.focusDeliverable(id);
     return row;
   }

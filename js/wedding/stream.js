@@ -3,8 +3,8 @@
  * No rich cards, sense-think-act rails, or dual-track chrome.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-no-think-cards";
-import { isReplayMode } from "../playback.js?v=20260812-no-think-cards";
+import { L, getLocale } from "../i18n.js?v=20260812-ws-tips";
+import { isReplayMode } from "../playback.js?v=20260812-ws-tips";
 
 export const AUTH_PAYMENT_THRESHOLD = 5000;
 
@@ -237,6 +237,9 @@ export class WeddingStream {
       tipWorkspace: msg.tip_workspace || msg.tipWorkspace || null,
       tipPreviewZh: msg.tip_preview_zh || msg.tipPreviewZh || "",
       tipPreviewEn: msg.tip_preview_en || msg.tipPreviewEn || "",
+      tipIcon: msg.tip_icon || msg.tipIcon || null,
+      tipActionZh: msg.tip_action_zh || msg.tipActionZh || "",
+      tipActionEn: msg.tip_action_en || msg.tipActionEn || "",
       meta: msg.meta || null,
       ts: msg.ts || Date.now(),
     };
@@ -274,7 +277,7 @@ export class WeddingStream {
     return row;
   }
 
-  /** Compact “new message received” tip inside the main couple IM. */
+  /** Compact tip inside the main couple IM (mail / SMS / people IM / app updates). */
   pushInboundTip({
     channel = "im",
     thread = null,
@@ -283,19 +286,32 @@ export class WeddingStream {
     from_en = "",
     preview_zh = "",
     preview_en = "",
+    title_zh = "",
+    title_en = "",
   } = {}) {
     const fromZh = String(from_zh || L("联系人", "Contact"));
     const fromEn = String(from_en || fromZh || "Contact");
-    const ch = channel === "mail" || channel === "email" ? "mail" : channel === "sms" ? "sms" : "im";
+    const meta = tipChannelMeta(channel);
+    const ch = meta.channel;
     const text_zh =
-      ch === "mail" ? `处理邮件 · ${fromZh}` : ch === "sms" ? `处理短信 · ${fromZh}` : `处理消息 · ${fromZh}`;
+      title_zh ||
+      (ch === "mail"
+        ? `处理邮件 · ${fromZh}`
+        : ch === "sms"
+          ? `处理短信 · ${fromZh}`
+          : ch === "im"
+            ? `处理消息 · ${fromZh}`
+            : `${meta.titleZh}${fromZh && fromZh !== L("联系人", "Contact") ? ` · ${fromZh}` : ""}`);
     const text_en =
-      ch === "mail"
+      title_en ||
+      (ch === "mail"
         ? `Handling mail · ${fromEn}`
         : ch === "sms"
           ? `Handling SMS · ${fromEn}`
-          : `Handling message · ${fromEn}`;
-    const ws = workspace || (ch === "mail" ? "mail" : ch === "sms" ? "sms" : "im");
+          : ch === "im"
+            ? `Handling message · ${fromEn}`
+            : `${meta.titleEn}${fromEn && fromEn !== "Contact" ? ` · ${fromEn}` : ""}`);
+    const ws = workspace || meta.workspace || ch;
     return this.pushMessage({
       thread: MAIN_THREAD,
       from: "agent",
@@ -305,8 +321,32 @@ export class WeddingStream {
       tip_channel: ch,
       tip_thread: thread,
       tip_workspace: ws,
-      tip_preview_zh: String(preview_zh || "").slice(0, 72),
-      tip_preview_en: String(preview_en || preview_zh || "").slice(0, 72),
+      tip_preview_zh: String(preview_zh || "").slice(0, 90),
+      tip_preview_en: String(preview_en || preview_zh || "").slice(0, 90),
+      tip_icon: meta.icon,
+      tip_action_zh: meta.actionZh,
+      tip_action_en: meta.actionEn,
+    });
+  }
+
+  /** Tip when calendar / ledger / contracts / menu / runbook etc. are updated. */
+  pushWorkspaceTip({
+    workspace = "ledger",
+    preview_zh = "",
+    preview_en = "",
+    title_zh = "",
+    title_en = "",
+  } = {}) {
+    const meta = tipChannelMeta(workspace);
+    return this.pushInboundTip({
+      channel: meta.channel,
+      workspace: meta.workspace,
+      title_zh: title_zh || meta.titleZh,
+      title_en: title_en || meta.titleEn,
+      preview_zh,
+      preview_en,
+      from_zh: "",
+      from_en: "",
     });
   }
 
@@ -484,16 +524,15 @@ export class WeddingStream {
         "text"
       );
       const ch = m.tipChannel || "im";
-      const ico = ch === "mail" ? "📧" : ch === "sms" ? "📱" : "💬";
+      const meta = tipChannelMeta(ch);
+      const ico = m.tipIcon || meta.icon;
       const openLabel =
-        ch === "mail"
-          ? L("查看邮件", "View mail")
-          : ch === "sms"
-            ? L("查看短信", "View SMS")
-            : L("查看", "View");
+        getLocale() === "en"
+          ? m.tipActionEn || meta.actionEn
+          : m.tipActionZh || meta.actionZh;
       return `<article class="wedding-stream-item wedding-inbound-tip ${arrive}" data-msg-id="${esc(m.id)}">
         <button type="button" class="wedding-inbound-tip-btn"
-          data-tip-workspace="${esc(m.tipWorkspace || ch)}"
+          data-tip-workspace="${esc(m.tipWorkspace || meta.workspace || ch)}"
           data-tip-thread="${esc(m.tipThread || "")}"
           data-tip-channel="${esc(ch)}">
           <span class="wedding-inbound-tip-ico" aria-hidden="true">${ico}</span>
@@ -704,6 +743,130 @@ export class WeddingStream {
       }, 520);
     }
   }
+}
+
+function tipChannelMeta(channel = "im") {
+  const ch = String(channel || "im");
+  const map = {
+    mail: {
+      channel: "mail",
+      workspace: "mail",
+      icon: "📧",
+      titleZh: "处理邮件",
+      titleEn: "Handling mail",
+      actionZh: "查看",
+      actionEn: "View",
+    },
+    email: {
+      channel: "mail",
+      workspace: "mail",
+      icon: "📧",
+      titleZh: "处理邮件",
+      titleEn: "Handling mail",
+      actionZh: "查看",
+      actionEn: "View",
+    },
+    sms: {
+      channel: "sms",
+      workspace: "sms",
+      icon: "📱",
+      titleZh: "处理短信",
+      titleEn: "Handling SMS",
+      actionZh: "查看",
+      actionEn: "View",
+    },
+    im: {
+      channel: "im",
+      workspace: "im",
+      icon: "💬",
+      titleZh: "处理消息",
+      titleEn: "Handling message",
+      actionZh: "查看",
+      actionEn: "View",
+    },
+    ledger: {
+      channel: "ledger",
+      workspace: "ledger",
+      icon: "📒",
+      titleZh: "更新账本",
+      titleEn: "Ledger updated",
+      actionZh: "查看",
+      actionEn: "View",
+    },
+    calendar: {
+      channel: "calendar",
+      workspace: "calendar",
+      icon: "📅",
+      titleZh: "更新日历",
+      titleEn: "Calendar updated",
+      actionZh: "查看",
+      actionEn: "View",
+    },
+    contracts: {
+      channel: "contracts",
+      workspace: "contracts",
+      icon: "📄",
+      titleZh: "更新合同",
+      titleEn: "Contracts updated",
+      actionZh: "查看",
+      actionEn: "View",
+    },
+    menu: {
+      channel: "menu",
+      workspace: "menu",
+      icon: "🍽️",
+      titleZh: "更新菜单",
+      titleEn: "Menu updated",
+      actionZh: "查看",
+      actionEn: "View",
+    },
+    runbook: {
+      channel: "runbook",
+      workspace: "runbook",
+      icon: "✅",
+      titleZh: "更新 Runbook",
+      titleEn: "Runbook updated",
+      actionZh: "查看",
+      actionEn: "View",
+    },
+    invites: {
+      channel: "invites",
+      workspace: "invites",
+      icon: "💌",
+      titleZh: "更新请柬",
+      titleEn: "Invites updated",
+      actionZh: "查看",
+      actionEn: "View",
+    },
+    files: {
+      channel: "files",
+      workspace: "files",
+      icon: "📁",
+      titleZh: "更新文件",
+      titleEn: "Files updated",
+      actionZh: "查看",
+      actionEn: "View",
+    },
+    web: {
+      channel: "web",
+      workspace: "web",
+      icon: "🌐",
+      titleZh: "更新网页核验",
+      titleEn: "Web check updated",
+      actionZh: "查看",
+      actionEn: "View",
+    },
+    booking: {
+      channel: "booking",
+      workspace: "booking",
+      icon: "📋",
+      titleZh: "更新预订",
+      titleEn: "Booking updated",
+      actionZh: "查看",
+      actionEn: "View",
+    },
+  };
+  return map[ch] || map.im;
 }
 
 function weddingThinkingCardHtml(zh, en) {

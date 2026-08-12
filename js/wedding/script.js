@@ -8,8 +8,8 @@ import {
   getPlaybackSpeed,
   playbackMs,
   chatPlaybackMs,
-} from "../playback.js?v=20260812-no-think-cards";
-import { getLocale, L } from "../i18n.js?v=20260812-no-think-cards";
+} from "../playback.js?v=20260812-ws-tips";
+import { getLocale, L } from "../i18n.js?v=20260812-ws-tips";
 
 const DEFAULT_INTERNAL_MS = {
   stage: 100,
