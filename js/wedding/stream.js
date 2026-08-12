@@ -3,8 +3,8 @@
  * No rich cards, sense-think-act rails, or dual-track chrome.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-switch-smooth";
-import { isReplayMode } from "../playback.js?v=20260812-switch-smooth";
+import { L, getLocale } from "../i18n.js?v=20260812-closeout";
+import { isReplayMode } from "../playback.js?v=20260812-closeout";
 
 export const AUTH_PAYMENT_THRESHOLD = 5000;
 
@@ -821,6 +821,15 @@ function tipChannelMeta(channel = "im") {
       icon: "✅",
       titleZh: "更新 Runbook",
       titleEn: "Runbook updated",
+      actionZh: "查看",
+      actionEn: "View",
+    },
+    closeout: {
+      channel: "closeout",
+      workspace: "closeout",
+      icon: "🧾",
+      titleZh: "收尾复盘",
+      titleEn: "Closeout review",
       actionZh: "查看",
       actionEn: "View",
     },

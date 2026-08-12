@@ -9,7 +9,7 @@ import {
   detectProvider,
 } from "./agent.js?v=20260808-travel-persona";
 import { Trajectory, isValidRecording } from "./trajectory.js?v=20260807-loop21";
-import { UI } from "./ui.js?v=20260812-switch-smooth";
+import { UI } from "./ui.js?v=20260812-closeout";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,8 +18,8 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260812-switch-smooth";
-import { loadPrecomputedRoutes } from "./routing.js?v=20260812-switch-smooth";
+} from "./map.js?v=20260812-closeout";
+import { loadPrecomputedRoutes } from "./routing.js?v=20260812-closeout";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -27,7 +27,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260812-switch-smooth";
+} from "./playback.js?v=20260812-closeout";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -41,10 +41,10 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260812-switch-smooth";
-import { EcomCockpit } from "./ecom/cockpit.js?v=20260812-switch-smooth";
-import { WeddingCockpit } from "./wedding/cockpit.js?v=20260812-switch-smooth";
-import { createScriptedScenarioRegistry } from "./scenarios.js?v=20260812-switch-smooth";
+} from "./i18n.js?v=20260812-closeout";
+import { EcomCockpit } from "./ecom/cockpit.js?v=20260812-closeout";
+import { WeddingCockpit } from "./wedding/cockpit.js?v=20260812-closeout";
+import { createScriptedScenarioRegistry } from "./scenarios.js?v=20260812-closeout";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {

@@ -2,15 +2,15 @@
  * Wedding planning cockpit — fixed KPI header, pure dialogue stream, workspace panels.
  */
 
-import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-switch-smooth";
-import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-switch-smooth";
+import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-closeout";
+import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-closeout";
 import {
   WeddingWorkspaces,
   maskContact,
   parseWeddingStageTracks,
   WORKSPACE_IDS,
-} from "./workspaces.js?v=20260812-switch-smooth";
-import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-switch-smooth";
+} from "./workspaces.js?v=20260812-closeout";
+import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-closeout";
 
 export { AUTH_PAYMENT_THRESHOLD, weddingProgressLabel, WORKSPACE_IDS };
 
@@ -1008,12 +1008,31 @@ export class WeddingCockpit {
           notify: true,
           handoff_zh: "交接：最终账本 · 供应商履约 · 差点出事复盘 · 可复用流程",
           handoff_en: "Handoff: final ledger · vendor delivery · near-miss review · reusable process",
+          reveal: false,
+        });
+        this.workspaces.setCloseoutState({
+          activeId: null,
+          focus_zh: "热闹办完了，账和承诺还要一条条对",
+          focus_en: "Day is done — accounts and promises still need line-by-line checks",
+          focus_detail_zh: "合同版本、主摄身份、试穿退改、忌口隐私、尾款与假催付",
+          focus_detail_en: "Contract version, lead ID, fitting cancel, diet privacy, tails vs scam",
           reveal: true,
         });
-        this.workspaces.switchWorkspace("ledger");
-        this.announceWorkspaceUpdate("ledger", {
-          preview_zh: "交接包：最终账本 / 履约 / 近失复盘已收回",
-          preview_en: "Handoff pack: final ledger / delivery / near-miss collected",
+        this.announceWorkspaceUpdate("closeout", {
+          preview_zh: "收尾复盘已打开：准备逐条核对合同 / 主摄 / 试穿 / 忌口 / 尾款",
+          preview_en: "Closeout opened: ready to check contract / lead / fitting / diet / tails",
+        });
+      },
+      tick_closeout_item: () => {
+        const id = args.id || args.item || args.item_id;
+        this.workspaces.tickCloseout(id, {
+          detail_zh: args.detail_zh,
+          detail_en: args.detail_en,
+          reveal: true,
+        });
+        this.announceWorkspaceUpdate("closeout", {
+          preview_zh: args.preview_zh || args.detail_zh || "收尾复盘推进一项",
+          preview_en: args.preview_en || args.detail_en || "Closeout advanced one check",
         });
       },
       diff_contract_versions: () => {

@@ -8,8 +8,8 @@ import {
   getPlaybackSpeed,
   playbackMs,
   chatPlaybackMs,
-} from "../playback.js?v=20260812-switch-smooth";
-import { getLocale, L } from "../i18n.js?v=20260812-switch-smooth";
+} from "../playback.js?v=20260812-closeout";
+import { getLocale, L } from "../i18n.js?v=20260812-closeout";
 
 const DEFAULT_INTERNAL_MS = {
   stage: 100,
@@ -29,6 +29,9 @@ const DEFAULT_INTERNAL_MS = {
   calendar_cancel: 220,
   files_update: 200,
   web_update: 220,
+  closeout_init: 180,
+  closeout_tick: 220,
+  invites_update: 200,
 };
 
 const HUMAN_SENDERS = new Set([
@@ -319,6 +322,50 @@ export class WeddingScriptPlayer {
       return;
     }
 
+    if (type === "invites_update") {
+      c.workspaces?.setInviteState?.({
+        status_zh: step.status_zh,
+        status_en: step.status_en,
+        note_zh: step.note_zh,
+        note_en: step.note_en,
+        households: step.households,
+        dispatched: step.dispatched,
+        reveal: step.reveal !== false,
+      });
+      if (step.kpi) c.applyKpi?.(step.kpi, { flash: true });
+      await sleepPlayback(this._internalMs("switch_workspace"));
+      return;
+    }
+
+    if (type === "closeout_init") {
+      c.workspaces?.setCloseoutState?.({
+        items: step.items,
+        activeId: null,
+        focus_zh: step.focus_zh || "婚礼办完还有繁琐复盘",
+        focus_en: step.focus_en || "Closeout still has messy reconciliation",
+        focus_detail_zh: step.focus_detail_zh || "合同、主摄、试穿、忌口、尾款要一条条对回来",
+        focus_detail_en: step.focus_detail_en || "Contracts, lead photo, fittings, diets and tails must reconcile line by line",
+        reveal: step.reveal !== false,
+      });
+      await sleepPlayback(this._internalMs("switch_workspace"));
+      return;
+    }
+
+    if (type === "closeout_tick") {
+      const id = step.id || step.item || step.item_id;
+      c.workspaces?.tickCloseout?.(id, {
+        detail_zh: step.detail_zh,
+        detail_en: step.detail_en,
+        reveal: step.reveal !== false,
+      });
+      c.announceWorkspaceUpdate?.("closeout", {
+        preview_zh: step.preview_zh || step.detail_zh || step.text_zh || "收尾复盘推进一项",
+        preview_en: step.preview_en || step.detail_en || step.text_en || "Closeout advanced one check",
+      });
+      await sleepPlayback(this._internalMs("closeout_tick"));
+      return;
+    }
+
     console.warn("[wedding] unknown step type", type, step);
     await sleepPlayback(120);
   }
@@ -354,6 +401,9 @@ function normalizeWorkspace(id) {
     browser: "web",
     calendar: "calendar",
     runbook: "runbook",
+    closeout: "closeout",
+    reconcile: "closeout",
+    handoff: "closeout",
     tracks: "im",
     rsvp: "im",
   };

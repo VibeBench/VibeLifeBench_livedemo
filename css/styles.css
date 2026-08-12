@@ -19076,6 +19076,137 @@ img.wedding-message-avatar,
   line-height: 1.45;
 }
 
+.wedding-closeout-board {
+  padding: 14px 16px 18px;
+}
+
+.wedding-closeout-focus {
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #dceae6;
+  background: #f7fbfa;
+  display: grid;
+  gap: 4px;
+}
+
+.wedding-closeout-focus.is-live {
+  border-color: #8ecfc3;
+  background: linear-gradient(180deg, #eefaf7, #f7fbfa);
+}
+
+.wedding-closeout-focus span {
+  font-size: 11px;
+  font-weight: 700;
+  color: #5a6d68;
+  letter-spacing: 0.02em;
+}
+
+.wedding-closeout-focus strong {
+  font-size: 15px;
+  color: #14201d;
+}
+
+.wedding-closeout-focus p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #5a6d68;
+}
+
+.wedding-closeout-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.wedding-closeout-list li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border: 1px solid #dceae6;
+  border-radius: 12px;
+  background: #fff;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.wedding-closeout-list li em {
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  background: #eef5f3;
+  color: #5a6d68;
+}
+
+.wedding-closeout-list li div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wedding-closeout-list li strong {
+  font-size: 13px;
+  color: #14201d;
+}
+
+.wedding-closeout-list li small {
+  font-size: 11px;
+  color: #7a8a86;
+  line-height: 1.35;
+}
+
+.wedding-closeout-list li b {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7a8a86;
+  white-space: nowrap;
+}
+
+.wedding-closeout-list li.is-active {
+  border-color: #8ecfc3;
+  box-shadow: 0 0 0 1px rgba(95, 191, 176, 0.25);
+}
+
+.wedding-closeout-list li.is-done {
+  border-color: #b9ddd6;
+  background: #f3fbf9;
+}
+
+.wedding-closeout-list li.is-done em {
+  background: var(--agent-teal, #5fbfb0);
+  color: #fff;
+}
+
+.wedding-closeout-list li.is-done b {
+  color: var(--agent-teal-deep, #3d9b8a);
+}
+
+.wedding-closeout-list li.is-flash {
+  transform: translateY(-1px);
+  border-color: #5fbfb0;
+  background: #e8f7f4;
+}
+
+.wedding-closeout-done {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #14201d;
+  color: #e8f7f4;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .ecom-app-msg.is-scam .ecom-app-bubble {
   border-color: #f0c9a8;
   background: #fff6ef;

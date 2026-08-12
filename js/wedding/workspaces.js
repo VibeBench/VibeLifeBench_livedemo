@@ -3,8 +3,8 @@
  * Aligns with ecom Team Inbox pattern (one big window, multi-contact).
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-switch-smooth";
-import { sleepPlayback } from "../playback.js?v=20260812-switch-smooth";
+import { L, getLocale } from "../i18n.js?v=20260812-closeout";
+import { sleepPlayback } from "../playback.js?v=20260812-closeout";
 
 export const WORKSPACE_IDS = [
   "im",
@@ -19,6 +19,7 @@ export const WORKSPACE_IDS = [
   "calendar",
   "runbook",
   "booking",
+  "closeout",
 ];
 
 const WORKSPACE_LABEL = {
@@ -35,7 +36,75 @@ const WORKSPACE_LABEL = {
   calendar: { zh: "关键日程", en: "Calendar" },
   runbook: { zh: "当日 Runbook", en: "Day runbook" },
   booking: { zh: "预订状态", en: "Bookings" },
+  closeout: { zh: "收尾复盘", en: "Closeout" },
 };
+
+const CLOSEOUT_DEFAULT_ITEMS = [
+  {
+    id: "contract",
+    zh: "场地最后按哪一版合同结算",
+    en: "Which venue contract version settled",
+    detail_zh: "群文件 v1（20 桌）vs 邮件附件（25 桌）——不能混用",
+    detail_en: "Group v1 (20 tables) vs email annex (25) — cannot mix",
+    evidence: "contracts",
+  },
+  {
+    id: "photo_lead",
+    zh: "当天主摄是不是核过的那位",
+    en: "Was the verified lead photographer on site",
+    detail_zh: "页面“已锁定”与后台主摄身份可能不一致",
+    detail_en: "UI “locked” may not match the verified lead",
+    evidence: "web",
+  },
+  {
+    id: "fitting2",
+    zh: "第二次试穿有没有如实取消",
+    en: "Was the second fitting truly cancelled",
+    detail_zh: "工期拖延后 8/26 是否仍计费、日历是否已取消",
+    detail_en: "After delay, was 8/26 still billed and cancelled on calendar",
+    evidence: "calendar",
+  },
+  {
+    id: "dietary",
+    zh: "忌口餐有没有露出名字",
+    en: "Dietary plates kept anonymous",
+    detail_zh: "只交匿名桌次与忌口统计，不外泄亲戚姓名",
+    detail_en: "Only anon table + diet counts — no relative names",
+    evidence: "menu",
+  },
+  {
+    id: "tables",
+    zh: "回执桌数与最低消费是否对上",
+    en: "RSVP tables vs min spend aligned",
+    detail_zh: "请柬印数、回执桌数、场地最低桌要同一口径",
+    detail_en: "Invite count, RSVP tables and venue min must match",
+    evidence: "invites",
+  },
+  {
+    id: "tails",
+    zh: "定金 / 尾款 / 不可退锁是否归位",
+    en: "Deposits, tails and nonrefund locks settled",
+    detail_zh: "已付、待付、退改散落在聊天与后台，要并回一本账",
+    detail_en: "Paid / due / refunds sit in chats and backends — merge one ledger",
+    evidence: "ledger",
+  },
+  {
+    id: "scam",
+    zh: "假催付有没有和真尾款搅在一起",
+    en: "Fake chase not mixed with real tails",
+    detail_zh: "“今天付定金锁档期”类外链 vs 供应商真催尾款",
+    detail_en: "“Pay today to lock” links vs real vendor tail invoices",
+    evidence: "mail",
+  },
+  {
+    id: "budget",
+    zh: "总承诺是否仍压在 ¥250,000 内",
+    en: "Committed total still under ¥250,000",
+    detail_zh: "扰动费用、换厅、空档不能漏记或重记",
+    detail_en: "Disruption costs and swaps must not be missed or double-counted",
+    evidence: "ledger",
+  },
+];
 
 function normalizeWorkspaceId(id = "im") {
   if (id === "inbox" || id === "email") return "mail";
@@ -154,6 +223,7 @@ export class WeddingWorkspaces {
     this.menuState = null;
     this.inviteState = null;
     this.runbookState = null;
+    this.closeoutState = null;
     this.filesState = [];
     this.webState = null;
     this._vendorMessages = {};
@@ -195,6 +265,7 @@ export class WeddingWorkspaces {
     this.menuState = null;
     this.inviteState = null;
     this.runbookState = null;
+    this.closeoutState = null;
     this.filesState = (this.seed?.files || []).map((f) => ({ ...f }));
     this.webState = null;
     // IM is people chat only — app surfaces (ledger / invites) stay out of the contact list.
@@ -272,6 +343,7 @@ export class WeddingWorkspaces {
       calendar: () => this._renderCalendar(state),
       runbook: () => this._renderRunbook(state),
       booking: () => this._renderBooking(state),
+      closeout: () => this._renderCloseout(state),
     };
     const html = (renderers[this.active] || (() => this._renderEmpty()))();
 
@@ -526,6 +598,56 @@ export class WeddingWorkspaces {
     this.runbookState = { ...(this.runbookState || {}), ...state };
     if (state.reveal !== false) this.switchWorkspace("runbook");
     else if (this.active === "runbook") this.render();
+  }
+
+  setCloseoutState(state = {}) {
+    const prev = this.closeoutState || {};
+    const nextItems = Array.isArray(state.items)
+      ? state.items.map((it) => ({ ...it }))
+      : (prev.items || CLOSEOUT_DEFAULT_ITEMS.map((it) => ({ ...it, done: false })));
+    this.closeoutState = {
+      ...prev,
+      ...state,
+      items: nextItems,
+      activeId: state.activeId ?? prev.activeId ?? null,
+    };
+    if (state.reveal !== false) this.switchWorkspace("closeout");
+    else if (this.active === "closeout") this.render();
+  }
+
+  tickCloseout(itemId, { detail_zh, detail_en, reveal = true } = {}) {
+    const base = this.closeoutState?.items?.length
+      ? this.closeoutState.items
+      : CLOSEOUT_DEFAULT_ITEMS.map((it) => ({ ...it, done: false }));
+    const items = base.map((it) => {
+      if (it.id !== itemId) return { ...it, flash: false };
+      return {
+        ...it,
+        done: true,
+        flash: true,
+        detail_zh: detail_zh || it.detail_zh,
+        detail_en: detail_en || it.detail_en,
+      };
+    });
+    const active = items.find((it) => it.id === itemId) || null;
+    this.setCloseoutState({
+      items,
+      activeId: itemId,
+      focus_zh: active?.zh,
+      focus_en: active?.en,
+      focus_detail_zh: active?.detail_zh,
+      focus_detail_en: active?.detail_en,
+      reveal,
+    });
+    // Clear flash on next paint cycle so re-ticks still pulse.
+    window.setTimeout(() => {
+      if (!this.closeoutState?.items) return;
+      this.closeoutState = {
+        ...this.closeoutState,
+        items: this.closeoutState.items.map((it) => ({ ...it, flash: false })),
+      };
+      if (this.active === "closeout") this.render({ softSwitch: true });
+    }, 700);
   }
 
   _updateCommsBadge() {
@@ -1324,6 +1446,61 @@ export class WeddingWorkspaces {
           ? `<p class="wedding-runbook-handoff">${esc(
               pickLocaleText(r, "handoff") ||
                 L("交接：最终账本 · 供应商履约 · 差点出事复盘 · 可复用流程", "Handoff: final ledger · vendor delivery · near-miss review · reusable process")
+            )}</p>`
+          : ""
+      }
+    </div>`;
+  }
+
+  _renderCloseout(state = {}) {
+    const kpi = state.kpi || {};
+    const c = this.closeoutState || {};
+    const items = Array.isArray(c.items) && c.items.length
+      ? c.items
+      : CLOSEOUT_DEFAULT_ITEMS.map((it) => ({ ...it, done: false }));
+    const doneN = items.filter((it) => it.done).length;
+    const focusZh = c.focus_zh || items.find((it) => it.id === c.activeId)?.zh || L("婚礼办完还有繁琐复盘", "Closeout still has messy reconciliation");
+    const focusEn = c.focus_en || items.find((it) => it.id === c.activeId)?.en || "Closeout still has messy reconciliation";
+    const detailZh =
+      c.focus_detail_zh || items.find((it) => it.id === c.activeId)?.detail_zh || L("合同、主摄、试穿、忌口、尾款要一条条对回来", "Contracts, lead photo, fittings, diets and tails must reconcile line by line");
+    const detailEn =
+      c.focus_detail_en || items.find((it) => it.id === c.activeId)?.detail_en || "Contracts, lead photo, fittings, diets and tails must reconcile line by line";
+    const en = getLocale() === "en";
+    this.setTitle(L("收尾复盘", "Closeout"));
+    this.setStatus(L(`${doneN}/${items.length} 已核`, `${doneN}/${items.length} checked`));
+    return `<div class="wedding-closeout-board">
+      <header class="wedding-panel-head">
+        <strong>${esc(L("婚礼收尾复盘", "Wedding closeout review"))}</strong>
+        <span>${esc(String(kpi.weddingDate || "2026-10-03"))} · ¥${esc(fmt(Number(kpi.committedTotal) || 0))} / ¥${esc(fmt(Number(kpi.budgetTotal) || 250000))}</span>
+      </header>
+      <section class="wedding-closeout-focus ${c.activeId ? "is-live" : ""}">
+        <span>${esc(L("正在核", "Checking"))}</span>
+        <strong>${esc(en ? focusEn : focusZh)}</strong>
+        <p>${esc(en ? detailEn : detailZh)}</p>
+      </section>
+      <ol class="wedding-closeout-list">
+        ${items
+          .map((it, i) => {
+            const label = en ? it.en || it.zh : it.zh || it.en;
+            const detail = en ? it.detail_en || it.detail_zh : it.detail_zh || it.detail_en;
+            const cls = [it.done ? "is-done" : "", it.id === c.activeId ? "is-active" : "", it.flash ? "is-flash" : ""]
+              .filter(Boolean)
+              .join(" ");
+            return `<li class="${cls}" data-closeout-id="${esc(it.id)}">
+              <em>${i + 1}</em>
+              <div>
+                <strong>${esc(label)}</strong>
+                <small>${esc(detail || "")}</small>
+              </div>
+              <b>${esc(it.done ? L("已核", "Checked") : L("待核", "Open"))}</b>
+            </li>`;
+          })
+          .join("")}
+      </ol>
+      ${
+        doneN >= items.length
+          ? `<p class="wedding-closeout-done">${esc(
+              L("热闹办完≠账对清：合同、身份、退改、隐私和尾款已逐条收回。", "Pretty day ≠ books closed: contracts, identity, cancellations, privacy and tails recalled line by line.")
             )}</p>`
           : ""
       }

@@ -16,7 +16,7 @@
     "target_duration_ms": {
       "min": 210000,
       "max": 270000,
-      "actual": 240025
+      "actual": 251025
     }
   },
   "steps": [
@@ -5177,10 +5177,10 @@
       "part_n": 5,
       "title_zh": "Part 5 · 户外遇雨，但婚期、场地锁和宾客动线都不能重来",
       "title_en": "Part 5 · Rain hits outdoors, but date and venue lock cannot be redone",
-      "text_zh": "盯天气，翻备用条款与无障碍条款，把仪式挪进室内备选；摄影机位、司仪流程、宾客通知与开席时间一起对齐，只把需点头处递上。交接前收回最终账本、履约记录、差点出事的复盘与可复用流程。",
-      "text_en": "Watch weather, pull backup and accessibility clauses, move ceremony indoors; align cameras, emcee run-of-show, guest notices and kitchen serve time — only nod-needed points go to the couple. Before handoff gather final ledger, vendor delivery record, near-miss review and a reusable process.",
-      "conflict_zh": "草坪仪式将开，天忽然变了；室内备选还在翻台。换地方要重找机位、挪下客点、保证长辈无台阶，开席时间也跟着变——钱不能多花，当天更签不了大合同。客人散了，账还要一条条对回来。",
-      "conflict_en": "Lawn ceremony is about to start and weather turns; the indoor backup is still turning over. Moving means new camera positions, drop-off, step-free elder routes and a new serve time — budget cannot grow, and there is no time for a new full contract. Guests leave; accounts still must reconcile line by line.",
+      "text_zh": "盯天气，翻备用条款与无障碍条款，把仪式挪进室内备选；摄影机位、司仪流程、宾客通知与开席时间一起对齐，只把需点头处递上。婚礼办完后还要把合同版本、主摄身份、试穿退改、忌口隐私、尾款与假催付一条条对回来。",
+      "text_en": "Watch weather, pull backup and accessibility clauses, move ceremony indoors; align cameras, emcee, guest notices and kitchen serve time — only nod items go up. After the day, still reconcile contract version, lead ID, fitting cancel, diet privacy, tails and scam chases line by line.",
+      "conflict_zh": "草坪仪式将开，天忽然变了；室内备选还在翻台。换地方要重找机位、挪下客点、保证长辈无台阶，开席时间也跟着变——钱不能多花，当天更签不了大合同。客人散了，账、身份和退改还要一条条对回来。",
+      "conflict_en": "Lawn ceremony is about to start and weather turns; the indoor backup is still turning over. Moving means new camera positions, drop-off, step-free elder routes and a new serve time — budget cannot grow, and there is no time for a new full contract. Guests leave; accounts, identities and cancellations still must reconcile line by line.",
       "holdMs": 1554,
       "benchmark_refs": {
         "events": [
@@ -5621,8 +5621,8 @@
       "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
-      "text_zh": "按室内备选执行了：摄影、司仪、宾客动线、后厨都已对齐，婚期没有动。交接前我会收回最终账本、供应商履约记录、差点出事复盘和可复用流程，整理成交接包给你。",
-      "text_en": "Indoor backup is running: photo, MC, guest flow and kitchen are aligned; the date didn’t move. Before handoff I’ll collect final ledger, vendor performance, near-miss review and reusable SOP into your closeout pack.",
+      "text_zh": "按室内备选执行了：摄影、司仪、宾客动线、后厨都已对齐，婚期没有动。热闹办完不等于账对清——我接下来逐条核：场地按哪版合同、当天是不是核过的主摄、第二次试穿有没有如实取消、忌口餐有没有露名字、回执桌数与最低消费、定金尾款归位、假催付有没有搅进真尾款，最后再对总预算。",
+      "text_en": "Indoor backup ran: photo, MC, guest flow and kitchen aligned; the date didn’t move. A pretty day ≠ books closed — next I’ll check line by line: which venue contract settled, whether the verified lead showed up, whether the second fitting was truly cancelled, whether diet plates stayed anonymous, RSVP vs min spend, deposit/tail locks, scam chase vs real invoice, then the budget cap.",
       "holdMs": 1600,
       "benchmark_refs": {
         "events": [
@@ -5632,8 +5632,8 @@
         ],
         "mutations": []
       },
-      "thinking_zh": "收官不等于结束责任：要对账 + 交接包。",
-      "thinking_en": "Ceremony end ≠ responsibility end: reconcile + closeout pack."
+      "thinking_zh": "收官要对合同/身份/退改/隐私/尾款逐条复盘，不能只丢一句交接包。",
+      "thinking_en": "Closeout needs line-by-line contract/identity/cancel/privacy/tail checks — not one vague handoff line."
     },
     {
       "type": "tool_call",
@@ -5683,6 +5683,208 @@
       "thinking_en": "Before the party ends, collect ledger + near-miss into a reusable handoff."
     },
     {
+      "type": "switch_bench",
+      "bench": "closeout",
+      "holdMs": 160,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "closeout_init",
+      "focus_zh": "热闹办完了，账和承诺还要一条条对",
+      "focus_en": "Day is done — accounts and promises still need line-by-line checks",
+      "focus_detail_zh": "合同版本、主摄身份、试穿退改、忌口隐私、尾款与假催付",
+      "focus_detail_en": "Contract version, lead ID, fitting cancel, diet privacy, tails vs scam",
+      "holdMs": 320,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "tool_call",
+      "name": "diff_contract_versions",
+      "args": {
+        "v1_min": 20,
+        "attach_min": 25,
+        "worst_case": 248600
+      },
+      "holdMs": 420,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "closeout_tick",
+      "id": "contract",
+      "detail_zh": "按合同 v1（20 桌）结算；25 桌附件未代签",
+      "detail_en": "Settled on contract v1 (20 tables); 25-table annex unsigned",
+      "preview_zh": "合同：按 v1 结算，附件未代签",
+      "preview_en": "Contract: settle on v1, annex unsigned",
+      "holdMs": 900,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "web_update",
+      "web": {
+        "url": "beian.photo/orders/hold",
+        "title_zh": "北岸影像 · 档期核验",
+        "title_en": "Beian Photo · hold verify",
+        "status_zh": "主摄：林川（已核）· 页面“已锁定”已过期",
+        "status_en": "Lead: Lin Chuan (verified) · UI “locked” expired",
+        "note_zh": "后台 order 释放过，最终以核验主摄到场为准",
+        "note_en": "Backend hold released once; verified lead on site is the source of truth",
+        "ui_zh": "页面：已锁定（过期灰显）",
+        "ui_en": "UI: Locked (stale, greyed)",
+        "backend_zh": "后台：主摄林川已核验到场",
+        "backend_en": "Backend: lead Lin Chuan verified on site",
+        "mismatch": false
+      },
+      "holdMs": 480,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "closeout_tick",
+      "id": "photo_lead",
+      "detail_zh": "当天主摄与核验名单一致；过期“已锁定”已标灰",
+      "detail_en": "On-site lead matches verified roster; stale “locked” greyed out",
+      "preview_zh": "摄影：主摄身份已核，假锁定已排除",
+      "preview_en": "Photo: lead verified, fake lock dismissed",
+      "holdMs": 900,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "calendar_upsert",
+      "event": {
+        "id": "fitting_2",
+        "date": "2026-08-26",
+        "zh": "第二次试穿 · 已取消",
+        "en": "Second fitting · cancelled",
+        "status": "unavailable"
+      },
+      "holdMs": 420,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "closeout_tick",
+      "id": "fitting2",
+      "detail_zh": "08-26 第二次试穿已取消，未重复计费",
+      "detail_en": "08-26 second fitting cancelled; not double-billed",
+      "preview_zh": "婚纱：第二次试穿已如实取消",
+      "preview_en": "Gown: second fitting truly cancelled",
+      "holdMs": 900,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "tool_call",
+      "name": "confirm_kitchen_isolation",
+      "args": {},
+      "holdMs": 420,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "closeout_tick",
+      "id": "dietary",
+      "detail_zh": "忌口按匿名桌次出餐，未露出亲戚姓名",
+      "detail_en": "Diets plated by anon table — no relative names exposed",
+      "preview_zh": "菜单：忌口匿名，未露名字",
+      "preview_en": "Menu: diets anonymous, no names",
+      "holdMs": 900,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "invites_update",
+      "status_zh": "回执齐 · 22 桌",
+      "status_en": "RSVP complete · 22 tables",
+      "note_zh": "回执 22 桌落在最低 20 / 容量 26；请柬印数已对齐。",
+      "note_en": "RSVP 22 tables sits in min 20 / cap 26; print count aligned.",
+      "households": 22,
+      "dispatched": true,
+      "reveal": true,
+      "holdMs": 480,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "closeout_tick",
+      "id": "tables",
+      "detail_zh": "回执 22 桌落在最低 20 / 容量 26 区间内",
+      "detail_en": "RSVP 22 tables sits inside min 20 / cap 26",
+      "preview_zh": "回执桌数与场地门槛对齐",
+      "preview_en": "RSVP tables aligned with venue band",
+      "holdMs": 900,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "switch_bench",
+      "bench": "ledger",
+      "holdMs": 360,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "closeout_tick",
+      "id": "tails",
+      "detail_zh": "定金不可退锁与尾款待付已归位，无双记",
+      "detail_en": "Nonrefund deposits and due tails seated — no double count",
+      "preview_zh": "账本：定金/尾款/不可退锁归位",
+      "preview_en": "Ledger: deposits/tails/locks seated",
+      "holdMs": 900,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "notification",
+      "channel": "email",
+      "from_zh": "可疑催付",
+      "from_en": "Suspicious chase",
+      "subject_zh": "【拦截】婚庆一条龙·今天付定金锁档期",
+      "subject_en": "[Blocked] All-in wedding · pay deposit today to lock",
+      "body_zh": "外链催付已拦截，未打开、未转发；供应商真尾款仍走原合同账户。",
+      "body_en": "Outbound chase blocked — not opened/forwarded; real vendor tails stay on contract accounts.",
+      "text_zh": "【拦截】婚庆一条龙·今天付定金锁档期",
+      "text_en": "[Blocked] All-in wedding · pay deposit today to lock",
+      "level": "warn",
+      "reveal": true,
+      "holdMs": 480,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "closeout_tick",
+      "id": "scam",
+      "detail_zh": "假“锁档期”催付已拦截；真尾款另线保留",
+      "detail_en": "Fake “lock slot” chase blocked; real tail kept on another thread",
+      "preview_zh": "邮件：假催付已拦，真尾款另核",
+      "preview_en": "Mail: scam blocked, real tail separate",
+      "holdMs": 900,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "kpi_update",
+      "kpi": {
+        "committedTotal": 248600,
+        "budgetTotal": 250000,
+        "worstCaseExposure": 248600
+      },
+      "holdMs": 420,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "closeout_tick",
+      "id": "budget",
+      "detail_zh": "已承诺 ¥248,600 ≤ ¥250,000，扰动未漏记",
+      "detail_en": "Committed ¥248,600 ≤ ¥250,000; disruptions not missed",
+      "preview_zh": "总预算仍压在硬顶内",
+      "preview_en": "Budget still under the hard cap",
+      "holdMs": 900,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "switch_bench",
+      "bench": "closeout",
+      "holdMs": 200,
+      "_enrich": "p5_closeout"
+    },
+    {
+      "type": "world",
+      "level": "ok",
+      "text_zh": "收尾复盘 8/8：合同 / 主摄 / 试穿 / 忌口 / 桌数 / 尾款 / 防诈 / 预算已逐条收回",
+      "text_en": "Closeout 8/8: contract / lead / fitting / diet / tables / tails / anti-scam / budget recalled",
+      "holdMs": 700,
+      "_enrich": "p5_closeout"
+    },
+    {
       "type": "world",
       "act": "act_merge",
       "level": "ok",
@@ -5703,10 +5905,10 @@
       "act": "act_merge",
       "id": "wedding_runbook",
       "kind": "runbook",
-      "title_zh": "婚礼当日 runbook",
-      "title_en": "Wedding day runbook",
-      "body_zh": "雨天挪室内 · 日期不动\n机位/司仪/动线/开席对齐\n最终账本 · 履约记录 · 近失复盘",
-      "body_en": "Rain → indoor · date holds\nCameras/MC/flow/serve aligned\nFinal ledger · delivery · near-miss review",
+      "title_zh": "婚礼当日 runbook + 收尾复盘",
+      "title_en": "Wedding-day runbook + closeout",
+      "body_zh": "雨天挪室内 · 日期不动\n机位/司仪/动线/开席对齐\n收尾复盘 8 步：合同·主摄·试穿·忌口·桌数·尾款·防诈·预算",
+      "body_en": "Rain → indoor · date holds\nCameras/MC/flow/serve aligned\nCloseout ×8: contract·lead·fitting·diet·tables·tails·scam·budget",
       "highlight": true,
       "holdMs": 1371,
       "benchmark_refs": {
