@@ -8,8 +8,8 @@ import {
   getPlaybackSpeed,
   playbackMs,
   chatPlaybackMs,
-} from "../playback.js?v=20260812-scroll-fix";
-import { getLocale, L } from "../i18n.js?v=20260812-scroll-fix";
+} from "../playback.js?v=20260812-ios-apps";
+import { getLocale, L } from "../i18n.js?v=20260812-ios-apps";
 
 const DEFAULT_INTERNAL_MS = {
   stage: 100,

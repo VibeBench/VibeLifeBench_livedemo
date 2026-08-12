@@ -3,8 +3,8 @@
  * Aligns with ecom Team Inbox pattern (one big window, multi-contact).
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-scroll-fix";
-import { sleepPlayback } from "../playback.js?v=20260812-scroll-fix";
+import { L, getLocale } from "../i18n.js?v=20260812-ios-apps";
+import { sleepPlayback } from "../playback.js?v=20260812-ios-apps";
 
 export const WORKSPACE_IDS = [
   "im",
@@ -1316,40 +1316,57 @@ export class WeddingWorkspaces {
     const worst = Number(kpi.worstCaseExposure) || 0;
     const reserve = Number.isFinite(Number(kpi.reserveRemaining)) ? Number(kpi.reserveRemaining) : 20000;
     const pct = cap > 0 ? Math.min(100, Math.round((committed / cap) * 100)) : 0;
+    const remain = Math.max(0, cap - committed);
     const rows = ledgerRows.length ? ledgerRows : buildLedgerPreview(locks, kpi);
     this.setTitle(L("预算账本", "Budget ledger"));
     this.setStatus(L("Agent 不代签", "Agent does not sign"));
 
-    return `<div class="wedding-ledger-board">
-      <header class="wedding-panel-head">
-        <strong>${esc(L("预算账本", "Budget ledger"))}</strong>
-        <span>${esc(L("Agent 不代签", "Agent does not sign"))}</span>
+    return `<div class="w-ledger-app">
+      <header class="w-app-nav">
+        <div>
+          <strong>${esc(L("账本", "Ledger"))}</strong>
+          <span>${esc(L("婚礼预算 · 只读", "Wedding budget · read-only"))}</span>
+        </div>
+        <em class="w-app-nav-chip">${esc(L("不代签", "No signing"))}</em>
       </header>
-      <div class="wedding-ledger-hero">
-        <div><span>${esc(L("已承诺", "Committed"))}</span><b>¥${esc(fmt(committed))}</b></div>
-        <div><span>${esc(L("预算顶", "Cap"))}</span><b>¥${esc(fmt(cap))}</b></div>
-        <div><span>${esc(L("最坏暴露", "Worst case"))}</span><b class="${worst > cap ? "is-warn" : ""}">¥${esc(fmt(worst))}</b></div>
-        <div><span>${esc(L("预备金", "Reserve"))}</span><b>¥${esc(fmt(reserve))}</b></div>
+      <section class="w-ledger-summary">
+        <div class="w-ledger-balance">
+          <span>${esc(L("已承诺", "Committed"))}</span>
+          <b>¥${esc(fmt(committed))}</b>
+          <small>${esc(L(`预算顶 ¥${fmt(cap)} · 已用 ${pct}%`, `Cap ¥${fmt(cap)} · ${pct}% used`))}</small>
+        </div>
+        <div class="w-ledger-ring" style="--pct:${pct}" aria-hidden="true">
+          <i></i>
+          <em>${pct}%</em>
+        </div>
+      </section>
+      <div class="w-ledger-meter" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
+        <i style="width:${pct}%"></i>
       </div>
-      <div class="wedding-ledger-meter" style="--pct:${pct}%"><i></i></div>
-      <table class="wedding-ledger-table">
-        <thead><tr>
-          <th>${esc(L("锁/科目", "Lock / line"))}</th>
-          <th>${esc(L("轨道", "Track"))}</th>
-          <th>${esc(L("金额", "Amount"))}</th>
-          <th>${esc(L("状态", "Status"))}</th>
-        </tr></thead>
-        <tbody>${rows
-          .map(
-            (r) => `<tr class="${r.changed ? "is-flash" : ""}">
-              <td>${esc(r.label)}</td>
-              <td>${esc(r.track || "—")}</td>
-              <td>¥${esc(fmt(r.amount))}</td>
-              <td><span class="wedding-status-pill is-${esc(r.statusClass || "planned")}">${esc(r.status)}</span></td>
-            </tr>`
-          )
-          .join("")}</tbody>
-      </table>
+      <div class="w-ledger-stats">
+        <article><span>${esc(L("剩余额度", "Remaining"))}</span><b>¥${esc(fmt(remain))}</b></article>
+        <article><span>${esc(L("最坏暴露", "Worst case"))}</span><b class="${worst > cap ? "is-warn" : ""}">¥${esc(fmt(worst))}</b></article>
+        <article><span>${esc(L("预备金", "Reserve"))}</span><b>¥${esc(fmt(reserve))}</b></article>
+      </div>
+      <section class="w-ledger-group">
+        <header><span>${esc(L("锁点与科目", "Locks & lines"))}</span><span>${rows.length}</span></header>
+        <ul>
+          ${rows
+            .map(
+              (r) => `<li class="w-ledger-row ${r.changed ? "is-flash" : ""}">
+              <div class="w-ledger-row-main">
+                <strong>${esc(r.label)}</strong>
+                <small>${esc(L(`轨道 ${r.track || "—"}`, `Track ${r.track || "—"}`))}</small>
+              </div>
+              <div class="w-ledger-row-side">
+                <b>¥${esc(fmt(r.amount))}</b>
+                <span class="w-ledger-pill is-${esc(r.statusClass || "planned")}">${esc(r.status)}</span>
+              </div>
+            </li>`
+            )
+            .join("")}
+        </ul>
+      </section>
     </div>`;
   }
 
@@ -1455,59 +1472,102 @@ export class WeddingWorkspaces {
   _renderCalendar({ calendar = [], kpi = {}, meta = {} } = {}) {
     const en = getLocale() === "en";
     const fixed = meta.fixed_date || kpi.weddingDate || "2026-10-03";
-    const events = calendar.length
+    const events = (calendar.length
       ? calendar
       : [
-          { date: "2026-05-31", zh: "场地定金 L1", en: "Venue deposit L1" },
-          { date: "2026-06-03", zh: "摄影定金 L2", en: "Photo deposit L2" },
-          { date: "2026-07-31", zh: "回执截止", en: "RSVP close" },
-          { date: fixed, zh: "婚礼当日", en: "Wedding day" },
-        ];
+          { date: "2026-05-31", zh: "场地定金 L1", en: "Venue deposit L1", status: "planned" },
+          { date: "2026-06-03", zh: "摄影定金 L2", en: "Photo deposit L2", status: "planned" },
+          { date: "2026-07-31", zh: "回执截止", en: "RSVP close", status: "planned" },
+          { date: fixed, zh: "婚礼当日", en: "Wedding day", status: "fixed" },
+        ]
+    ).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
     const [year, month, fixedDay] = fixed.split("-").map(Number);
     const firstWeekday = new Date(year, month - 1, 1).getDay();
     const daysInMonth = new Date(year, month, 0).getDate();
-    const eventDays = new Set(
-      events
-        .filter((event) => String(event.date || "").startsWith(`${year}-${String(month).padStart(2, "0")}-`))
-        .map((event) => Number(String(event.date).slice(-2)))
-    );
-    const weekdayLabels = en ? ["S", "M", "T", "W", "T", "F", "S"] : ["日", "一", "二", "三", "四", "五", "六"];
+    const todayKey = fixed; // wedding day as primary highlight
+    const eventsByDay = new Map();
+    for (const event of events) {
+      const d = String(event.date || "");
+      if (!d.startsWith(`${year}-${String(month).padStart(2, "0")}-`)) continue;
+      const day = Number(d.slice(-2));
+      if (!eventsByDay.has(day)) eventsByDay.set(day, []);
+      eventsByDay.get(day).push(event);
+    }
+    const weekdayLabels = en
+      ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+      : ["日", "一", "二", "三", "四", "五", "六"];
+    const monthTitle = en
+      ? new Date(year, month - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" })
+      : `${year}年${month}月`;
     const cells = [
-      ...Array.from({ length: firstWeekday }, () => `<span class="is-blank"></span>`),
+      ...Array.from({ length: firstWeekday }, () => `<span class="w-cal-day is-blank"></span>`),
       ...Array.from({ length: daysInMonth }, (_, index) => {
         const day = index + 1;
-        const fixedClass = day === fixedDay ? "is-fixed" : "";
-        const eventClass = eventDays.has(day) ? "has-event" : "";
-        return `<span class="${fixedClass} ${eventClass}"><b>${day}</b></span>`;
+        const dayEvents = eventsByDay.get(day) || [];
+        const isFixed = day === fixedDay;
+        const hasEvent = dayEvents.length > 0;
+        const dots = dayEvents
+          .slice(0, 3)
+          .map((ev) => `<i class="is-${esc(ev.status || "planned")}"></i>`)
+          .join("");
+        return `<span class="w-cal-day ${isFixed ? "is-fixed" : ""} ${hasEvent ? "has-event" : ""}">
+          <b>${day}</b>
+          ${dots ? `<em class="w-cal-dots">${dots}</em>` : ""}
+        </span>`;
       }),
     ].join("");
-    this.setTitle(L("关键日程", "Calendar"));
-    this.setStatus(L(`倒计时 ${kpi.daysLeft ?? "—"} 天`, `Countdown ${kpi.daysLeft ?? "—"} d`));
 
-    return `<div class="wedding-calendar-board">
-      <div class="wedding-calendar-app">
-        <section class="wedding-month">
-          <div class="wedding-month-toolbar">
+    const daysLeft = kpi.daysLeft ?? "—";
+    this.setTitle(L("关键日程", "Calendar"));
+    this.setStatus(L(`倒计时 ${daysLeft} 天`, `Countdown ${daysLeft} d`));
+
+    return `<div class="w-cal-app">
+      <header class="w-app-nav">
+        <div>
+          <strong>${esc(L("日历", "Calendar"))}</strong>
+          <span>${esc(L(`婚期锁定 · ${fixed}`, `Date locked · ${fixed}`))}</span>
+        </div>
+        <em class="w-app-nav-chip is-accent">${esc(L(`${daysLeft} 天`, `${daysLeft} d`))}</em>
+      </header>
+      <div class="w-cal-layout">
+        <section class="w-cal-month">
+          <div class="w-cal-toolbar">
             <button type="button" disabled aria-hidden="true">‹</button>
-            <strong>${esc(en ? `October ${year}` : `${year} 年 10 月`)}</strong>
+            <strong>${esc(monthTitle)}</strong>
             <button type="button" disabled aria-hidden="true">›</button>
           </div>
-          <div class="wedding-month-weekdays">${weekdayLabels.map((label) => `<span>${esc(label)}</span>`).join("")}</div>
-          <div class="wedding-month-grid">${cells}</div>
+          <div class="w-cal-weekdays">${weekdayLabels.map((label) => `<span>${esc(label)}</span>`).join("")}</div>
+          <div class="w-cal-grid">${cells}</div>
+          <p class="w-cal-legend">
+            <span class="is-fixed"></span>${esc(L("婚礼当日", "Wedding day"))}
+            <span class="is-event"></span>${esc(L("筹备节点", "Planning node"))}
+          </p>
         </section>
-        <aside class="wedding-agenda">
-          <div class="wedding-agenda-head">
-            <strong>${esc(L("筹备日程", "Planning agenda"))}</strong>
-            <span>${esc(L("倒计时", "Countdown"))} ${esc(String(kpi.daysLeft ?? "—"))}${esc(L("天", "d"))}</span>
-          </div>
-          <ol class="wedding-calendar-list">
+        <aside class="w-cal-agenda">
+          <header>
+            <strong>${esc(L("即将到来", "Upcoming"))}</strong>
+            <span>${events.length}</span>
+          </header>
+          <ol>
             ${events
               .map((ev) => {
                 const label = en ? ev.en || ev.zh : ev.zh || ev.en;
-                return `<li class="is-${esc(ev.status || "planned")}">
-                  <time>${esc(String(ev.date || "").slice(5))}</time>
-                  <span>${esc(label)}</span>
-                  <em>${esc(calendarStatus(ev.status))}</em>
+                const date = String(ev.date || "");
+                const md = date.slice(5) || "—";
+                const dayNum = date.slice(-2) || "—";
+                const mon = date.slice(5, 7) || "";
+                const status = calendarStatus(ev.status);
+                const tone = ev.status || (date === todayKey ? "fixed" : "planned");
+                return `<li class="w-cal-event is-${esc(tone)}">
+                  <div class="w-cal-event-date" aria-hidden="true">
+                    <small>${esc(mon)}</small>
+                    <b>${esc(dayNum)}</b>
+                  </div>
+                  <div class="w-cal-event-body">
+                    <strong>${esc(label)}</strong>
+                    <span>${esc(md)} · ${esc(status)}</span>
+                  </div>
                 </li>`;
               })
               .join("")}

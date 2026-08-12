@@ -3,8 +3,8 @@
  * No rich cards, sense-think-act rails, or dual-track chrome.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-scroll-fix";
-import { isReplayMode } from "../playback.js?v=20260812-scroll-fix";
+import { L, getLocale } from "../i18n.js?v=20260812-ios-apps";
+import { isReplayMode } from "../playback.js?v=20260812-ios-apps";
 
 export const AUTH_PAYMENT_THRESHOLD = 5000;
 
