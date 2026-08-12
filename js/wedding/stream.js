@@ -3,8 +3,8 @@
  * No rich cards, sense-think-act rails, or dual-track chrome.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-ws-tips";
-import { isReplayMode } from "../playback.js?v=20260812-ws-tips";
+import { L, getLocale } from "../i18n.js?v=20260812-tip-lite";
+import { isReplayMode } from "../playback.js?v=20260812-tip-lite";
 
 export const AUTH_PAYMENT_THRESHOLD = 5000;
 
