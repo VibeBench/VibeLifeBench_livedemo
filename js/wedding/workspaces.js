@@ -3,8 +3,8 @@
  * Aligns with ecom Team Inbox pattern (one big window, multi-contact).
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-user-avatar";
-import { sleepPlayback } from "../playback.js?v=20260812-user-avatar";
+import { L, getLocale } from "../i18n.js?v=20260812-user-queries";
+import { sleepPlayback } from "../playback.js?v=20260812-user-queries";
 
 export const WORKSPACE_IDS = [
   "im",
