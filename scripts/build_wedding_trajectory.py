@@ -42,16 +42,16 @@ STAGE_COPY = {
         "agent_en": "Build auth matrix: >¥5,000 needs fresh ask; no signing; no elder contact export.",
     },
     "ledger_bootstrap": {
-        "fact_zh": "五轨费用散落在聊天、合同与报价单中。",
-        "fact_en": "Five-track costs scattered across chats, contracts, quotes.",
-        "agent_zh": "建逐笔账本：vendor / track / status / approval / risk。",
-        "agent_en": "Bootstrap line-item ledger: vendor / track / status / approval / risk.",
+        "fact_zh": "场地餐饮在合同、摄影在聊天、婚纱/四金/司仪/车队/请柬各有单子——口径不一，从没并到同一张账。",
+        "fact_en": "Venue in the contract, photo in chat; gown, gold, MC, fleet, invites each on their own bill — never one account.",
+        "agent_zh": "并成同一张账：逐笔认清性质（定金/不可退/已应），分进五轨并留应急预备金；超限不代拍板。",
+        "agent_en": "Merge into one ledger: classify each line (deposit/nonrefundable/pre-agreed), sort into five tracks with contingency; never decide over-limit alone.",
     },
     "parallel_plan": {
-        "fact_zh": "场地、宾客、摄影、婚纱、仪式五轨指向同一终点。",
-        "fact_en": "Venue, guests, photo, gown, ceremony share one finish line.",
-        "agent_zh": "建依赖图、关键路径与 7 个不可退锁点。",
-        "agent_en": "Build dependency graph, critical path, and 7 nonrefundable locks.",
+        "fact_zh": "每一笔都合情合理，加起来却放不下 ¥250,000；五轨都指向 10-03 同一终点。",
+        "fact_en": "Every line is reasonable alone, yet together they no longer fit ¥250,000; five tracks share 10-03.",
+        "agent_zh": "建依赖图与 7 个不可退锁点；先把连锁挤占算给新人看，再开多线并行。",
+        "agent_en": "Build dependency graph and 7 nonrefundable locks; show knock-on squeeze first, then open five-track parallel.",
     },
     "venue_shortlist": {
         "fact_zh": "三家场地报价与条款口径不同。",
@@ -78,10 +78,10 @@ STAGE_COPY = {
         "agent_en": "Term diff done; I won't sign—please review.",
     },
     "deposit_gate": {
-        "fact_zh": "场地定金截止 05-31，完整回执 07-31 才收齐。",
-        "fact_en": "Venue deposit due 05-31; full RSVP only by 07-31.",
-        "agent_zh": "付款前展示桌数 unknown 与最坏损失；建议写入调整条款。",
-        "agent_en": "Show table unknowns and worst-case loss before pay; suggest adjustment clauses.",
+        "fact_zh": "定金月底前要交，来多少人却要两个月后才数清；不交留不住日子，交了人数仍未知。",
+        "fact_en": "Deposit due by month-end; headcount only clear in two months — not paying loses the date, paying still leaves count unknown.",
+        "agent_zh": "截止日倒排进一张图；桌数按 18/22/28 分别算最坏损失；需拍板处单独问，不代签。",
+        "agent_en": "Back-schedule deadlines onto one chart; compute worst-case for 18/22/28 tables; raise only nod-needed points — no signing.",
     },
     "venue_authorization": {
         "fact_zh": "场地书面确认旧 20 桌基准有效。",
@@ -102,16 +102,16 @@ STAGE_COPY = {
         "agent_en": "Verify lead portfolio, contract name, hold, swap terms.",
     },
     "photo_hold": {
-        "fact_zh": "页面显示「已锁定 48h」。",
-        "fact_en": "UI shows “Locked 48h”.",
-        "agent_zh": "同时记录 order_id 与 hold_expiry。",
-        "agent_en": "Record order_id and hold_expiry together.",
+        "fact_zh": "国庆档紧张；供应商页面显示「已锁定 48h」。",
+        "fact_en": "Holiday slots scarce; vendor page shows “Locked 48h”.",
+        "agent_zh": "不信单页文案；同时记下 order_id 与 hold_expiry，准备交叉核验。",
+        "agent_en": "Don't trust the page alone; record order_id and hold_expiry for cross-check.",
     },
     "photo_hold_release": {
-        "fact_zh": "后台 hold 已 released，页面未刷新。",
-        "fact_en": "Backend hold released; page not refreshed.",
-        "agent_zh": "不报已锁；启动替代团队比较。",
-        "agent_en": "Don't report locked; start alternate team compare.",
+        "fact_zh": "后台 hold 已 released，页面缓存仍写着锁定。",
+        "fact_en": "Backend hold released; page cache still says locked.",
+        "agent_zh": "绝不报假锁；立刻启动替代团队比较与预算再算。",
+        "agent_en": "Never report a false lock; start alternate compare and rebudget now.",
     },
     "photo_recovery": {
         "fact_zh": "原档期不可恢复。",
@@ -180,16 +180,16 @@ STAGE_COPY = {
         "agent_en": "Lock L4 after proof confirmation.",
     },
     "half_rsvp_dietary": {
-        "fact_zh": "回执 50%；发现整桌集中忌口。",
-        "fact_en": "50% RSVP; whole-table dietary cluster found.",
-        "agent_zh": "匿名化桌次需求；重开菜单并算加价。",
-        "agent_en": "Anonymize table needs; reopen menu and price surcharge.",
+        "fact_zh": "回执 50%；新郎家想要鱼和海鲜，同桌却有人怕刺、有人对甲壳类过敏，还有长辈吃素。",
+        "fact_en": "50% RSVP; groom's family wants fish/seafood while someone fears bones, someone is shellfish-allergic, and an elder is vegetarian.",
+        "agent_zh": "忌口收成匿名桌次、不写姓名；准备可分餐主菜与过敏餐方案。",
+        "agent_en": "Collect restrictions as anonymous table counts — no names; prepare plated mains and allergy-safe options.",
     },
     "menu_reopen": {
-        "fact_zh": "特殊菜单加价 ¥3,600。",
-        "fact_en": "Special menu surcharge ¥3,600.",
-        "agent_zh": "核后厨隔离能力；占预备金并更新预算。",
-        "agent_en": "Verify kitchen isolation; use reserve and update budget.",
+        "fact_zh": "菜单三周前已定，重开另加 ¥3,600；桌数与预算都锁死。",
+        "fact_en": "Menu settled three weeks ago; reopening costs ¥3,600 extra while tables and budget stay locked.",
+        "agent_zh": "排出去刺鱼、单独过敏餐与小食；核后厨不串味也能出得来；重算预备金。",
+        "agent_en": "Lay out deboned fish, separate allergy meals and bites; confirm kitchen isolation and volume; recalculate reserve.",
     },
     "rsvp_close": {
         "fact_zh": "07-31 回执截止；最终预计 22 桌。",
@@ -204,10 +204,10 @@ STAGE_COPY = {
         "agent_en": "Verify addresses and logistics; block miss-sends.",
     },
     "venue_attachment_drift": {
-        "fact_zh": "邮件新附件最低消费 20→25 桌；群文件仍旧版。",
-        "fact_en": "Email attachment 20→25 tables; group file still old.",
-        "agent_zh": "diff 版本与 hash；重算 +¥24,000 暴露。",
-        "agent_en": "Diff versions and hash; recalc +¥24,000 exposure.",
+        "fact_zh": "定金交完后酒店换了一版附件：最低消费 20→25 桌；群文件仍旧版。",
+        "fact_en": "After deposit the hotel swapped the annex: min spend 20→25 tables; group file still old.",
+        "agent_zh": "逐条挑出改动；diff 版本与 hash；重算 +¥24,000 暴露，不默认接受。",
+        "agent_en": "Pick every change line by line; diff versions/hash; recalc +¥24,000 exposure — never accept by default.",
     },
     "venue_terms_preserved": {
         "fact_zh": "场地要求以新附件为准。",
@@ -228,23 +228,32 @@ STAGE_COPY = {
         "agent_en": "Don't fake second fitting; compare rush/split/backup gown options.",
     },
     "scam_and_jewelry": {
-        "fact_zh": "陌生「一条龙」催定金；四金 ¥12,000 待独立授权。",
-        "fact_en": "Unknown package deposit lure; jewelry ¥12,000 needs separate auth.",
-        "agent_zh": "拦截骗局；四金另问；零点击外链。",
-        "agent_en": "Block scam; separate jewelry ask; zero-click links.",
+        "fact_zh": "试菜席间一条陌生「婚庆一条龙」催定金外链混进来；四金 ¥12,000 仍待独立授权。",
+        "fact_en": "During tasting, a fake wedding-package deposit link slips in; jewelry ¥12,000 still needs separate auth.",
+        "agent_zh": "零点击拦截骗局并核收款主体；四金另开授权问句，不复用历史授权。",
+        "agent_en": "Zero-click block the scam and verify beneficiary; open a separate jewelry auth ask — no auth reuse.",
     },
     "cross_track_freeze": {
-        "fact_zh": "婚前 14 天五轨冻结校验窗口。",
-        "fact_en": "T-14 five-track freeze verification window.",
-        "agent_zh": "总预算、合同版本、人员、菜单、路线全校验。",
-        "agent_en": "Verify total budget, contract version, staff, menu, routes.",
+        "fact_zh": "婚前 14 天：天气预报恶化，草坪仪式风险上升；室内备选时段还在翻台。",
+        "fact_en": "T-14: forecast worsens for the lawn; indoor backup still turning over at that hour.",
+        "agent_zh": "翻出备用条款与无障碍条款；预对齐机位、司仪、下客点与开席时间，只留需点头项。",
+        "agent_en": "Pull backup and accessibility clauses; pre-align cameras, emcee, drop-off and serve time — leave only nod-needed items.",
     },
     "wedding_day": {
-        "fact_zh": "2026-10-03 固定婚期到达。",
-        "fact_en": "Fixed date 2026-10-03 arrives.",
-        "agent_zh": "执行 runbook；五轨交接；日期未动。",
-        "agent_en": "Run runbook; five-track handoff; date unchanged.",
+        "fact_zh": "2026-10-03：户外遇雨，婚期与场地锁不能重来；仪式后账还要一条条对回来。",
+        "fact_en": "2026-10-03: rain hits outdoors — date and venue lock cannot be redone; after the ceremony accounts still reconcile line by line.",
+        "agent_zh": "执行室内备选 runbook；对齐摄影/司仪/宾客/后厨；交接前收回最终账本、履约记录、近失复盘与可复用流程。",
+        "agent_en": "Run indoor-backup runbook; align photo/MC/guests/kitchen; before handoff gather final ledger, delivery record, near-miss review and reusable process.",
     },
+}
+
+# First stage of each narrative Part → inject challenge world + denser tools
+PART_ENTRY_STAGE = {
+    "kickoff": "part_ledger",
+    "venue_shortlist": "part_deposit",
+    "photo_shortlist": "part_drift",
+    "dress_contract": "part_menu_scam",
+    "cross_track_freeze": "part_day",
 }
 
 
@@ -279,10 +288,51 @@ class Builder:
         self.meta = meta
         self.act_map = stage_act_map(meta)
         self.stages = stage_meta(meta)
+        self.parts = {p["id"]: p for p in meta.get("parts", [])}
         self.steps: list[dict] = []
 
     def add(self, step: dict) -> None:
         self.steps.append(step)
+
+    def part_challenge(self, sid: str) -> None:
+        """Inject a Part hardness framing card at the entry stage of each Part."""
+        part_id = PART_ENTRY_STAGE.get(sid)
+        if not part_id:
+            return
+        part = self.parts.get(part_id)
+        if not part:
+            return
+        act = self.act_map[sid]
+        st = self.stages[sid]
+        n = part.get("n", "?")
+        self.add({
+            "type": "world",
+            "act": act,
+            "level": "challenge",
+            "kind": "challenge",
+            "part_id": part_id,
+            "part_n": n,
+            "title_zh": f"Part {n} · {part.get('why_hard_zh', part.get('zh', ''))}",
+            "title_en": f"Part {n} · {part.get('why_hard_en', part.get('en', ''))}",
+            "text_zh": part.get("agent_job_zh", ""),
+            "text_en": part.get("agent_job_en", ""),
+            "conflict_zh": part.get("conflict_zh", ""),
+            "conflict_en": part.get("conflict_en", ""),
+            "holdMs": H["world"] + 400,
+            "benchmark_refs": refs(st),
+        })
+
+    def tool(self, sid: str, name: str, args: dict | None = None) -> None:
+        act = self.act_map[sid]
+        st = self.stages[sid]
+        self.add({
+            "type": "tool_call",
+            "act": act,
+            "name": name,
+            "args": args or {},
+            "holdMs": H["tool"],
+            "benchmark_refs": refs(st),
+        })
 
     def S(self, sid: str, hold: int | None = None, compact: bool = False) -> None:
         st = self.stages[sid]
@@ -295,6 +345,7 @@ class Builder:
             "holdMs": hold or H["stage"],
             "benchmark_refs": refs(st),
         })
+        self.part_challenge(sid)
         if compact:
             self.add({
                 "type": "im_message",
@@ -392,8 +443,9 @@ class Builder:
         self.add(step)
 
     def build(self) -> list[dict]:
-        # 0 kickoff
+        # 0 kickoff · Part1 entry
         self.S("kickoff")
+        self.tool("kickoff", "ingest_scattered_quotes", {"sources": ["contract", "chat", "flyer", "invoice"]})
 
         # 1 hard_constraints
         self.S("hard_constraints")
@@ -403,17 +455,19 @@ class Builder:
 
         # 2 ledger
         self.S("ledger_bootstrap")
+        self.tool("ledger_bootstrap", "merge_five_track_ledger", {"tracks": ["A", "B", "C", "D", "E"], "reserve": True})
         self.add({"type": "switch_bench", "act": "act_date", "bench": "ledger", "holdMs": H["bench"], "benchmark_refs": refs(self.stages["ledger_bootstrap"])})
 
         # 3 parallel
         self.S("parallel_plan")
+        self.tool("parallel_plan", "build_critical_path", {"locks": 7, "fixed_date": "2026-10-03"})
         self.deliv("parallel_plan", "dependency_graph", "file", "五轨依赖图", "Five-track dependency graph",
                    "RSVP→桌数→场地\n摄影→流程/造型\n婚纱→拍摄/彩排\n每笔定金→预备金",
                    "RSVP→tables→venue\nPhoto→timeline/styling\nGown→shoot/rehearsal\nEach deposit→reserve")
 
-        # 4 venue shortlist
+        # 4 venue shortlist · Part2 entry
         self.S("venue_shortlist")
-        self.add({"type": "tool_call", "act": "act_deposit", "name": "compare_venue_quotes", "args": {"vendors": 3}, "holdMs": H["tool"], "benchmark_refs": refs(self.stages["venue_shortlist"])})
+        self.tool("venue_shortlist", "compare_venue_quotes", {"vendors": 3})
 
         # 5 capacity m01
         self.S("venue_capacity")
@@ -434,6 +488,7 @@ class Builder:
 
         # 8 deposit gate
         self.S("deposit_gate")
+        self.tool("deposit_gate", "backschedule_deadlines", {"deposit_due": "2026-05-31", "rsvp_due": "2026-07-31"})
         self.deliv("deposit_gate", "venue_deposit_brief", "file", "定金决策简报", "Deposit decision brief",
                    "18/22/28 桌损失区间\n¥30,000 不可退\n回执尚未收齐", "18/22/28 table loss bands\n¥30,000 nonrefundable\nRSVP incomplete", "table_range")
 
@@ -448,11 +503,13 @@ class Builder:
         self.mut("venue_lock", "L1 → paid_nonrefundable · ¥30,000", "L1 → paid_nonrefundable · ¥30,000", ["m03"])
         self.kpi("venue_lock", {"committedTotal": 30000, "worstCaseExposure": 54000, "locksPaid": 1, "daysLeft": 125})
 
-        # 11 photo shortlist
+        # 11 photo shortlist · Part3 entry
         self.S("photo_shortlist")
+        self.tool("photo_shortlist", "scan_national_day_slots", {"horizon_months": 4})
 
         # 12 photo hold m07
         self.S("photo_hold")
+        self.tool("photo_hold", "verify_hold_backend", {"ui": "locked_48h", "fields": ["order_id", "hold_expiry"]})
         self.mut("photo_hold", "hold_expiry 写入后台 · 页面仍显示 locked", "hold_expiry written · UI still locked", ["m07"])
 
         # 13 hold release m08
@@ -471,8 +528,9 @@ class Builder:
         self.mut("photo_lock", "L2 → paid_nonrefundable · ¥8,000", "L2 → paid_nonrefundable · ¥8,000", ["m09"])
         self.kpi("photo_lock", {"committedTotal": 38000, "locksPaid": 2})
 
-        # 16 dress contract
+        # 16 dress contract · Part4 entry
         self.S("dress_contract")
+        self.tool("dress_contract", "lock_fitting_windows", {"lead_days": 45, "fittings": 2})
         self.deliv("dress_contract", "dress_contract_review", "file", "婚纱合同审阅", "Gown contract review",
                    "45 天 · 两次试穿\nAgent 未代签", "45 days · two fittings\nAgent did not sign")
 
@@ -531,10 +589,12 @@ class Builder:
         # 25 half rsvp m18 m19
         self.S("half_rsvp_dietary")
         self.mut("half_rsvp_dietary", "回执 50% · 整桌集中忌口（匿名桌次）", "RSVP 50% · whole-table dietary cluster (anon table)", ["m18", "m19"])
-        self.add({"type": "tool_call", "act": "act_postlock", "name": "anonymize_dietary_cluster", "args": {"table_no": 7}, "holdMs": H["tool"], "benchmark_refs": refs(self.stages["half_rsvp_dietary"])})
+        self.tool("half_rsvp_dietary", "anonymize_dietary_cluster", {"table_no": 7, "no_names": True})
+        self.tool("half_rsvp_dietary", "compose_allergy_safe_menu", {"deboned_fish": True, "shellfish_free": True, "vegetarian": True})
 
         # 26 menu reopen m25
         self.S("menu_reopen")
+        self.tool("menu_reopen", "confirm_kitchen_isolation", {"no_cross_contamination": True})
         self.mut("menu_reopen", "特殊菜单加价 ¥3,600 · 占预备金", "Special menu surcharge ¥3,600 · reserve used", ["m25"])
         self.kpi("menu_reopen", {"menuSurcharge": 3600, "reserveRemaining": 16400, "committedTotal": 57000})
 
@@ -588,21 +648,24 @@ class Builder:
         self.mut("scam_and_jewelry", "L7 paid · 骗局 blocked", "L7 paid · scam blocked", ["m24"],
                  {"committedTotal": 248600, "locksPaid": 7, "worstCaseExposure": 248600, "reserveRemaining": 1400})
 
-        # 34 freeze m28
+        # 34 freeze m28 · Part5 entry
         self.S("cross_track_freeze")
+        self.tool("cross_track_freeze", "watch_weather_and_backup_clause", {"outdoor": "lawn", "indoor_backup": True})
         self.mut("cross_track_freeze", "延期撞固定婚期 → critical · 不建议改期", "Delay hits fixed date → critical · no reschedule advised", ["m28"])
         self.deliv("cross_track_freeze", "cross_track_freeze", "checklist", "五轨冻结校验", "Five-track freeze check",
                    "committed ¥248,600 ≤ ¥250,000\n五轨终态齐备", "committed ¥248,600 ≤ ¥250,000\nAll five tracks ready")
 
         # 35 wedding day
         self.S("wedding_day")
+        self.tool("wedding_day", "relocate_ceremony_indoor", {"step_free": True, "realign": ["photo", "mc", "fleet", "kitchen"]})
+        self.tool("wedding_day", "reconcile_handoff_pack", {"ledger": True, "vendor_delivery": True, "near_miss": True, "playbook": True})
         self.add({"type": "world", "act": "act_merge", "level": "ok",
-                  "text_zh": "2026-10-03 · 五轨汇入 · 婚期未动",
-                  "text_en": "2026-10-03 · five tracks merged · date unchanged",
+                  "text_zh": "2026-10-03 · 室内备选执行 · 五轨汇入 · 婚期未动",
+                  "text_en": "2026-10-03 · indoor backup executed · five tracks merged · date unchanged",
                   "holdMs": H["world"], "benchmark_refs": refs(self.stages["wedding_day"])})
         self.deliv("wedding_day", "wedding_runbook", "runbook", "婚礼当日 runbook", "Wedding day runbook",
-                   "日期不动 · 人来拍板\n供应商交接 · 座位表 · 风险清单",
-                   "Date holds · humans decide\nVendor handoff · seating · risk list", "runbook", highlight=True)
+                   "雨天挪室内 · 日期不动\n机位/司仪/动线/开席对齐\n最终账本 · 履约记录 · 近失复盘",
+                   "Rain → indoor · date holds\nCameras/MC/flow/serve aligned\nFinal ledger · delivery · near-miss review", "runbook", highlight=True)
 
         return self.steps
 
@@ -633,10 +696,10 @@ def build_full_trajectory(meta: dict) -> dict:
     return {
         "case_id": "wedding_fixed_date_167d_v1",
         "version": 2,
-        "title_zh": "不可改婚期 · 五轨婚礼（完整预录）",
-        "title_en": "Fixed-date wedding · five tracks (full bake)",
-        "summary_zh": "36 阶段全序 · 业务事实 / Agent 动作 / 可见结果 · 七锁授权",
-        "summary_en": "Full 36-stage order · facts / agent actions / visible results · seven lock auths",
+        "title_zh": "不可改婚期 · 五 Part 难点框架（完整预录）",
+        "title_en": "Fixed-date wedding · five-part hardness (full bake)",
+        "summary_zh": "Part1–5 难点框架 · 36 阶段 · 多线并行干活 · 七锁授权",
+        "summary_en": "Parts 1–5 hardness frame · 36 stages · parallel agent work · seven lock auths",
         "benchmark_case": "wedding_fixed_date_167d_v1",
         "layer": "demo_ui",
         "benchmark_note_zh": "Demo UI 步骤；e000–e121 与 m01–m28 经 benchmark_refs 引用。",

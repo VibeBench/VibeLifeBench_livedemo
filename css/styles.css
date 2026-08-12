@@ -14713,7 +14713,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   grid-column: 1;
   grid-row: 2;
   display: grid;
-  grid-template-rows: 62px 42px minmax(0, 1fr);
+  grid-template-rows: 62px auto 42px minmax(0, 1fr);
   gap: 8px;
 }
 
@@ -14863,6 +14863,101 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   opacity: 0.48;
 }
 
+.wedding-part-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+  min-height: 52px;
+  padding: 6px 8px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(240, 253, 250, 0.95), rgba(255, 255, 255, 0.92));
+}
+
+.wedding-part-strip.is-live {
+  border-color: rgba(13, 148, 136, 0.35);
+  box-shadow: 0 0 0 1px rgba(13, 148, 136, 0.08);
+}
+
+.wedding-part-chips {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  min-width: 0;
+}
+
+.wedding-part-chip {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: 5px 6px;
+  border: 1px solid rgba(15, 118, 110, 0.12);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--wedding-ink, #134e4a);
+  text-align: left;
+  cursor: default;
+}
+
+.wedding-part-chip b {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--wedding-muted, #5f7c78);
+}
+
+.wedding-part-chip span {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wedding-part-chip.is-active {
+  border-color: rgba(13, 148, 136, 0.55);
+  background: rgba(13, 148, 136, 0.1);
+}
+
+.wedding-part-chip.is-done {
+  opacity: 0.72;
+}
+
+.wedding-part-hard {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 2px 4px 2px 8px;
+  border-left: 1px solid rgba(15, 118, 110, 0.12);
+}
+
+.wedding-part-hard small {
+  color: var(--wedding-muted, #5f7c78);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.wedding-part-hard strong,
+.wedding-part-hard em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wedding-part-hard strong {
+  color: var(--wedding-ink, #134e4a);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.wedding-part-hard em {
+  color: #0f766e;
+  font-size: 10px;
+  font-style: normal;
+}
+
 .wedding-track-rail {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -14871,6 +14966,16 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   min-height: 42px;
   max-height: 42px;
   overflow: hidden;
+}
+
+.wedding-track-pill.is-stressed {
+  border-color: rgba(13, 148, 136, 0.45);
+  background: rgba(204, 251, 241, 0.85);
+}
+
+.wedding-track-pill.is-stressed em {
+  color: #0f766e;
+  font-weight: 700;
 }
 
 .wedding-track-pill {
@@ -15407,7 +15512,18 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
 
 @media (max-width: 880px) {
   body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
-    grid-template-rows: 62px 42px minmax(0, 1fr);
+    grid-template-rows: 62px auto 42px minmax(0, 1fr);
+  }
+
+  .wedding-part-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .wedding-part-hard {
+    border-left: 0;
+    border-top: 1px solid rgba(15, 118, 110, 0.12);
+    padding-left: 4px;
+    padding-top: 6px;
   }
 
   .wedding-top {
@@ -16635,6 +16751,108 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   background: #fff;
   box-shadow: inset 3px 0 0 var(--agent-teal, #5fbfb0);
   animation: none;
+}
+
+.wedding-track-window.is-stressed {
+  border-color: rgba(13, 148, 136, 0.42);
+  box-shadow: inset 3px 0 0 #0d9488;
+}
+
+.wedding-track-window.is-stressed .wedding-window-bar > em {
+  color: #0f766e;
+}
+
+.wedding-conflict-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 0 0 6px;
+  padding: 4px 7px;
+  border-radius: 8px;
+  background: rgba(13, 148, 136, 0.1);
+  color: #0f766e;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.wedding-conflict-chip b {
+  overflow: hidden;
+  font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wedding-challenge-card {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 12px 12px 12px 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(240, 253, 250, 0.95), rgba(255, 255, 255, 0.96));
+  box-shadow: inset 0 0 0 1px rgba(13, 148, 136, 0.18);
+}
+
+.wedding-challenge-mark {
+  display: grid;
+  place-items: center;
+  min-height: 52px;
+  border-radius: 10px;
+  background: #0f766e;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 780;
+  letter-spacing: 0.02em;
+  text-align: center;
+  line-height: 1.2;
+  padding: 6px;
+}
+
+.wedding-challenge-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.wedding-challenge-body small {
+  color: #0f766e;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.wedding-challenge-body strong {
+  color: #134e4a;
+  font-size: 13px;
+  font-weight: 780;
+  line-height: 1.35;
+}
+
+.wedding-challenge-body p {
+  margin: 0;
+  color: #315e59;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.wedding-challenge-body p em {
+  display: inline-block;
+  margin-right: 6px;
+  color: #0f766e;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.wedding-challenge-body aside {
+  margin-top: 2px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: rgba(15, 118, 110, 0.06);
+  color: #3f6b66;
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .wedding-track-window.is-alert {

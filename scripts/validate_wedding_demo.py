@@ -50,7 +50,7 @@ VIDEO_TOLERANCE_MS = 500
 ACT_TOLERANCE_MS = 120
 
 FULL_STEPS_MIN = 120
-FULL_STEPS_MAX = 170
+FULL_STEPS_MAX = 220
 FULL_HOLD_MIN = 210000
 FULL_HOLD_MAX = 270000
 
@@ -97,6 +97,12 @@ def validate_shared(meta: dict, seed: dict, traj: dict) -> None:
     assert len(meta.get("tracks", [])) == 5
     assert len(meta.get("acts", [])) == 6
     assert len(meta.get("stages", [])) == 36
+    parts = meta.get("parts") or []
+    assert len(parts) == 5, f"expected 5 narrative parts, got {len(parts)}"
+    for part in parts:
+        assert part.get("why_hard_zh") and part.get("why_hard_en")
+        assert part.get("agent_job_zh") and part.get("agent_job_en")
+        assert part.get("act_ids")
 
     assert seed["kpi"]["budgetTotal"] == 250000
     assert seed["kpi"]["weddingDate"] == "2026-10-03"

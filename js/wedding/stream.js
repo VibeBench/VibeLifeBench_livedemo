@@ -11,7 +11,16 @@ export const AUTH_PAYMENT_THRESHOLD = 5000;
 const MAIN_THREAD = "lin_qiao";
 const USER_IDS = new Set(["lin_qiao", "zhou_yu", "user", "boss"]);
 
-const EVENT_KINDS = new Set(["world", "notify", "notification", "discovery", "mutation", "stage", "auth"]);
+const EVENT_KINDS = new Set([
+  "world",
+  "notify",
+  "notification",
+  "discovery",
+  "mutation",
+  "stage",
+  "auth",
+  "challenge",
+]);
 
 function esc(s) {
   return String(s ?? "")
@@ -37,6 +46,7 @@ function kindTag(kind = "text") {
       discovery: L("已核对", "Verified"),
       mutation: L("状态", "State"),
       auth: L("授权", "Auth"),
+      challenge: L("难点", "Hard"),
     }[kind] || L("动态", "Update")
   );
 }
@@ -142,6 +152,11 @@ export class WeddingStream {
       text_zh,
       text_en,
       text: pickLocale({ text_zh, text_en, text: msg.text }, "text"),
+      title_zh: msg.title_zh || "",
+      title_en: msg.title_en || "",
+      conflict_zh: msg.conflict_zh || "",
+      conflict_en: msg.conflict_en || "",
+      part_n: msg.part_n || null,
       deliverableId: msg.deliverable_id || msg.deliverableId || null,
       auth: Boolean(msg.auth || msg.lock_id || msg.authorization),
       lockId: msg.lock_id || msg.lockId || null,
@@ -154,7 +169,18 @@ export class WeddingStream {
     return row;
   }
 
-  pushTimelineEvent({ kind = "world", text_zh, text_en, text, id } = {}) {
+  pushTimelineEvent({
+    kind = "world",
+    text_zh,
+    text_en,
+    text,
+    title_zh,
+    title_en,
+    conflict_zh,
+    conflict_en,
+    part_n,
+    id,
+  } = {}) {
     return this.pushMessage({
       id,
       thread: MAIN_THREAD,
@@ -162,6 +188,11 @@ export class WeddingStream {
       kind,
       text_zh: text_zh || text,
       text_en: text_en || text,
+      title_zh,
+      title_en,
+      conflict_zh,
+      conflict_en,
+      part_n,
     });
   }
 
@@ -228,6 +259,22 @@ export class WeddingStream {
       </article>`;
     }
 
+    if (kind === "challenge") {
+      const title = pickLocale(m, "title") || text;
+      const job = text;
+      const conflict = pickLocale(m, "conflict");
+      const partLabel = m.part_n ? `Part ${m.part_n}` : L("难点框架", "Hardness");
+      return `<article class="wedding-stream-item wedding-challenge-card ${arrive}" data-msg-id="${esc(m.id)}">
+        <span class="wedding-challenge-mark" aria-hidden="true">${esc(partLabel)}</span>
+        <div class="wedding-challenge-body">
+          <small>${esc(L("为什么难", "Why hard"))}</small>
+          <strong>${esc(title)}</strong>
+          ${job ? `<p><em>${esc(L("Agent 在做", "Agent work"))}</em>${esc(job)}</p>` : ""}
+          ${conflict ? `<aside>${esc(conflict)}</aside>` : ""}
+        </div>
+      </article>`;
+    }
+
     if (EVENT_KINDS.has(kind)) {
       return `<article class="wedding-stream-item wedding-stream-event ${kindClass} ${arrive}" data-msg-id="${esc(m.id)}">
         <span class="wedding-log-bullet is-event" aria-hidden="true"></span>
@@ -282,6 +329,8 @@ export class WeddingStream {
       m.deliverableId || "",
       m.text_zh || "",
       m.text_en || "",
+      m.title_zh || "",
+      m.conflict_zh || "",
       m.html ? String(m.html).length : 0,
     ].join("|");
   }

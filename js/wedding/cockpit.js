@@ -3,14 +3,15 @@
  */
 
 import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-smooth";
-import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-smooth";
+import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-parts";
 import {
   WeddingWorkspaces,
   maskContact,
   parseWeddingStageTracks,
+  resolveWeddingPart,
   WORKSPACE_IDS,
-} from "./workspaces.js?v=20260812-smooth";
-import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-smooth";
+} from "./workspaces.js?v=20260812-parts";
+import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-parts";
 
 export { AUTH_PAYMENT_THRESHOLD, weddingProgressLabel, WORKSPACE_IDS };
 
@@ -46,7 +47,9 @@ export class WeddingCockpit {
     this._authGrants = new Map();
     this._blockedPayments = [];
     this._lastActId = null;
+    this._lastPartId = null;
     this._lastKpiSig = "";
+    this.currentPart = null;
 
     this.stream = new WeddingStream({
       messagesEl: document.querySelector("#weddingMessages"),
@@ -154,6 +157,8 @@ export class WeddingCockpit {
     this._authGrants = new Map();
     this._blockedPayments = [];
     this._lastActId = null;
+    this._lastPartId = null;
+    this.currentPart = null;
     this.notifyCount = 0;
     this.notifyLog = [];
 
@@ -165,6 +170,7 @@ export class WeddingCockpit {
 
     this.renderProject();
     this.renderKpi();
+    this.renderPartStrip();
     this.renderTrackRail();
     this.renderStageChip();
     this.renderWall();
@@ -212,7 +218,13 @@ export class WeddingCockpit {
       bookings: this.bookings,
       calendar: this.calendar,
       stageId: this.stageId,
+      part: this.currentPart,
+      stressTracks: this.currentPart?.stress_tracks || [],
     };
+  }
+
+  resolvePart(stageId = this.stageId) {
+    return resolveWeddingPart(this.meta, stageId);
   }
 
   // —— Authorization safety ——
@@ -371,8 +383,11 @@ export class WeddingCockpit {
       this.kpi.tracksDone = { A: true, B: true, C: true, D: true, E: true };
       this.workspaces.switchWorkspace("tracks");
     }
+    const part = this.resolvePart(id);
+    this.currentPart = part;
     this.renderStageChip();
     this.renderKpi();
+    this.renderPartStrip();
     this.renderTrackRail();
     this.workspaces.render();
     const act = (this.meta?.acts || []).find((row) => row.stage_ids?.includes(id));
@@ -384,6 +399,78 @@ export class WeddingCockpit {
         text_en: act?.en || st?.en || st?.zh || id,
       });
     }
+    if (part?.id && part.id !== this._lastPartId) {
+      const prev = this._lastPartId;
+      this._lastPartId = part.id;
+      // Trajectory also emits challenge worlds; only fallback if Part jumped without one.
+      if (prev && !this.player?.running) {
+        this.pushPartChallenge(part);
+      } else if (!prev) {
+        this.renderPartStrip({ announce: false });
+      }
+    }
+  }
+
+  pushPartChallenge(part = this.currentPart) {
+    if (!part) return;
+    const n = part.n || "?";
+    this.stream.pushTimelineEvent({
+      kind: "challenge",
+      title_zh: `Part ${n} · ${part.why_hard_zh || part.zh || ""}`,
+      title_en: `Part ${n} · ${part.why_hard_en || part.en || ""}`,
+      text_zh: part.agent_job_zh || "",
+      text_en: part.agent_job_en || "",
+      conflict_zh: part.conflict_zh || "",
+      conflict_en: part.conflict_en || "",
+      part_n: n,
+    });
+  }
+
+  renderPartStrip({ announce = false } = {}) {
+    const el = document.querySelector("#weddingPartStrip");
+    if (!el) return;
+    const en = getLocale() === "en";
+    const parts = this.meta?.parts || [];
+    const current = this.currentPart || this.resolvePart(this.stageId);
+    const live = Boolean(this.player?.running);
+    if (!parts.length) {
+      el.innerHTML = "";
+      el.hidden = true;
+      return;
+    }
+    el.hidden = false;
+    const why = current
+      ? en
+        ? current.why_hard_en || current.why_hard_zh
+        : current.why_hard_zh || current.why_hard_en
+      : "";
+    const job = current
+      ? en
+        ? current.agent_job_en || current.agent_job_zh
+        : current.agent_job_zh || current.agent_job_en
+      : "";
+    const stress = (current?.stress_tracks || []).join(" · ") || "—";
+    el.className = `wedding-part-strip ${live ? "is-live" : ""} ${current ? "has-active" : ""}`;
+    el.innerHTML = `
+      <div class="wedding-part-chips" role="list">
+        ${parts
+          .map((p) => {
+            const label = en ? p.en || p.zh : p.zh || p.en;
+            const active = current?.id === p.id ? "is-active" : "";
+            const done =
+              current && Number(p.n) < Number(current.n || 0) ? "is-done" : "";
+            return `<button type="button" class="wedding-part-chip ${active} ${done}" role="listitem" data-part="${esc(p.id)}" title="${esc(
+              en ? p.why_hard_en || label : p.why_hard_zh || label
+            )}"><b>P${esc(p.n)}</b><span>${esc(label)}</span></button>`;
+          })
+          .join("")}
+      </div>
+      <div class="wedding-part-hard">
+        <small>${esc(L("为什么难", "Why hard"))}</small>
+        <strong title="${esc(why)}">${esc(why || L("待命 · 点 Replay 看五 Part 难点", "Standby · Replay for five-part hardness"))}</strong>
+        <em title="${esc(job)}">${esc(job ? `${L("Agent 在做", "Agent work")} · ${job}` : `${L("并行轨道", "Parallel tracks")} ${stress}`)}</em>
+      </div>`;
+    if (announce && current) this.pushPartChallenge(current);
   }
 
   applyKpi(patch = {}, { flash = false } = {}) {
@@ -447,7 +534,12 @@ export class WeddingCockpit {
       [
         L("五轨 · 锁", "Tracks · locks"),
         `${tracks.length ? `${tracksDone}/${tracks.length}` : "0/5"} · ${locksPaid}/${locksTotal}`,
-        "",
+        this.currentPart
+          ? L(
+              `Part ${this.currentPart.n} · ${(this.currentPart.stress_tracks || []).length} 轨攻坚`,
+              `Part ${this.currentPart.n} · ${(this.currentPart.stress_tracks || []).length} tracks stressed`
+            )
+          : "",
         locksPaid >= locksTotal ? "ok" : "",
       ],
     ];
@@ -491,22 +583,28 @@ export class WeddingCockpit {
     if (!el) return;
     const en = getLocale() === "en";
     const activeTracks = parseWeddingStageTracks(this.meta, this.stageId);
+    const stress = new Set(this.currentPart?.stress_tracks || []);
     const done = this.kpi?.tracksDone || {};
     const paid = Number(this.kpi?.locksPaid) || 0;
+    const busyCount = (this.meta?.tracks || []).filter(
+      (t) => !done[t.id] && (activeTracks.has(t.id) || stress.has(t.id))
+    ).length;
+    el.dataset.busy = String(busyCount);
     el.innerHTML = (this.meta?.tracks || [])
       .map((track) => {
         const label = en ? track.en || track.zh : track.zh || track.en;
         const active = activeTracks.has(track.id);
+        const stressed = stress.has(track.id);
         const status = done[track.id]
           ? L("就绪", "Ready")
-          : active
-            ? L("推进中", "Active")
+          : stressed || active
+            ? L("并行中", "Busy")
             : track.id === "A" && paid >= 1
               ? "L1"
               : track.id === "C" && paid >= 2
                 ? "L2"
                 : L("待联动", "Queued");
-        return `<div class="wedding-track-pill ${active ? "is-active" : ""} ${done[track.id] ? "is-done" : ""}">
+        return `<div class="wedding-track-pill ${active ? "is-active" : ""} ${stressed ? "is-stressed" : ""} ${done[track.id] ? "is-done" : ""}">
           <b>${esc(track.id)}</b><span>${esc(label)}</span><em>${esc(status)}</em>
         </div>`;
       })
@@ -532,11 +630,27 @@ export class WeddingCockpit {
   // —— Events ——
 
   applyWorldEvent(step = {}) {
+    const isChallenge = step.kind === "challenge" || step.level === "challenge";
     this.stream.pushTimelineEvent({
-      kind: "world",
+      kind: isChallenge ? "challenge" : "world",
+      title_zh: step.title_zh,
+      title_en: step.title_en,
       text_zh: step.text_zh,
       text_en: step.text_en,
+      conflict_zh: step.conflict_zh,
+      conflict_en: step.conflict_en,
+      part_n: step.part_n,
     });
+    if (isChallenge && step.part_id) {
+      const part = (this.meta?.parts || []).find((p) => p.id === step.part_id);
+      if (part) {
+        this.currentPart = part;
+        this._lastPartId = part.id;
+        this.renderPartStrip();
+        this.renderTrackRail();
+        this.workspaces.render();
+      }
+    }
     if (step.kpi) this.applyKpi(step.kpi);
   }
 
@@ -681,13 +795,42 @@ export class WeddingCockpit {
       },
     };
 
+    const toolLabels = {
+      ingest_scattered_quotes: [L("归并散落报价", "Ingest scattered quotes"), "E"],
+      merge_five_track_ledger: [L("五轨并账", "Merge five-track ledger"), "E"],
+      build_critical_path: [L("关键路径与七锁", "Critical path & seven locks"), "E"],
+      compare_venue_quotes: [L("标准化场地比价", "Normalize venue quotes"), "A"],
+      backschedule_deadlines: [L("截止日倒排", "Back-schedule deadlines"), "A"],
+      scan_national_day_slots: [L("扫描国庆档期", "Scan holiday slots"), "C"],
+      verify_hold_backend: [L("核验 Hold 后台", "Verify hold backend"), "C"],
+      lock_fitting_windows: [L("锁定试穿窗口", "Lock fitting windows"), "D"],
+      compose_allergy_safe_menu: [L("编排忌口菜单", "Compose allergy-safe menu"), "B"],
+      confirm_kitchen_isolation: [L("确认后厨隔离", "Confirm kitchen isolation"), "A"],
+      watch_weather_and_backup_clause: [L("天气与备用条款", "Weather & backup clauses"), "A"],
+      relocate_ceremony_indoor: [L("仪式挪室内对齐", "Relocate ceremony indoors"), "E"],
+      reconcile_handoff_pack: [L("回收交接证据包", "Reconcile handoff pack"), "E"],
+    };
+
+    this.stream.showThinking?.(
+      (toolLabels[name] && toolLabels[name][0]) || L(`调用 ${name}…`, `Running ${name}…`)
+    );
     const fn = tools[name];
     if (typeof fn === "function") {
       await fn();
-      return { ok: true };
+    } else {
+      const [label, track] = toolLabels[name] || [name, ""];
+      this.stream.pushTimelineEvent({
+        kind: "discovery",
+        text_zh: track ? `轨道 ${track} · ${label}` : String(label),
+        text_en: track ? `Track ${track} · ${label}` : String(label),
+      });
+      this.workspaces.switchWorkspace("tracks");
     }
-    console.warn("[wedding] unknown tool", name);
-    return { ok: false, error: "unknown tool" };
+    this.stream.hideThinking?.();
+    this.renderPartStrip();
+    this.renderTrackRail();
+    this.workspaces.render();
+    return { ok: true };
   }
 
   // —— Deliverables ——

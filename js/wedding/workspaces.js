@@ -200,21 +200,25 @@ export class WeddingWorkspaces {
       const model = trackWindowModel(t.id, fullState);
       const focus = activeTracks.has(t.id);
       const done = trackComplete(kpi, t.id);
-      const running = parallelStarted && !done;
-      const alert = Boolean(model.alert);
+      const stressed = Boolean(model.stressed);
+      const running = (parallelStarted && !done) || stressed;
+      const alert = Boolean(model.alert) || stressed;
 
       el.classList.toggle("is-focus", focus);
       el.classList.toggle("is-done", done);
       el.classList.toggle("is-running", running);
       el.classList.toggle("is-alert", alert);
+      el.classList.toggle("is-stressed", stressed);
 
       const status = el.querySelector(".wedding-window-bar > em");
       if (status) {
         const label = done
           ? L("就绪", "Ready")
-          : focus
-            ? L("并行处理", "Parallel")
-            : L("后台跟进", "Background");
+          : stressed
+            ? L("攻坚中", "Hard work")
+            : focus
+              ? L("并行处理", "Parallel")
+              : L("后台跟进", "Background");
         if (status.dataset.sig !== label) {
           status.dataset.sig = label;
           status.innerHTML = `<i></i>${esc(label)}`;
@@ -259,15 +263,18 @@ export class WeddingWorkspaces {
             const model = trackWindowModel(t.id, state);
             const focus = activeTracks.has(t.id) ? "is-focus" : "";
             const done = trackComplete(kpi, t.id) ? "is-done" : "";
-            const running = parallelStarted && !done ? "is-running" : "";
-            const alert = model.alert ? "is-alert" : "";
+            const stressed = model.stressed ? "is-stressed" : "";
+            const running = (parallelStarted && !done) || model.stressed ? "is-running" : "";
+            const alert = model.alert || model.stressed ? "is-alert" : "";
             const status = done
               ? L("就绪", "Ready")
-              : focus
-                ? L("并行处理", "Parallel")
-                : L("后台跟进", "Background");
+              : model.stressed
+                ? L("攻坚中", "Hard work")
+                : focus
+                  ? L("并行处理", "Parallel")
+                  : L("后台跟进", "Background");
             const bodyHtml = renderTrackMiniWorkbench(t.id, state, model);
-            return `<article class="wedding-track-window ${focus} ${done} ${running} ${alert}" data-track="${esc(t.id)}">
+            return `<article class="wedding-track-window ${focus} ${done} ${running} ${alert} ${stressed}" data-track="${esc(t.id)}">
               <header class="wedding-window-bar">
                 <span class="wedding-window-mark" aria-hidden="true">${esc(t.id)}</span>
                 <b>${esc(label || t.id)}</b>
@@ -492,6 +499,13 @@ export function parseWeddingStageTracks(meta = {}, stageId = "") {
   return new Set(spec.match(/[A-E]/g) || []);
 }
 
+export function resolveWeddingPart(meta = {}, stageId = "") {
+  if (!stageId) return null;
+  const act = (meta.acts || []).find((row) => (row.stage_ids || []).includes(stageId));
+  if (!act) return null;
+  return (meta.parts || []).find((part) => (part.act_ids || []).includes(act.id)) || null;
+}
+
 function stageHasParallelWork(meta = {}, stageId = "") {
   if (!stageId) return false;
   const stages = Array.isArray(meta.stages) ? meta.stages : [];
@@ -501,39 +515,64 @@ function stageHasParallelWork(meta = {}, stageId = "") {
 }
 
 function trackWindowModel(trackId, state = {}) {
-  const { kpi = {}, contracts = {}, bookings = {}, stageId = "" } = state;
+  const { kpi = {}, contracts = {}, bookings = {}, stageId = "", part = null, stressTracks = [], meta = {} } =
+    state;
+  const activePart = part || resolveWeddingPart(meta, stageId);
+  const stressSet = new Set(
+    (stressTracks && stressTracks.length ? stressTracks : activePart?.stress_tracks) || []
+  );
+  const stressed = stressSet.has(trackId);
+  const tagZh = activePart?.conflict_tag_zh || "";
+  const tagEn = activePart?.conflict_tag_en || "";
   const photo = bookings.photo_beian || {};
   const contractDrift =
     Boolean(contracts.attachment) && Number(contracts.v1?.min_tables || 20) !== Number(contracts.attachment?.min_tables || 20);
   const photoMismatch = /released|unverified|释放|未核验/i.test(
-    `${photo.order_status || ""} ${photo.backendStatus || ""}`
+    `${photo.order_status || ""} ${photo.backendStatus || ""} ${pickStored(photo, "order_status") || ""}`
   );
   const dressDelayed = /dress_delay|fitting_replan/.test(stageId);
   const dietary = Boolean(kpi.dietaryTables) || /dietary|menu_reopen/.test(stageId);
   const scam = /scam/.test(stageId);
+  const rain = /cross_track_freeze|wedding_day/.test(stageId);
   const committed = Number(kpi.committedTotal) || 0;
   const cap = Number(kpi.budgetTotal) || 250000;
 
   const models = {
     A: {
-      title: contractDrift ? L("附件条款漂移", "Attachment drift") : L("场地与餐饮", "Venue & catering"),
+      title: contractDrift
+        ? L("附件条款漂移", "Attachment drift")
+        : rain
+          ? L("雨天换场对齐", "Rain relocate align")
+          : L("场地与餐饮", "Venue & catering"),
       detail: contractDrift
         ? L("20 桌 → 25 桌 · 尚未接受", "20 → 25 tables · not accepted")
-        : L(`20 桌基准 · 容量 26 桌`, `20-table baseline · cap 26`),
-      action: contractDrift ? L("比对附件并冻结签署", "Diff attachment; freeze signing") : L("核桌数、菜单与不可退定金", "Check tables, menu and deposit"),
+        : rain
+          ? L("草坪遇雨 · 室内备选翻台中", "Lawn rain · indoor backup turning over")
+          : L(`20 桌基准 · 容量 26 桌`, `20-table baseline · cap 26`),
+      action: contractDrift
+        ? L("比对附件并冻结签署", "Diff attachment; freeze signing")
+        : rain
+          ? L("翻备用/无障碍条款并重排动线", "Pull backup/accessibility; reflow guests")
+          : L("核桌数、菜单与不可退定金", "Check tables, menu and deposit"),
       evidence: contractDrift ? L("新附件 · 风险已标红", "New attachment · risk flagged") : L("宴会厅容量证据", "Ballroom capacity evidence"),
       image: "./assets/wedding/wedding-venue-evidence.png",
       imageAlt: L("宴会厅桌位与容量证据", "Ballroom table and capacity evidence"),
-      alert: contractDrift,
+      alert: contractDrift || rain || stressed,
+      stressed,
+      conflictTag: stressed ? L(tagZh || "定金悖论", tagEn || "Deposit paradox") : "",
     },
     B: {
       title: dietary ? L("忌口触发菜单重开", "Dietary menu reopen") : L("宾客与请柬", "Guests & invitations"),
-      detail: L(`回执 ${kpi.rsvpPct || 0}% · ${dietary ? "1 桌集中忌口" : "名单持续去重"}`, `RSVP ${kpi.rsvpPct || 0}% · ${dietary ? "1 dietary table" : "deduping households"}`),
-      action: dietary ? L("仅重开一桌菜单，不推翻全案", "Reopen one table, not the whole menu") : L("回执、印刷、寄送并行倒排", "Run RSVP, print and dispatch in parallel"),
+      detail: L(`回执 ${kpi.rsvpPct || 0}% · ${dietary ? "匿名桌忌口集中" : "名单持续去重"}`, `RSVP ${kpi.rsvpPct || 0}% · ${dietary ? "anon dietary cluster" : "deduping households"}`),
+      action: dietary
+        ? L("匿名桌次编排菜单，不写姓名", "Anon table counts — no names on the menu")
+        : L("回执、印刷、寄送并行倒排", "Run RSVP, print and dispatch in parallel"),
       evidence: L("请柬校样 · 回执与餐标", "Invitation proof · RSVP and meal tags"),
       image: "./assets/wedding/wedding-rsvp-evidence.png",
       imageAlt: L("请柬、回执与餐食标记", "Invitation, RSVP and meal markers"),
-      alert: dietary,
+      alert: dietary || stressed,
+      stressed,
+      conflictTag: stressed ? L(tagZh || "忌口隐私", tagEn || "Dietary privacy") : "",
     },
     C: {
       title: photoMismatch ? L("档期 / 主摄状态冲突", "Slot / lead mismatch") : L("摄影摄像", "Photo & video"),
@@ -541,12 +580,16 @@ function trackWindowModel(trackId, state = {}) {
         ? `${pickStored(photo, "page_status") || L("页面已锁", "UI locked")} ≠ ${
             pickStored(photo, "order_status") || L("后台释放", "backend released")
           }`
-        : L("国庆档 · 保留期持续核验", "Holiday slot · hold continuously verified"),
-      action: photoMismatch ? L("查后台订单与主摄作品归属", "Verify backend order and lead authorship") : L("盯保留时限与主摄身份", "Watch hold expiry and lead identity"),
+        : L("国庆档 · 页面「锁定 48h」需核后台", "Holiday slot · UI Locked 48h needs backend check"),
+      action: photoMismatch
+        ? L("查后台订单与主摄作品归属", "Verify backend order and lead authorship")
+        : L("同时核 order_id 与 hold_expiry", "Check order_id and hold_expiry together"),
       evidence: L("作品集与执行主摄交叉核验", "Portfolio vs assigned lead verification"),
       image: "./assets/wedding/wedding-photo-evidence.png",
       imageAlt: L("摄影作品集与主摄身份核验", "Portfolio and lead photographer verification"),
-      alert: photoMismatch,
+      alert: photoMismatch || stressed,
+      stressed,
+      conflictTag: stressed ? L(tagZh || "Hold 失真", tagEn || "Hold drift") : "",
     },
     D: {
       title: dressDelayed ? L("工期延长至 60 天", "Lead time extended to 60d") : L("婚纱与试穿", "Dress & fittings"),
@@ -555,18 +598,30 @@ function trackWindowModel(trackId, state = {}) {
       evidence: L("工坊进度与试穿档期", "Atelier progress and fitting slots"),
       image: "./assets/wedding/wedding-dress-evidence.png",
       imageAlt: L("婚纱制作与试穿进度", "Dress production and fitting progress"),
-      alert: dressDelayed,
+      alert: dressDelayed || stressed,
+      stressed,
+      conflictTag: stressed ? L(tagZh || "并账", tagEn || "Ledger merge") : "",
     },
     E: {
-      title: scam ? L("可疑一条龙消息", "Suspicious package message") : L("仪式与总预算", "Ceremony & budget"),
+      title: scam
+        ? L("可疑一条龙消息", "Suspicious package message")
+        : rain
+          ? L("runbook 与对账交接", "Runbook & reconcile")
+          : L("仪式与总预算", "Ceremony & budget"),
       detail: L(`¥${fmt(committed)} / ¥${fmt(cap)} · ${kpi.locksPaid || 0}/7 锁`, `¥${fmt(committed)} / ¥${fmt(cap)} · ${kpi.locksPaid || 0}/7 locks`),
-      action: scam ? L("拦截付款并核验收款主体", "Block payment; verify beneficiary") : L("逐笔记账、权限门禁、跨轨调度", "Ledger, auth gates and cross-track routing"),
+      action: scam
+        ? L("零点击拦截并核验收款主体", "Zero-click block; verify beneficiary")
+        : rain
+          ? L("对齐机位/司仪/通知/开席，再收回证据", "Align cameras/MC/notices/serve, then gather evidence")
+          : L("逐笔记账、权限门禁、跨轨调度", "Ledger, auth gates and cross-track routing"),
       evidence: "",
       image: "",
       imageAlt: "",
       metric: `${Math.round((committed / cap) * 100)}%`,
       metricPct: cap > 0 ? (committed / cap) * 100 : 0,
-      alert: scam || Number(kpi.worstCaseExposure) > cap,
+      alert: scam || rain || Number(kpi.worstCaseExposure) > cap || stressed,
+      stressed,
+      conflictTag: stressed ? L(tagZh || "并账", tagEn || "Ledger merge") : "",
     },
   };
   return models[trackId] || models.E;
@@ -574,7 +629,10 @@ function trackWindowModel(trackId, state = {}) {
 
 function renderTrackMiniWorkbench(trackId, state = {}, model = {}) {
   const { kpi = {}, contracts = {}, bookings = {}, locks = [], vendorMessages = {}, stageId = "" } = state;
-  const appHeader = (icon, title, meta) => `<div class="wedding-mini-toolbar">
+  const conflictChip = model.conflictTag
+    ? `<div class="wedding-conflict-chip">${esc(L("本 Part 冲突", "Part conflict"))}<b>${esc(model.conflictTag)}</b></div>`
+    : "";
+  const appHeader = (icon, title, meta) => `${conflictChip}<div class="wedding-mini-toolbar">
     <span aria-hidden="true">${icon}</span><strong>${esc(title)}</strong><em>${esc(meta)}</em>
   </div>`;
 

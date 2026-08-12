@@ -43,7 +43,7 @@ import {
   applyDomI18n,
 } from "./i18n.js?v=20260812-smooth";
 import { EcomCockpit } from "./ecom/cockpit.js?v=20260812-smooth";
-import { WeddingCockpit } from "./wedding/cockpit.js?v=20260812-smooth";
+import { WeddingCockpit } from "./wedding/cockpit.js?v=20260812-parts";
 import { createScriptedScenarioRegistry } from "./scenarios.js?v=20260812-smooth";
 
 /** OpenAI-compatible provider presets for the demo console. */
