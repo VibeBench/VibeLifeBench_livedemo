@@ -3,8 +3,8 @@
  * Aligns with ecom Team Inbox pattern (one big window, multi-contact).
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-think-tools";
-import { sleepPlayback } from "../playback.js?v=20260812-think-tools";
+import { L, getLocale } from "../i18n.js?v=20260812-tip-view";
+import { sleepPlayback } from "../playback.js?v=20260812-tip-view";
 
 export const WORKSPACE_IDS = [
   "im",

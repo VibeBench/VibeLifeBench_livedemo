@@ -8,8 +8,8 @@ import {
   getPlaybackSpeed,
   playbackMs,
   chatPlaybackMs,
-} from "../playback.js?v=20260812-think-tools";
-import { getLocale, L } from "../i18n.js?v=20260812-think-tools";
+} from "../playback.js?v=20260812-tip-view";
+import { getLocale, L } from "../i18n.js?v=20260812-tip-view";
 
 const DEFAULT_INTERNAL_MS = {
   stage: 100,

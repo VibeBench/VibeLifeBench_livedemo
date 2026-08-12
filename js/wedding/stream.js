@@ -3,8 +3,8 @@
  * No rich cards, sense-think-act rails, or dual-track chrome.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-think-tools";
-import { isReplayMode } from "../playback.js?v=20260812-think-tools";
+import { L, getLocale } from "../i18n.js?v=20260812-tip-view";
+import { isReplayMode } from "../playback.js?v=20260812-tip-view";
 
 export const AUTH_PAYMENT_THRESHOLD = 5000;
 
@@ -487,10 +487,10 @@ export class WeddingStream {
       const ico = ch === "mail" ? "📧" : ch === "sms" ? "📱" : "💬";
       const openLabel =
         ch === "mail"
-          ? L("处理邮件", "Handle mail")
+          ? L("查看邮件", "View mail")
           : ch === "sms"
-            ? L("处理短信", "Handle SMS")
-            : L("去处理", "Handle");
+            ? L("查看短信", "View SMS")
+            : L("查看", "View");
       return `<article class="wedding-stream-item wedding-inbound-tip ${arrive}" data-msg-id="${esc(m.id)}">
         <button type="button" class="wedding-inbound-tip-btn"
           data-tip-workspace="${esc(m.tipWorkspace || ch)}"
