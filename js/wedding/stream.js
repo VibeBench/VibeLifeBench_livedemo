@@ -3,8 +3,8 @@
  * No rich cards, sense-think-act rails, or dual-track chrome.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-closeout";
-import { isReplayMode } from "../playback.js?v=20260812-closeout";
+import { L, getLocale } from "../i18n.js?v=20260812-venue-fanout";
+import { isReplayMode } from "../playback.js?v=20260812-venue-fanout";
 
 export const AUTH_PAYMENT_THRESHOLD = 5000;
 
@@ -942,6 +942,56 @@ function weddingToolSteps(name = "") {
       L("对齐机位车队后厨", "Realign photo/fleet/kitchen"),
       L("更新 runbook", "Update runbook"),
     ],
+    pull_backup_clause_pdf: [
+      L("定位合同附件", "Locate contract annex"),
+      L("抽出备用条款", "Extract backup clause"),
+      L("标明不代签", "Mark no signing"),
+    ],
+    check_step_free_access: [
+      L("核正门积水", "Check main-door flood"),
+      L("核侧门无台阶", "Verify side-door step-free"),
+      L("写入动线", "Write access route"),
+    ],
+    draft_indoor_camera_plot: [
+      L("读取厅平面", "Load hall plan"),
+      L("重布机位", "Replot cameras"),
+      L("导出平面图", "Export floor plot"),
+    ],
+    update_fleet_dropoff: [
+      L("改下车点", "Change drop-off"),
+      L("写日历备注", "Note on calendar"),
+      L("同步车队", "Sync fleet"),
+    ],
+    rewrite_mc_indoor_script: [
+      L("切室内版脚本", "Switch indoor script"),
+      L("压缩彩排", "Compress rehearsal"),
+      L("去掉过敏提及", "Drop allergy mentions"),
+    ],
+    shift_kitchen_serve: [
+      L("对齐开席时刻", "Align serve time"),
+      L("冷盘先上", "Cold starters first"),
+      L("保持匿名忌口", "Keep diets anonymous"),
+    ],
+    sync_getting_ready_room: [
+      L("改化妆间", "Move getting-ready"),
+      L("同步婚纱店", "Sync gown shop"),
+      L("写进日历", "Write calendar"),
+    ],
+    estimate_indoor_delta: [
+      L("估换厅增量", "Estimate indoor delta"),
+      L("扣预备金", "Charge reserve"),
+      L("不签大合同", "No new full contract"),
+    ],
+    broadcast_guest_notice: [
+      L("起草改场短信", "Draft venue-change SMS"),
+      L("群发宾客", "Broadcast guests"),
+      L("记入 runbook", "Log in runbook"),
+    ],
+    patch_runbook_flags: [
+      L("读当前执行单", "Read runbook"),
+      L("勾选已对齐项", "Tick aligned items"),
+      L("刷新当日板", "Refresh day board"),
+    ],
   };
   return map[name] || common;
 }
@@ -958,6 +1008,16 @@ function weddingToolWhy(name = "") {
     diff_contract_versions: L("只做 diff，不代签", "Diff only — never sign"),
     block_untrusted_payment: L("零点击拦截骗局", "Block scam with zero clicks"),
     relocate_ceremony_indoor: L("雨天切室内且不改婚期", "Move indoors on rain without moving the date"),
+    pull_backup_clause_pdf: L("只抽备用条款，不代签新合同", "Pull backup clause only — never sign a new contract"),
+    check_step_free_access: L("长辈动线必须无台阶", "Elder route must stay step-free"),
+    draft_indoor_camera_plot: L("机位跟着厅走，不能空拍", "Cameras follow the hall — no empty angles"),
+    update_fleet_dropoff: L("下车点与无障碍动线对齐", "Drop-off must match the step-free route"),
+    rewrite_mc_indoor_script: L("司仪词与彩排跟着改场走", "MC script and rehearsal follow the venue move"),
+    shift_kitchen_serve: L("开席时间要跟后厨产能对齐", "Serve time must match kitchen capacity"),
+    sync_getting_ready_room: L("化妆间不能还停在草坪侧", "Getting-ready cannot stay on the lawn side"),
+    estimate_indoor_delta: L("换厅成本进预备金，不新签大合同", "Indoor delta hits reserve — no new full contract"),
+    broadcast_guest_notice: L("宾客动线变更必须群发到位", "Guest route changes must be broadcast"),
+    patch_runbook_flags: L("把多方对齐进度写回执行单", "Write multi-party alignment back to the runbook"),
   };
   return map[name] || L("为当前决策补齐可验证事实", "Fill verifiable facts for the current decision");
 }

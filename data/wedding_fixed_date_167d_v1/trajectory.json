@@ -15,8 +15,8 @@
     "holdFloor": 0,
     "target_duration_ms": {
       "min": 210000,
-      "max": 270000,
-      "actual": 251025
+      "max": 284025,
+      "actual": 276025
     }
   },
   "steps": [
@@ -5177,8 +5177,8 @@
       "part_n": 5,
       "title_zh": "Part 5 · 户外遇雨，但婚期、场地锁和宾客动线都不能重来",
       "title_en": "Part 5 · Rain hits outdoors, but date and venue lock cannot be redone",
-      "text_zh": "盯天气，翻备用条款与无障碍条款，把仪式挪进室内备选；摄影机位、司仪流程、宾客通知与开席时间一起对齐，只把需点头处递上。婚礼办完后还要把合同版本、主摄身份、试穿退改、忌口隐私、尾款与假催付一条条对回来。",
-      "text_en": "Watch weather, pull backup and accessibility clauses, move ceremony indoors; align cameras, emcee, guest notices and kitchen serve time — only nod items go up. After the day, still reconcile contract version, lead ID, fitting cancel, diet privacy, tails and scam chases line by line.",
+      "text_zh": "盯天气，翻备用条款与无障碍；同时对接场地、摄影、车队、司仪、后厨、婚纱化妆间和两边家长，用日历/文件/网页/短信/账本多工具把仪式挪进室内备选，只把需点头项递上。婚礼办完后还要把合同版本、主摄身份、试穿退改、忌口隐私、尾款与假催付一条条对回来。",
+      "text_en": "Watch weather, pull backup and access clauses; fan out to venue, photo, fleet, MC, kitchen, glam and both families; move ceremony indoors via calendar/files/web/SMS/ledger tools — only nod items go up. After the day, still reconcile contract version, lead ID, fitting cancel, diet privacy, tails and scam chases.",
       "conflict_zh": "草坪仪式将开，天忽然变了；室内备选还在翻台。换地方要重找机位、挪下客点、保证长辈无台阶，开席时间也跟着变——钱不能多花，当天更签不了大合同。客人散了，账、身份和退改还要一条条对回来。",
       "conflict_en": "Lawn ceremony is about to start and weather turns; the indoor backup is still turning over. Moving means new camera positions, drop-off, step-free elder routes and a new serve time — budget cannot grow, and there is no time for a new full contract. Guests leave; accounts, identities and cancellations still must reconcile line by line.",
       "holdMs": 1554,
@@ -5354,68 +5354,75 @@
       "text_zh": "【天气】10-03 上午短时强降雨概率升高，建议启用室内备选。",
       "text_en": "[Weather] High chance of short heavy rain AM Oct 3 — recommend indoor backup.",
       "level": "warn",
-      "reveal": true,
-      "holdMs": 380,
-      "_enrich": "p5"
+      "holdMs": 420,
+      "_enrich": "p5",
+      "reveal": true
     },
     {
-      "type": "notification",
-      "channel": "email",
-      "from_zh": "云庭承办",
-      "from_en": "Yunting ops",
-      "subject_zh": "场地备用条款与无障碍通道说明",
-      "subject_en": "Venue backup clause & accessibility note",
-      "body_zh": "室内备选厅 10:00 前可完成翻台；长辈动线无台阶版本见附件第 4 条。",
-      "body_en": "Indoor backup hall can finish turnover before 10:00; step-free elder route is clause 4 in the annex.",
-      "text_zh": "场地备用条款与无障碍通道说明",
-      "text_en": "Venue backup clause & accessibility note",
-      "level": "info",
-      "reveal": true,
-      "holdMs": 400,
-      "_enrich": "p5"
+      "type": "tool_call",
+      "name": "watch_weather_and_backup_clause",
+      "args": {
+        "outdoor": "lawn",
+        "indoor_backup": true
+      },
+      "holdMs": 780,
+      "_enrich": "p5",
+      "thinking_zh": "天气恶化先写 runbook，再分头对齐人。",
+      "thinking_en": "Log weather on runbook before fan-out."
     },
     {
-      "type": "switch_bench",
-      "bench": "files",
+      "type": "focus_thread",
+      "thread": "venue_yunting",
       "holdMs": 140,
       "_enrich": "p5"
     },
     {
-      "type": "files_update",
-      "files": [
-        {
-          "id": "backup_clause",
-          "name_zh": "备用条款与无障碍.pdf",
-          "name_en": "Backup & accessibility.pdf",
-          "kind": "pdf",
-          "source_zh": "合同附件",
-          "source_en": "Contract annex",
-          "note_zh": "遇雨可迁室内备选；不新增大合同。",
-          "note_en": "Rain may move to indoor backup; no new full contract."
-        }
-      ],
-      "highlight": "backup_clause",
-      "reveal": true,
-      "holdMs": 300,
+      "type": "im_message",
+      "thread": "venue_yunting",
+      "from": "venue_yunting",
+      "kind": "text",
+      "text_zh": "雨要来了，室内备选厅 10:00 前能翻完台；正门有积水，侧门无台阶通道可用。要启用备用条款吗？",
+      "text_en": "Rain’s coming — indoor hall can finish turnover before 10:00; main door floods, side door is step-free. Invoke backup clause?",
+      "holdMs": 480,
       "_enrich": "p5"
+    },
+    {
+      "type": "im_message",
+      "thread": "venue_yunting",
+      "from": "agent",
+      "kind": "text",
+      "text_zh": "先抽备用条款与无障碍附件，不新签大合同；侧门动线我同步车队和家长群。",
+      "text_en": "I’ll pull the backup + access annex first — no new full contract; side-door route syncs to fleet and family groups.",
+      "holdMs": 480,
+      "_enrich": "p5"
+    },
+    {
+      "type": "tool_call",
+      "name": "pull_backup_clause_pdf",
+      "args": {
+        "note_zh": "遇雨可迁室内备选；不新增大合同；侧门无台阶见第 4 条。",
+        "note_en": "Rain may move indoors; no new full contract; step-free side door in clause 4."
+      },
+      "holdMs": 800,
+      "_enrich": "p5",
+      "thinking_zh": "只抽条款 PDF，绝不代签。",
+      "thinking_en": "Pull clause PDF only — never sign."
+    },
+    {
+      "type": "tool_call",
+      "name": "check_step_free_access",
+      "args": {
+        "mismatch": true
+      },
+      "holdMs": 800,
+      "_enrich": "p5",
+      "thinking_zh": "正门积水 vs 侧门无台阶，必须交叉核。",
+      "thinking_en": "Flooded main vs step-free side must be cross-checked."
     },
     {
       "type": "switch_bench",
       "bench": "calendar",
       "holdMs": 140,
-      "_enrich": "p5"
-    },
-    {
-      "type": "calendar_upsert",
-      "event": {
-        "id": "ceremony_indoor",
-        "date": "2026-10-03",
-        "zh": "仪式改室内备选 10:30",
-        "en": "Ceremony → indoor backup 10:30",
-        "status": "fixed"
-      },
-      "reveal": true,
-      "holdMs": 280,
       "_enrich": "p5"
     },
     {
@@ -5428,13 +5435,26 @@
         "status": "unavailable"
       },
       "reveal": true,
-      "holdMs": 280,
+      "holdMs": 320,
+      "_enrich": "p5"
+    },
+    {
+      "type": "calendar_upsert",
+      "event": {
+        "id": "ceremony_indoor",
+        "date": "2026-10-03",
+        "zh": "仪式改室内备选 10:30",
+        "en": "Ceremony → indoor backup 10:30",
+        "status": "fixed"
+      },
+      "reveal": true,
+      "holdMs": 320,
       "_enrich": "p5"
     },
     {
       "type": "focus_thread",
       "thread": "photo_beian",
-      "holdMs": 160,
+      "holdMs": 140,
       "_enrich": "p5"
     },
     {
@@ -5442,9 +5462,9 @@
       "thread": "photo_beian",
       "from": "photo_beian",
       "kind": "text",
-      "text_zh": "改室内的话机位我要重布，中午能给平面图吗？",
-      "text_en": "If we move indoors I need new angles — floor plan by noon?",
-      "holdMs": 420,
+      "text_zh": "改室内的话机位我要重布，中午能给平面图吗？第二机位灯位也要挪。",
+      "text_en": "If we move indoors I need new angles by noon — second-shooter lights too.",
+      "holdMs": 480,
       "_enrich": "p5"
     },
     {
@@ -5452,15 +5472,35 @@
       "thread": "photo_beian",
       "from": "agent",
       "kind": "text",
-      "text_zh": "平面图与机位清单一并进 runbook；开席时间会后移 20 分钟对齐后厨。",
-      "text_en": "Floor plan + camera list go into the runbook; serving slips 20 minutes for the kitchen.",
-      "holdMs": 420,
+      "text_zh": "我出室内平面图和机位清单进文件台；开席会后移对齐后厨，你按 10:30 仪式进场。",
+      "text_en": "I’ll drop an indoor floor plot + camera list into files; serve slips for kitchen — you enter for 10:30 ceremony.",
+      "holdMs": 480,
+      "_enrich": "p5"
+    },
+    {
+      "type": "tool_call",
+      "name": "draft_indoor_camera_plot",
+      "args": {},
+      "holdMs": 820,
+      "_enrich": "p5",
+      "thinking_zh": "机位必须跟着厅走，空拍会出事。",
+      "thinking_en": "Cameras must follow the hall."
+    },
+    {
+      "type": "tool_call",
+      "name": "patch_runbook_flags",
+      "args": {
+        "photo": true,
+        "preview_zh": "Runbook：摄影机位已对齐",
+        "preview_en": "Runbook: photo angles aligned"
+      },
+      "holdMs": 560,
       "_enrich": "p5"
     },
     {
       "type": "focus_thread",
       "thread": "fleet_anchi",
-      "holdMs": 160,
+      "holdMs": 140,
       "_enrich": "p5"
     },
     {
@@ -5468,9 +5508,9 @@
       "thread": "fleet_anchi",
       "from": "fleet_anchi",
       "kind": "text",
-      "text_zh": "下雨下车点改侧门可以吗？正门积水。",
-      "text_en": "Rainy drop-off at the side door? Main entrance floods.",
-      "holdMs": 420,
+      "text_zh": "下雨下车点改侧门可以吗？正门积水，礼炮车也过不去。",
+      "text_en": "Rainy drop-off at the side door? Main floods and the salute car can’t pass.",
+      "holdMs": 480,
       "_enrich": "p5"
     },
     {
@@ -5478,15 +5518,36 @@
       "thread": "fleet_anchi",
       "from": "agent",
       "kind": "text",
-      "text_zh": "侧门无台阶路线已核；我更新日历备注并短信宾客。",
-      "text_en": "Side door is the step-free route; I'll note the calendar and SMS guests.",
-      "holdMs": 420,
+      "text_zh": "侧门无台阶已核；我把下车点写进日历，并短信宾客改入口。",
+      "text_en": "Side door is verified step-free; I’ll calendar the drop-off and SMS guests the new entrance.",
+      "holdMs": 480,
+      "_enrich": "p5"
+    },
+    {
+      "type": "tool_call",
+      "name": "update_fleet_dropoff",
+      "args": {},
+      "holdMs": 780,
+      "_enrich": "p5",
+      "thinking_zh": "下车点与无障碍必须同一条线。",
+      "thinking_en": "Drop-off and step-free must be one line."
+    },
+    {
+      "type": "tool_call",
+      "name": "patch_runbook_flags",
+      "args": {
+        "fleet": true,
+        "access": true,
+        "preview_zh": "Runbook：车队/无障碍已对齐",
+        "preview_en": "Runbook: fleet/access aligned"
+      },
+      "holdMs": 560,
       "_enrich": "p5"
     },
     {
       "type": "focus_thread",
       "thread": "mc_weiyang",
-      "holdMs": 160,
+      "holdMs": 140,
       "_enrich": "p5"
     },
     {
@@ -5494,9 +5555,9 @@
       "thread": "mc_weiyang",
       "from": "mc_weiyang",
       "kind": "text",
-      "text_zh": "司仪词我改室内版，彩排能不能压缩成 15 分钟？",
-      "text_en": "I'll switch to the indoor script — can rehearsal shrink to 15 minutes?",
-      "holdMs": 420,
+      "text_zh": "司仪词我改室内版，彩排能不能压缩成 15 分钟？致辞还要避开过敏话题。",
+      "text_en": "I’ll switch to the indoor script — rehearsal to 15 min? And skip allergy talk in toasts.",
+      "holdMs": 480,
       "_enrich": "p5"
     },
     {
@@ -5504,15 +5565,24 @@
       "thread": "mc_weiyang",
       "from": "agent",
       "kind": "text",
-      "text_zh": "可以。只需你们点头的两处：开席时间、是否启用备用厅条款。",
-      "text_en": "Yes. Only two nods needed: serving time, and invoking the backup-hall clause.",
-      "holdMs": 420,
+      "text_zh": "可以。室内版脚本我落文件；过敏只走后厨匿名桌次，台上不提。",
+      "text_en": "Yes. Indoor script goes to files; allergies stay in kitchen anon tables — not on stage.",
+      "holdMs": 480,
       "_enrich": "p5"
+    },
+    {
+      "type": "tool_call",
+      "name": "rewrite_mc_indoor_script",
+      "args": {},
+      "holdMs": 800,
+      "_enrich": "p5",
+      "thinking_zh": "司仪词跟改场走，彩排也要压缩。",
+      "thinking_en": "MC script follows the move; rehearse shorter."
     },
     {
       "type": "focus_thread",
       "thread": "kitchen_yunting",
-      "holdMs": 160,
+      "holdMs": 140,
       "_enrich": "p5"
     },
     {
@@ -5520,42 +5590,219 @@
       "thread": "kitchen_yunting",
       "from": "kitchen_yunting",
       "kind": "text",
-      "text_zh": "开席若挪到 12:20，热菜我能赶上，冷盘先上。",
-      "text_en": "If service moves to 12:20 hot dishes still work — cold starters first.",
-      "holdMs": 420,
+      "text_zh": "开席若挪到 12:20，热菜我能赶上，冷盘先上；忌口桌还是按匿名桌次出？",
+      "text_en": "If service moves to 12:20 hot dishes still work — cold first; diets still by anon table?",
+      "holdMs": 480,
       "_enrich": "p5"
     },
     {
-      "type": "switch_bench",
-      "bench": "runbook",
+      "type": "im_message",
+      "thread": "kitchen_yunting",
+      "from": "agent",
+      "kind": "text",
+      "text_zh": "对，12:20 开席、冷盘先上；忌口继续匿名桌次，不写姓名。",
+      "text_en": "Yes — serve 12:20, cold first; diets stay anonymous tables, no names.",
+      "holdMs": 480,
+      "_enrich": "p5"
+    },
+    {
+      "type": "tool_call",
+      "name": "shift_kitchen_serve",
+      "args": {
+        "serve": "12:20"
+      },
+      "holdMs": 820,
+      "_enrich": "p5",
+      "thinking_zh": "开席一动，后厨与宾客通知都要跟上。",
+      "thinking_en": "Serve-time shift pulls kitchen and guest notices."
+    },
+    {
+      "type": "tool_call",
+      "name": "patch_runbook_flags",
+      "args": {
+        "kitchen": true,
+        "preview_zh": "Runbook：后厨开席已对齐",
+        "preview_en": "Runbook: kitchen serve aligned"
+      },
+      "holdMs": 560,
+      "_enrich": "p5"
+    },
+    {
+      "type": "focus_thread",
+      "thread": "dress_baizhi",
       "holdMs": 140,
       "_enrich": "p5"
     },
     {
-      "type": "world",
-      "text_zh": "天气、备用条款、机位、车队、司仪、后厨已对齐；只把需点头项递到新人面前。",
-      "text_en": "Weather, backup clause, cameras, fleet, MC and kitchen aligned — only nod items go to the couple.",
-      "holdMs": 360,
+      "type": "im_message",
+      "thread": "dress_baizhi",
+      "from": "dress_baizhi",
+      "kind": "text",
+      "text_zh": "草坪侧化妆间要泡汤了吧？跟妆团队改去哪个房间？",
+      "text_en": "Lawn-side getting-ready will flood, right? Which room for glam?",
+      "holdMs": 460,
       "_enrich": "p5"
     },
     {
+      "type": "im_message",
+      "thread": "dress_baizhi",
+      "from": "agent",
+      "kind": "text",
+      "text_zh": "改室内备选厅侧厢；我写进日历，避免妆造还往草坪跑。",
+      "text_en": "Move to the indoor side suite; I’ll calendar it so glam doesn’t head to the lawn.",
+      "holdMs": 460,
+      "_enrich": "p5"
+    },
+    {
+      "type": "tool_call",
+      "name": "sync_getting_ready_room",
+      "args": {},
+      "holdMs": 760,
+      "_enrich": "p5",
+      "thinking_zh": "化妆间也要跟着换厅，否则时间线断。",
+      "thinking_en": "Getting-ready must follow the hall move."
+    },
+    {
+      "type": "focus_thread",
+      "thread": "family_bride",
+      "holdMs": 140,
+      "_enrich": "p5"
+    },
+    {
+      "type": "im_message",
+      "thread": "family_bride",
+      "from": "family_bride",
+      "kind": "text",
+      "text_zh": "乔妈问：长辈从哪进？轮椅推得进去吗？别让老人淋雨。",
+      "text_en": "Qiao’s mom: which entrance for elders? Wheelchair OK? Don’t leave them in the rain.",
+      "holdMs": 480,
+      "_enrich": "p5"
+    },
+    {
+      "type": "im_message",
+      "thread": "family_bride",
+      "from": "agent",
+      "kind": "text",
+      "text_zh": "侧门无台阶通道，有雨棚；短信也会写清入口，不用走正门积水。",
+      "text_en": "Step-free side door under cover; SMS will spell out the entrance — skip the flooded main door.",
+      "holdMs": 480,
+      "_enrich": "p5"
+    },
+    {
+      "type": "focus_thread",
+      "thread": "family_groom",
+      "holdMs": 140,
+      "_enrich": "p5"
+    },
+    {
+      "type": "im_message",
+      "thread": "family_groom",
+      "from": "family_groom",
+      "kind": "text",
+      "text_zh": "屿爸那边司仪致辞顺序变了吗？亲戚群谁来通知？",
+      "text_en": "Yu’s dad: did MC toast order change? Who texts the relatives?",
+      "holdMs": 460,
+      "_enrich": "p5"
+    },
+    {
+      "type": "im_message",
+      "thread": "family_groom",
+      "from": "agent",
+      "kind": "text",
+      "text_zh": "司仪已切室内版；宾客短信我统一群发，家长群不用各自转发名单。",
+      "text_en": "MC already on indoor script; I’ll broadcast one guest SMS — families needn’t forward lists.",
+      "holdMs": 460,
+      "_enrich": "p5"
+    },
+    {
+      "type": "focus_thread",
+      "thread": "zhou_yu",
+      "holdMs": 140,
+      "_enrich": "p5"
+    },
+    {
+      "type": "im_message",
+      "thread": "zhou_yu",
+      "from": "zhou_yu",
+      "kind": "text",
+      "text_zh": "我这边听着都改室内了——会不会多花钱？要不要我现在去现场盯翻台？",
+      "text_en": "Sounds like we’re fully indoors — extra cost? Should I go on-site to watch turnover?",
+      "holdMs": 480,
+      "_enrich": "p5"
+    },
+    {
+      "type": "im_message",
+      "thread": "zhou_yu",
+      "from": "agent",
+      "kind": "text",
+      "text_zh": "增量走预备金估一下，不新签大合同；翻台由场地确认，你不用现在冲现场。",
+      "text_en": "I’ll estimate reserve delta — no new full contract; venue owns turnover, you needn’t rush over.",
+      "holdMs": 480,
+      "_enrich": "p5"
+    },
+    {
+      "type": "tool_call",
+      "name": "estimate_indoor_delta",
+      "args": {
+        "delta": 1800,
+        "preview_zh": "换厅增量约 ¥1,800 记入预备金（不签大合同）",
+        "preview_en": "Indoor delta ~¥1,800 to reserve (no new contract)"
+      },
+      "holdMs": 820,
+      "_enrich": "p5",
+      "thinking_zh": "钱只动预备金，别借机签新合同。",
+      "thinking_en": "Money hits reserve only — no new contract."
+    },
+    {
       "type": "notification",
-      "channel": "sms",
-      "from_zh": "短信提醒",
-      "from_en": "SMS",
-      "subject_zh": "【宾客通知】仪式改室内备选厅，入场改侧门无台阶通道。",
-      "subject_en": "[Guests] Ceremony moves to indoor backup; enter via step-free side door.",
-      "text_zh": "【宾客通知】仪式改室内备选厅，入场改侧门无台阶通道。",
-      "text_en": "[Guests] Ceremony moves to indoor backup; enter via step-free side door.",
-      "level": "warn",
-      "reveal": true,
-      "holdMs": 380,
+      "channel": "email",
+      "from_zh": "云庭承办",
+      "from_en": "Yunting ops",
+      "subject_zh": "室内备选厅翻台完成确认",
+      "subject_en": "Indoor backup hall turnover confirmed",
+      "body_zh": "10:00 前翻台完成；侧门雨棚已架好；备用条款按附件执行，无新增合同页。",
+      "body_en": "Turnover done before 10:00; side-door canopy up; backup clause per annex — no new contract pages.",
+      "text_zh": "室内备选厅翻台完成确认",
+      "text_en": "Indoor backup hall turnover confirmed",
+      "level": "info",
+      "holdMs": 520,
+      "_enrich": "p5",
+      "reveal": true
+    },
+    {
+      "type": "tool_call",
+      "name": "broadcast_guest_notice",
+      "args": {
+        "subject_zh": "【宾客通知】仪式改室内备选厅，入场改侧门无台阶通道，开席约 12:20。",
+        "subject_en": "[Guests] Ceremony indoors; enter via step-free side door; serve ~12:20.",
+        "text_zh": "【宾客通知】仪式改室内备选厅，入场改侧门无台阶通道，开席约 12:20。",
+        "text_en": "[Guests] Ceremony indoors; enter via step-free side door; serve ~12:20."
+      },
+      "holdMs": 800,
+      "_enrich": "p5",
+      "thinking_zh": "宾客动线变更必须群发到位。",
+      "thinking_en": "Guest route changes must be broadcast."
+    },
+    {
+      "type": "tool_call",
+      "name": "patch_runbook_flags",
+      "args": {
+        "weather": true,
+        "photo": true,
+        "fleet": true,
+        "access": true,
+        "kitchen": true,
+        "notify": true,
+        "preview_zh": "Runbook：天气/机位/车队/动线/后厨/通知全齐",
+        "preview_en": "Runbook: weather/photo/fleet/access/kitchen/notify complete"
+      },
+      "holdMs": 700,
       "_enrich": "p5"
     },
     {
       "type": "focus_thread",
       "thread": "lin_qiao",
-      "holdMs": 160,
+      "holdMs": 140,
       "_enrich": "p5"
     },
     {
@@ -5563,33 +5810,57 @@
       "thread": "lin_qiao",
       "from": "lin_qiao",
       "kind": "text",
-      "text_zh": "天气、备用条款、机位、车队、司仪、后厨都对齐了吗？只需我点头的项列出来。",
-      "text_en": "Are weather, backup clauses, camera, fleet, MC, and kitchen aligned? List only what needs my go-ahead.",
-      "holdMs": 780
+      "text_zh": "场地、摄影、车队、司仪、后厨、婚纱化妆间、两边家长和宾客短信……都对齐了吗？只需我点头的列出来。",
+      "text_en": "Venue, photo, fleet, MC, kitchen, glam room, both families and guest SMS — all aligned? List only what needs my nod.",
+      "holdMs": 900,
+      "_enrich": "p5"
     },
     {
       "type": "im_message",
       "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
-      "text_zh": "请你点头两处：① 启用室内备选条款；② 开席改到 12:20。其余摄影/车队/后厨我已写进当日 runbook。仪式后我还要对最终账。",
-      "text_en": "Please nod on two items: (1) enable indoor backup clause; (2) seat at 12:20. Photo/fleet/kitchen are already in the day runbook. After ceremony I’ll still reconcile the final ledger.",
-      "holdMs": 1600,
+      "text_zh": "多方已对齐：场地翻台、机位平面图、侧门下车、司仪室内词、开席 12:20、化妆间侧厢、家长说明、宾客短信；换厅增量约 ¥1,800 进预备金。只需你点头两处：① 启用室内备选条款；② 开席改到 12:20。其余我写进当日 runbook，不代签新合同。",
+      "text_en": "Multi-party aligned: venue turnover, camera plot, side-door drop-off, indoor MC script, serve 12:20, glam suite, family brief, guest SMS; ~¥1,800 indoor delta on reserve. Nod on two only: (1) invoke indoor backup clause; (2) serve at 12:20. Rest is in the day runbook — no new contract signed.",
+      "holdMs": 1700,
       "_enrich": "p5",
-      "thinking_zh": "把决策压到最少两项，降低婚礼日沟通负载。",
-      "thinking_en": "Compress decisions to two asks to cut wedding-day communication load."
+      "thinking_zh": "把十几个对接压成两项授权，降低婚礼日负载。",
+      "thinking_en": "Compress a dozen handshakes into two authorizations."
     },
     {
-      "type": "switch_bench",
-      "bench": "ledger",
-      "holdMs": 140,
+      "type": "im_message",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "授权：启用室内备选条款；开席改 12:20。",
+      "text_en": "Authorized: invoke indoor backup clause; serve at 12:20.",
+      "holdMs": 700,
       "_enrich": "p5"
     },
     {
+      "type": "tool_call",
+      "name": "relocate_ceremony_indoor",
+      "args": {
+        "step_free": true,
+        "realign": [
+          "photo",
+          "mc",
+          "fleet",
+          "kitchen",
+          "dress",
+          "guests"
+        ]
+      },
+      "holdMs": 900,
+      "_enrich": "p5",
+      "thinking_zh": "授权后才落执行：全员 runbook 勾齐。",
+      "thinking_en": "Only after auth: tick the full runbook."
+    },
+    {
       "type": "world",
-      "text_zh": "交接包：最终账本、供应商履约记录、差点出事复盘、可复用流程——热闹办完不等于没人替签。",
-      "text_en": "Handoff pack: final ledger, vendor delivery record, near-miss review, reusable process — a pretty wedding ≠ no proxy signing.",
-      "holdMs": 360,
+      "text_zh": "天气、条款、机位、车队、司仪、后厨、化妆间、家长与宾客通知已多方对齐；婚期未动、未代签新合同。",
+      "text_en": "Weather, clause, cameras, fleet, MC, kitchen, glam, families and guest notices aligned across parties; date unchanged, no proxy signing.",
+      "holdMs": 520,
       "_enrich": "p5"
     },
     {

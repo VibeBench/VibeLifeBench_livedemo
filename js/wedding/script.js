@@ -8,8 +8,8 @@ import {
   getPlaybackSpeed,
   playbackMs,
   chatPlaybackMs,
-} from "../playback.js?v=20260812-closeout";
-import { getLocale, L } from "../i18n.js?v=20260812-closeout";
+} from "../playback.js?v=20260812-venue-fanout";
+import { getLocale, L } from "../i18n.js?v=20260812-venue-fanout";
 
 const DEFAULT_INTERNAL_MS = {
   stage: 100,

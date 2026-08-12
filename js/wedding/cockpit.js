@@ -2,15 +2,15 @@
  * Wedding planning cockpit — fixed KPI header, pure dialogue stream, workspace panels.
  */
 
-import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-closeout";
-import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-closeout";
+import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-venue-fanout";
+import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-venue-fanout";
 import {
   WeddingWorkspaces,
   maskContact,
   parseWeddingStageTracks,
   WORKSPACE_IDS,
-} from "./workspaces.js?v=20260812-closeout";
-import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-closeout";
+} from "./workspaces.js?v=20260812-venue-fanout";
+import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-venue-fanout";
 
 export { AUTH_PAYMENT_THRESHOLD, weddingProgressLabel, WORKSPACE_IDS };
 
@@ -981,6 +981,198 @@ export class WeddingCockpit {
         this.announceWorkspaceUpdate("runbook", {
           preview_zh: "天气与室内备选条款已写入当日 Runbook",
           preview_en: "Weather + indoor backup clause added to day runbook",
+        });
+      },
+      pull_backup_clause_pdf: () => {
+        this.workspaces.setFilesState(
+          [
+            {
+              id: "backup_clause",
+              name_zh: "备用条款与无障碍.pdf",
+              name_en: "Backup & accessibility.pdf",
+              kind: "pdf",
+              source_zh: "合同附件",
+              source_en: "Contract annex",
+              note_zh: args.note_zh || "遇雨可迁室内备选；不新增大合同。",
+              note_en: args.note_en || "Rain may move to indoor backup; no new full contract.",
+            },
+          ],
+          { reveal: true, highlight: "backup_clause" }
+        );
+        this.announceWorkspaceUpdate("files", {
+          preview_zh: "已抽出备用条款 PDF，未代签新合同",
+          preview_en: "Backup-clause PDF pulled — no new contract signed",
+        });
+      },
+      check_step_free_access: () => {
+        this.workspaces.setWebState({
+          url: args.url || "yunting.venue/access/side-door",
+          title_zh: args.title_zh || "云庭 · 无障碍动线核验",
+          title_en: args.title_en || "Yunting · step-free route check",
+          ui_zh: args.ui_zh || "侧门 · 无台阶 · 雨天可用",
+          ui_en: args.ui_en || "Side door · step-free · rain OK",
+          backend_zh: args.backend_zh || "正门积水告警 · 建议改侧门",
+          backend_en: args.backend_en || "Main entrance flood alert · use side door",
+          note_zh: args.note_zh || "长辈动线改侧门，不改婚期、不加合同费。",
+          note_en: args.note_en || "Elders via side door — date holds, no contract fee.",
+          mismatch: Boolean(args.mismatch),
+          reveal: true,
+        });
+        this.workspaces.setRunbookState({ access: true, reveal: false });
+        this.announceWorkspaceUpdate("web", {
+          preview_zh: "无障碍侧门动线已核验",
+          preview_en: "Step-free side-door route verified",
+        });
+      },
+      draft_indoor_camera_plot: () => {
+        this.workspaces.setFilesState(
+          [
+            {
+              id: "indoor_floorplan",
+              name_zh: "室内备选厅机位平面图.pdf",
+              name_en: "Indoor backup camera plot.pdf",
+              kind: "pdf",
+              source_zh: "摄影重布",
+              source_en: "Photo replot",
+              note_zh: args.note_zh || "机位重布完成；主摄/第二机位已标。",
+              note_en: args.note_en || "Camera plot ready; lead + second marked.",
+            },
+          ],
+          { reveal: true, highlight: "indoor_floorplan" }
+        );
+        this.workspaces.setRunbookState({ photo: true, reveal: false });
+        this.announceWorkspaceUpdate("files", {
+          preview_zh: "室内机位平面图已生成",
+          preview_en: "Indoor camera floor plan drafted",
+        });
+      },
+      update_fleet_dropoff: () => {
+        this.upsertCalendarEvent(
+          {
+            id: "fleet_dropoff",
+            date: args.date || "2026-10-03",
+            zh: args.zh || "车队下车点 · 侧门",
+            en: args.en || "Fleet drop-off · side door",
+            status: "fixed",
+          },
+          { reveal: true }
+        );
+        this.workspaces.setRunbookState({ fleet: true, reveal: false });
+        this.announceWorkspaceUpdate("calendar", {
+          preview_zh: "车队下车点已改侧门并写入日历",
+          preview_en: "Fleet drop-off moved to side door on calendar",
+        });
+      },
+      rewrite_mc_indoor_script: () => {
+        this.workspaces.setFilesState(
+          [
+            {
+              id: "mc_indoor_script",
+              name_zh: "司仪词·室内版.docx",
+              name_en: "MC script · indoor.docx",
+              kind: "doc",
+              source_zh: "司仪未央",
+              source_en: "MC Weiyang",
+              note_zh: args.note_zh || "彩排压缩 15 分钟；致辞不提过敏。",
+              note_en: args.note_en || "Rehearsal cut to 15 min; no allergy mentions.",
+            },
+          ],
+          { reveal: true, highlight: "mc_indoor_script" }
+        );
+        this.announceWorkspaceUpdate("files", {
+          preview_zh: "司仪室内版脚本已重写",
+          preview_en: "Indoor MC script rewritten",
+        });
+      },
+      shift_kitchen_serve: () => {
+        this.upsertCalendarEvent(
+          {
+            id: "kitchen_serve",
+            date: args.date || "2026-10-03",
+            zh: args.zh || `开席 ${args.serve || "12:20"}`,
+            en: args.en || `Serve ${args.serve || "12:20"}`,
+            status: "fixed",
+          },
+          { reveal: true }
+        );
+        this.workspaces.setMenuState({
+          notes: [
+            {
+              text_zh: args.note_zh || `开席改 ${args.serve || "12:20"}：冷盘先上，热菜赶上；忌口仍按匿名桌次。`,
+              text_en: args.note_en || `Serve moves to ${args.serve || "12:20"}: cold first, hot catches up; diets stay anon.`,
+            },
+          ],
+          reveal: false,
+        });
+        this.workspaces.setRunbookState({ kitchen: true, reveal: false });
+        this.announceWorkspaceUpdate("calendar", {
+          preview_zh: `后厨开席已对齐到 ${args.serve || "12:20"}`,
+          preview_en: `Kitchen serve aligned to ${args.serve || "12:20"}`,
+        });
+      },
+      sync_getting_ready_room: () => {
+        this.upsertCalendarEvent(
+          {
+            id: "getting_ready",
+            date: args.date || "2026-10-03",
+            zh: args.zh || "化妆间改室内备选厅侧厢",
+            en: args.en || "Getting-ready → indoor side suite",
+            status: "fixed",
+          },
+          { reveal: true }
+        );
+        this.announceWorkspaceUpdate("calendar", {
+          preview_zh: "婚纱化妆间已同步改室内侧厢",
+          preview_en: "Gown getting-ready room synced to indoor suite",
+        });
+      },
+      estimate_indoor_delta: () => {
+        const delta = Number(args.delta) || 0;
+        const committed = Number(this.kpi?.committedTotal) || 248600;
+        this.applyKpi({
+          committedTotal: committed + delta,
+          reserveRemaining: Math.max(0, (Number(this.kpi?.reserveRemaining) || 20000) - delta),
+          worstCaseExposure: committed + delta,
+        });
+        this.workspaces.switchWorkspace("ledger");
+        this.announceWorkspaceUpdate("ledger", {
+          preview_zh: args.preview_zh || `换厅增量 ¥${delta}（不动大合同）已记入预备金`,
+          preview_en: args.preview_en || `Indoor delta ¥${delta} (no new contract) booked to reserve`,
+        });
+      },
+      broadcast_guest_notice: () => {
+        this.workspaces.setRunbookState({ notify: true, reveal: false });
+        this.workspaces.pushInboxItem({
+          kind: "sms",
+          channel: "sms",
+          from_zh: args.from_zh || "宾客通知",
+          from_en: args.from_en || "Guest notice",
+          subject_zh: args.subject_zh || "【宾客通知】仪式改室内备选厅，入场改侧门无台阶通道。",
+          subject_en: args.subject_en || "[Guests] Ceremony moves indoors; enter via step-free side door.",
+          text_zh: args.text_zh || args.subject_zh,
+          text_en: args.text_en || args.subject_en,
+          level: "warn",
+          reveal: true,
+        });
+        this.announceWorkspaceUpdate("sms", {
+          preview_zh: "宾客改场短信已群发",
+          preview_en: "Guest venue-change SMS broadcast",
+        });
+      },
+      patch_runbook_flags: () => {
+        const flags = {
+          weather: args.weather,
+          photo: args.photo,
+          fleet: args.fleet,
+          access: args.access,
+          kitchen: args.kitchen,
+          notify: args.notify,
+        };
+        const clean = Object.fromEntries(Object.entries(flags).filter(([, v]) => v !== undefined));
+        this.workspaces.setRunbookState({ ...clean, reveal: true });
+        this.announceWorkspaceUpdate("runbook", {
+          preview_zh: args.preview_zh || "当日 Runbook 已更新一项",
+          preview_en: args.preview_en || "Day runbook patched one flag",
         });
       },
       relocate_ceremony_indoor: () => {
