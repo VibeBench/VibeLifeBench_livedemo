@@ -3,8 +3,8 @@
  * No rich cards, sense-think-act rails, or dual-track chrome.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-tip-lite";
-import { isReplayMode } from "../playback.js?v=20260812-tip-lite";
+import { L, getLocale } from "../i18n.js?v=20260812-tip-no-view";
+import { isReplayMode } from "../playback.js?v=20260812-tip-no-view";
 
 export const AUTH_PAYMENT_THRESHOLD = 5000;
 
@@ -526,10 +526,6 @@ export class WeddingStream {
       const ch = m.tipChannel || "im";
       const meta = tipChannelMeta(ch);
       const ico = m.tipIcon || meta.icon;
-      const openLabel =
-        getLocale() === "en"
-          ? m.tipActionEn || meta.actionEn
-          : m.tipActionZh || meta.actionZh;
       return `<article class="wedding-stream-item wedding-inbound-tip ${arrive}" data-msg-id="${esc(m.id)}">
         <button type="button" class="wedding-inbound-tip-btn"
           data-tip-workspace="${esc(m.tipWorkspace || meta.workspace || ch)}"
@@ -540,7 +536,6 @@ export class WeddingStream {
             <strong>${esc(text)}</strong>
             ${preview ? `<em>${esc(preview)}</em>` : ""}
           </span>
-          <span class="wedding-inbound-tip-go">${esc(openLabel)}</span>
         </button>
       </article>`;
     }

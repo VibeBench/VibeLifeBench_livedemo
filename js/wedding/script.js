@@ -8,8 +8,8 @@ import {
   getPlaybackSpeed,
   playbackMs,
   chatPlaybackMs,
-} from "../playback.js?v=20260812-tip-lite";
-import { getLocale, L } from "../i18n.js?v=20260812-tip-lite";
+} from "../playback.js?v=20260812-tip-no-view";
+import { getLocale, L } from "../i18n.js?v=20260812-tip-no-view";
 
 const DEFAULT_INTERNAL_MS = {
   stage: 100,

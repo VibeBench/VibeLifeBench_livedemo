@@ -15847,7 +15847,7 @@ body[data-scenario="wedding"] .wedding-cockpit:not([hidden]) {
   background: transparent;
   padding: 5px 4px;
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto;
+  grid-template-columns: 16px minmax(0, 1fr);
   gap: 6px;
   align-items: center;
   text-align: left;
