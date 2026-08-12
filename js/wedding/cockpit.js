@@ -2,15 +2,15 @@
  * Wedding planning cockpit — fixed KPI header, pure dialogue stream, workspace panels.
  */
 
-import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-user-avatar";
-import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-user-avatar";
+import { L, getLocale, applyDomI18n } from "../i18n.js?v=20260812-user-queries";
+import { WeddingStream, AUTH_PAYMENT_THRESHOLD, pickWeddingLocale } from "./stream.js?v=20260812-user-queries";
 import {
   WeddingWorkspaces,
   maskContact,
   parseWeddingStageTracks,
   WORKSPACE_IDS,
-} from "./workspaces.js?v=20260812-user-avatar";
-import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-user-avatar";
+} from "./workspaces.js?v=20260812-user-queries";
+import { WeddingScriptPlayer, weddingProgressLabel } from "./script.js?v=20260812-user-queries";
 
 export { AUTH_PAYMENT_THRESHOLD, weddingProgressLabel, WORKSPACE_IDS };
 
@@ -295,10 +295,12 @@ export class WeddingCockpit {
 
   blockPaymentMutation(step = {}, reason = "") {
     this._blockedPayments.push({ step, reason, at: Date.now() });
-    this.stream.pushTimelineEvent({
-      kind: "auth",
-      text_zh: reason || "付款已拦截：需要林乔当次明确授权。",
-      text_en: reason || "Payment blocked: explicit authorization required.",
+    this.stream.pushMessage({
+      thread: "lin_qiao",
+      from: "agent",
+      kind: "text",
+      text_zh: reason || "付款已拦截：需要你当次明确授权后才会执行。",
+      text_en: reason || "Payment blocked: I need your explicit go-ahead this turn.",
     });
     this.bumpNotify({
       kind_zh: "授权",
@@ -405,11 +407,13 @@ export class WeddingCockpit {
     const act = (this.meta?.acts || []).find((row) => row.stage_ids?.includes(id));
     if (act?.id !== this._lastActId) {
       this._lastActId = act?.id || id;
-      this.stream.pushTimelineEvent({
-        kind: "stage",
-        text_zh: act?.zh || st?.zh || st?.en || id,
-        text_en: act?.en || st?.en || st?.zh || id,
-      });
+      // Act/stage labels stay on the stage chip / track rail — not in couple IM
+      // (模型在对话里感知不到的旁白信息不进主对话).
+      const label =
+        getLocale() === "en"
+          ? act?.en || st?.en || st?.zh || id
+          : act?.zh || st?.zh || st?.en || id;
+      if (label) this.workspaces?.setStatus?.(label);
     }
   }
 
@@ -559,27 +563,18 @@ export class WeddingCockpit {
   // —— Events ——
 
   async applyWorldEvent(step = {}) {
-    // Part 难点框架（title/conflict）不进主对话 IM，只留状态条提示。
+    // World / Part / 阶段旁白都不进主对话 IM——模型只能通过用户话与工具结果感知。
+    // 状态条可提示当前难点标题；具体事实改由用户 query / 邮件短信 / 协作 IM 承载。
+    const title =
+      getLocale() === "en"
+        ? step.title_en || step.title_zh || ""
+        : step.title_zh || step.title_en || "";
     const isPartBanner =
       Boolean(step.part_id) ||
       step.kind === "challenge" ||
       step.level === "challenge" ||
-      /^Part\s*\d/i.test(String(step.title_zh || step.title_en || ""));
-    if (isPartBanner) {
-      const title =
-        getLocale() === "en"
-          ? step.title_en || step.title_zh || ""
-          : step.title_zh || step.title_en || "";
-      if (title) this.workspaces?.setStatus?.(title);
-    } else {
-      this.stream.pushTimelineEvent({
-        kind: "world",
-        text_zh: step.text_zh,
-        text_en: step.text_en,
-        title_zh: step.title_zh,
-        title_en: step.title_en,
-      });
-    }
+      /^Part\s*\d/i.test(String(title || ""));
+    if (isPartBanner && title) this.workspaces?.setStatus?.(title);
     if (step.kpi) this.applyKpi(step.kpi);
     if (step._invite_note || step.kind === "app" && /请柬|印刷|invite|print/i.test(`${step.text_zh || ""} ${step.text_en || ""}`)) {
       this.workspaces?.setInviteState?.({
@@ -594,14 +589,7 @@ export class WeddingCockpit {
   async applyNotification(step = {}) {
     const channel = step.channel || step.kind || "system";
     const isMail = channel === "email" || channel === "mail";
-    // Mail is read in the Mail app; keep couple chat free of long mail bodies.
-    if (!isMail) {
-      this.stream.pushTimelineEvent({
-        kind: "notify",
-        text_zh: step.text_zh,
-        text_en: step.text_en,
-      });
-    }
+    // Mail/SMS live in their apps + inbound tips — do not dump notify bodies into couple IM.
     this.bumpNotify({
       kind_zh: isMail ? "邮件" : "通知",
       kind_en: isMail ? "Mail" : "Notice",
@@ -790,11 +778,7 @@ export class WeddingCockpit {
   }
 
   async pushMutationDiscovery(step = {}) {
-    this.stream.pushTimelineEvent({
-      kind: "discovery",
-      text_zh: step.text_zh,
-      text_en: step.text_en,
-    });
+    // Discovery is environment truth — surface via mail/SMS/IM tips, not omniscient IM labels.
     const blob = `${step.text_zh || ""} ${step.text_en || ""}`;
     if (step.text_zh?.includes("20→25") || step.text_en?.includes("20→25")) {
       await this.workspaces.deliverInboxItem({

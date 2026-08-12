@@ -7,8 +7,8 @@
   "summary_en": "Parts 1–5 hardness frame · 36 stages · parallel agent work · seven lock auths",
   "benchmark_case": "wedding_fixed_date_167d_v1",
   "layer": "demo_ui",
-  "benchmark_note_zh": "Demo UI 步骤；e000–e121 与 m01–m28 经 benchmark_refs 引用。",
-  "benchmark_note_en": "Demo UI steps; e000–e121 and m01–m28 referenced via benchmark_refs.",
+  "benchmark_note_zh": "Demo UI 步骤；e000–e121 与 m01–m28 经 benchmark_refs 引用。 · 主对话去掉阶段/外部旁白，改为更多新人提问。",
+  "benchmark_note_en": "Demo UI steps; e000–e121 and m01–m28 referenced via benchmark_refs. · Couple IM drops stage/world narrator labels; denser lin_qiao user queries drive the main thread.",
   "playback": {
     "profile": "full_replay",
     "holdScale": 1.0,
@@ -66,6 +66,25 @@
       "text_zh": "长辈确定婚期 2026-10-03，预算硬顶 ¥250,000。",
       "text_en": "Elders fixed date 2026-10-03; budget cap ¥250,000.",
       "holdMs": 1188,
+      "benchmark_refs": {
+        "events": [
+          "e000",
+          "e001",
+          "e002",
+          "e003"
+        ],
+        "mutations": []
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_date",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "长辈把婚期定在 2026-10-03 了，预算硬顶 25 万。先帮我们立下总规矩？",
+      "text_en": "Elders locked the date to 2026-10-03 with a hard ¥250k cap. Can you set the ground rules first?",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e000",
@@ -140,6 +159,25 @@
       "text_zh": "汇总定金、隐私与授权规则。",
       "text_en": "Deposit, privacy, and authorization rules consolidated.",
       "holdMs": 1188,
+      "benchmark_refs": {
+        "events": [
+          "e004",
+          "e005",
+          "e006",
+          "e007"
+        ],
+        "mutations": []
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_date",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "定金、隐私和授权规则帮我汇总一下，超过五千的别替我拍板。",
+      "text_en": "Summarize deposit, privacy and auth rules — don't approve anything over 5k for me.",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e004",
@@ -585,6 +623,15 @@
     {
       "type": "im_message",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "账并好了吗？摄影如果再加价，会不会挤到婚纱和四金？超预算的先给我看再决定。",
+      "text_en": "Is the ledger merged? If photo adds cost, will it squeeze gown/jewelry? Show me overages before deciding.",
+      "holdMs": 780
+    },
+    {
+      "type": "im_message",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "我把连锁挤占算给你看了：若批摄影 +3k，婚纱或四金需让出同等额度。超预算项等你点头。",
@@ -679,6 +726,25 @@
       "type": "im_message",
       "act": "act_date",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "各家会话里的数先记着，下一步帮我并成同一张账吧。",
+      "text_en": "Park the vendor numbers in each thread for now, then merge them into one ledger.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e008",
+          "e009",
+          "e010",
+          "e011"
+        ],
+        "mutations": []
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_date",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "并成同一张账：逐笔认清性质（定金/不可退/已应），分进五轨并留应急预备金；超限不代拍板。",
@@ -756,6 +822,25 @@
       "text_zh": "每一笔都合情合理，加起来却放不下 ¥250,000；五轨都指向 10-03 同一终点。",
       "text_en": "Every line is reasonable alone, yet together they no longer fit ¥250,000; five tracks share 10-03.",
       "holdMs": 1188,
+      "benchmark_refs": {
+        "events": [
+          "e012",
+          "e013",
+          "e014",
+          "e015"
+        ],
+        "mutations": []
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_date",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "每一笔单独看都合理，加起来却超 25 万，五轨又都钉着 10-03——怎么排？",
+      "text_en": "Each line looks fair but together they won't fit ¥250k, and all five tracks hit Oct 3 — how do we sequence?",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e012",
@@ -886,6 +971,25 @@
       "type": "im_message",
       "act": "act_deposit",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "三家场地报价和条款口径不一样，帮我拉一张能比的表。",
+      "text_en": "Three venue quotes use different terms — make a comparable sheet.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e016",
+          "e017",
+          "e018",
+          "e019"
+        ],
+        "mutations": []
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_deposit",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "标准化比较：最低消费、容量、定金、换场条款。",
@@ -943,6 +1047,27 @@
       "text_zh": "最低 20 桌、消防容量 26 桌、定金 ¥30,000 不可退。",
       "text_en": "20-table minimum, 26-table cap, ¥30,000 nonrefundable deposit.",
       "holdMs": 1188,
+      "benchmark_refs": {
+        "events": [
+          "e020",
+          "e021",
+          "e022",
+          "e023"
+        ],
+        "mutations": [
+          "m01"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_deposit",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "最低 20 桌、消防只能 26、定金三万不可退——少桌和超容的损失分别算给我看。",
+      "text_en": "Min 20 tables, fire cap 26, ¥30k nonrefundable — show shortfall vs over-capacity loss.",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e020",
@@ -1054,6 +1179,25 @@
       "type": "im_message",
       "act": "act_deposit",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "初版宾客名单有重复户，先帮我清干净再估桌数。",
+      "text_en": "The draft guest list has duplicate households — clean it before estimating tables.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e024",
+          "e025",
+          "e026",
+          "e027"
+        ],
+        "mutations": []
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_deposit",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "去重并估算桌数区间 18 / 22 / 28。",
@@ -1133,6 +1277,27 @@
       "text_zh": "合同 v1 最低消费 20 桌。",
       "text_en": "Contract v1 minimum spend: 20 tables.",
       "holdMs": 1188,
+      "benchmark_refs": {
+        "events": [
+          "e028",
+          "e029",
+          "e030",
+          "e031"
+        ],
+        "mutations": [
+          "m02"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_deposit",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "合同 v1 写的最低消费 20 桌，确认一下我们按哪个版本谈定金。",
+      "text_en": "Contract v1 says min 20 tables — confirm which version we use before the deposit.",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e028",
@@ -1520,6 +1685,15 @@
     {
       "type": "im_message",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "群里还是 20 桌旧合同，邮件又来了 25 桌附件——你只做 diff，别替我签。",
+      "text_en": "Chat still has the 20-table contract while mail brought a 25-table annex — diff only, don't sign for me.",
+      "holdMs": 780
+    },
+    {
+      "type": "im_message",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "Part2 变化源：短信催定金、本地新旧合同、供应商网页、聊天与日历已对齐。需你拍板的只有：是否接受 25 桌附件、是否锁定替代摄影。",
@@ -1550,6 +1724,25 @@
       "type": "focus_thread",
       "thread": "lin_qiao",
       "holdMs": 200
+    },
+    {
+      "type": "im_message",
+      "act": "act_deposit",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "桌数还在晃，截止日倒排帮我进一张图；要拍板的单独问我。",
+      "text_en": "Headcount is still moving — put deadlines on one board and ask me only where a call is needed.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e032",
+          "e033",
+          "e034",
+          "e035"
+        ],
+        "mutations": []
+      }
     },
     {
       "type": "im_message",
@@ -1647,6 +1840,25 @@
       "type": "im_message",
       "act": "act_deposit",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "场地刚书面确认旧 20 桌基准还有效，记进账本。",
+      "text_en": "Venue just confirmed the old 20-table baseline in writing — log it.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e036",
+          "e037",
+          "e038",
+          "e039"
+        ],
+        "mutations": []
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_deposit",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "单独询问：是否授权支付 ¥30,000 场地定金？",
@@ -1686,6 +1898,27 @@
       "text_zh": "用户当次授权场地定金。",
       "text_en": "User authorized venue deposit this session.",
       "holdMs": 1188,
+      "benchmark_refs": {
+        "events": [
+          "e040",
+          "e041",
+          "e042",
+          "e043"
+        ],
+        "mutations": [
+          "m03"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_deposit",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "场地定金我确认过条款了，这次明确授权你去付。",
+      "text_en": "I've reviewed the venue deposit terms — authorizing payment this turn.",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e040",
@@ -1842,6 +2075,25 @@
       "type": "im_message",
       "act": "act_drift",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "国庆档摄影一般提前四个月就满了，我们是不是该抓紧锁？",
+      "text_en": "National-Day photo slots usually fill four months out — should we lock sooner?",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e044",
+          "e045",
+          "e046",
+          "e047"
+        ],
+        "mutations": []
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_drift",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "核主摄作品、合同姓名、档期 hold 与替换条款。",
@@ -1934,6 +2186,27 @@
       "type": "focus_thread",
       "thread": "lin_qiao",
       "holdMs": 200
+    },
+    {
+      "type": "im_message",
+      "act": "act_drift",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "供应商页写着已锁定 48 小时，你帮我核一下是不是真锁住了。",
+      "text_en": "The vendor page says locked for 48h — can you verify it's real?",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e048",
+          "e049",
+          "e050",
+          "e051"
+        ],
+        "mutations": [
+          "m07"
+        ]
+      }
     },
     {
       "type": "im_message",
@@ -2038,6 +2311,27 @@
       "type": "im_message",
       "act": "act_drift",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "我听说后台 hold 已经 released 了，但页面还显示锁定——到底什么状态？",
+      "text_en": "I heard the backend hold is released while the page still says locked — what's the real status?",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e052",
+          "e053",
+          "e054",
+          "e055"
+        ],
+        "mutations": [
+          "m08"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_drift",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "绝不报假锁；立刻启动替代团队比较与预算再算。",
@@ -2124,6 +2418,24 @@
       "type": "im_message",
       "act": "act_drift",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "原档期回不去了是吗？那替代方案和损失先摊开给我。",
+      "text_en": "So the original slot is gone? Lay out the replacement options and loss first.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e056",
+          "e057",
+          "e058"
+        ],
+        "mutations": []
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_drift",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "比较替代团队、预算与主摄身份条款。",
@@ -2161,6 +2473,26 @@
       "text_zh": "替代摄影定金 ¥8,000。",
       "text_en": "Alternate photo deposit ¥8,000.",
       "holdMs": 1188,
+      "benchmark_refs": {
+        "events": [
+          "e059",
+          "e060",
+          "e061"
+        ],
+        "mutations": [
+          "m09"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_drift",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "替代摄影定金八千，条款核对完了我再授权。",
+      "text_en": "Replacement photo deposit is ¥8k — I'll authorize after you verify the terms.",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e059",
@@ -2306,6 +2638,24 @@
       "type": "im_message",
       "act": "act_postlock",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "婚纱草稿写了 45 天工期和两次试穿，帮我盯紧别被挤掉。",
+      "text_en": "The gown draft lists 45 days and two fittings — keep those from being squeezed out.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e062",
+          "e063",
+          "e064"
+        ],
+        "mutations": []
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_postlock",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "写入审阅意见；我不代签。",
@@ -2382,6 +2732,27 @@
       "text_zh": "婚纱定金 ¥6,000。",
       "text_en": "Gown deposit ¥6,000.",
       "holdMs": 1188,
+      "benchmark_refs": {
+        "events": [
+          "e065",
+          "e066",
+          "e067"
+        ],
+        "mutations": [
+          "m12",
+          "m13"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_postlock",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "婚纱定金六千，试穿和工期写进意见里了我再付。",
+      "text_en": "Gown deposit ¥6k — pay only after fittings/lead time are in the review notes.",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e065",
@@ -2493,6 +2864,24 @@
       "type": "im_message",
       "act": "act_postlock",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "司仪要双方长辈电话，别外发，指定我们当唯一联系窗口。",
+      "text_en": "MC asked for both families’ numbers — don’t share them; keep us as the only contact window.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e068",
+          "e069",
+          "e070"
+        ],
+        "mutations": []
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_postlock",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "司仪/婚庆商索要双方长辈电话。 拒绝外发；指定单一联系窗口（新人）。",
@@ -2530,6 +2919,26 @@
       "act": "act_postlock",
       "stage": "mc_lock",
       "holdMs": 1371,
+      "benchmark_refs": {
+        "events": [
+          "e071",
+          "e072",
+          "e073"
+        ],
+        "mutations": [
+          "m21"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_postlock",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "司仪定金四千，我这次明确授权你去锁。",
+      "text_en": "MC deposit is ¥4,000 — authorizing you to lock it this turn.",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e071",
@@ -2638,6 +3047,26 @@
       "type": "im_message",
       "act": "act_postlock",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "菜单 v1 我确认了，改菜窗口和加价规则记清楚。",
+      "text_en": "Menu v1 confirmed — log the change window and surcharge rules.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e074",
+          "e075",
+          "e076"
+        ],
+        "mutations": [
+          "m04"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_postlock",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "菜单 v1 已确认。 记录改菜窗口倒计时与加价规则。",
@@ -2691,6 +3120,26 @@
       "type": "im_message",
       "act": "act_postlock",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "回执通道可以开了，隐私分区建好；餐饮那边只给匿名桌次和忌口统计。",
+      "text_en": "Open RSVP with privacy zones — catering only gets anonymous table/diet counts.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e077",
+          "e078",
+          "e079"
+        ],
+        "mutations": [
+          "m16"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_postlock",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "回执通道启动。 建隐私分区；餐饮方只收匿名桌次与忌口统计。",
@@ -2729,6 +3178,26 @@
       "act": "act_postlock",
       "stage": "fleet_lock",
       "holdMs": 1371,
+      "benchmark_refs": {
+        "events": [
+          "e080",
+          "e081",
+          "e082"
+        ],
+        "mutations": [
+          "m22"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_postlock",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "车队定金三千，只共享地点和人数，这次授权你锁。",
+      "text_en": "Fleet deposit ¥3,000 — share only place and headcount; authorize lock this turn.",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e080",
@@ -2836,6 +3305,24 @@
       "type": "im_message",
       "act": "act_postlock",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "请柬校样帮我分层核对：日期、场地、姓名、地址。",
+      "text_en": "Proof the invite layers: date, venue, names, addresses.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e083",
+          "e084",
+          "e085"
+        ],
+        "mutations": []
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_postlock",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "请柬校样待确认。 分层校验日期、场地、姓名与地址。",
@@ -2875,6 +3362,26 @@
       "act": "act_postlock",
       "stage": "print_lock",
       "holdMs": 1371,
+      "benchmark_refs": {
+        "events": [
+          "e086",
+          "e087",
+          "e088"
+        ],
+        "mutations": [
+          "m17"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_postlock",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "校样没问题，印刷二千四不可退，这次授权执行。",
+      "text_en": "Proof looks good — authorize the nonrefundable ¥2,400 print run.",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e086",
@@ -3187,6 +3694,15 @@
     {
       "type": "im_message",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "忌口收成匿名桌次了吗？菜单加价和后厨隔离都要同时成立才算解决。",
+      "text_en": "Are diets folded into anonymous table counts? Menu surcharge and kitchen isolation both have to hold.",
+      "holdMs": 780
+    },
+    {
+      "type": "im_message",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "菜单方案需要你点头：加价 ¥3,600 是否动用预备金？我不会自行批准。",
@@ -3250,6 +3766,27 @@
       "type": "focus_thread",
       "thread": "lin_qiao",
       "holdMs": 200
+    },
+    {
+      "type": "im_message",
+      "act": "act_postlock",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "忌口收成匿名桌次了，可分餐主菜和过敏餐方案一并准备。",
+      "text_en": "Diets are anonymous table counts now — prep shareable mains and allergy plates.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e089",
+          "e090",
+          "e091"
+        ],
+        "mutations": [
+          "m18",
+          "m19"
+        ]
+      }
     },
     {
       "type": "im_message",
@@ -3371,6 +3908,26 @@
       "type": "im_message",
       "act": "act_postlock",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "菜单三周前就定了，现在重开还要加 3600，桌数预算又锁死——还有没有空间？",
+      "text_en": "Menu was locked three weeks ago; reopening costs ¥3,600 with tables/budget frozen — any room left?",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e092",
+          "e093",
+          "e094"
+        ],
+        "mutations": [
+          "m25"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_postlock",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "排出去刺鱼、单独过敏餐与小食；核后厨不串味也能出得来；重算预备金。",
@@ -3477,6 +4034,24 @@
       "type": "im_message",
       "act": "act_postlock",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "7/31 回执截止，最终大概 22 桌，帮我对一下印刷和桌数。",
+      "text_en": "RSVP closes 7/31, ~22 tables expected — align print run and table count.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e095",
+          "e096",
+          "e097"
+        ],
+        "mutations": []
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_postlock",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "固化桌数基线并同步场地与餐饮。",
@@ -3532,6 +4107,26 @@
       "text_zh": "印刷完成，开始寄出。",
       "text_en": "Print complete; dispatch started.",
       "holdMs": 1188,
+      "benchmark_refs": {
+        "events": [
+          "e098",
+          "e099",
+          "e100"
+        ],
+        "mutations": [
+          "m20"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_postlock",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "请柬开始寄了，寄出清单和回执进度帮我盯着。",
+      "text_en": "Invites are going out — track the mailer list and RSVP progress.",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e098",
@@ -3626,6 +4221,27 @@
         ]
       },
       "reveal_inbox": true
+    },
+    {
+      "type": "im_message",
+      "act": "act_drift",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "定金交完酒店突然把最低消费改成 25 桌，群文件还是旧版——先挑出差异给我看。",
+      "text_en": "After the deposit, the hotel moved min spend to 25 tables while the chat file is still old — diff it for me.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e101",
+          "e102",
+          "e103"
+        ],
+        "mutations": [
+          "m05",
+          "m26"
+        ]
+      }
     },
     {
       "type": "im_message",
@@ -3751,6 +4367,26 @@
       "type": "im_message",
       "act": "act_drift",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "场地说以新附件为准，我们要不要认？风险和加价先算清楚。",
+      "text_en": "Venue says the new annex controls — should we accept? Show risk and uplift first.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e104",
+          "e105",
+          "e106"
+        ],
+        "mutations": [
+          "m06"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_drift",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "核生效版本；请你决定接受损失或书面保留旧条款。",
@@ -3828,6 +4464,27 @@
       "text_zh": "团队更换主摄；官网作品集未更新。",
       "text_en": "Team swapped lead; site portfolio stale.",
       "holdMs": 1188,
+      "benchmark_refs": {
+        "events": [
+          "e107",
+          "e108",
+          "e109"
+        ],
+        "mutations": [
+          "m10",
+          "m11"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_drift",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "摄影团队换主摄了，官网作品集还没更新，可靠吗？",
+      "text_en": "They swapped the lead photographer and the portfolio isn't updated — is that trustworthy?",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e107",
@@ -3928,6 +4585,28 @@
       "text_zh": "工期 45→60 天；第二次试穿被挤出。",
       "text_en": "Lead 45→60 days; second fitting squeezed out.",
       "holdMs": 1188,
+      "benchmark_refs": {
+        "events": [
+          "e110",
+          "e111",
+          "e112"
+        ],
+        "mutations": [
+          "m14",
+          "m15",
+          "m27"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_postlock",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "婚纱工期从 45 拖到 60 天，第二次试穿被挤掉了——怎么补救？",
+      "text_en": "Gown lead time slipped 45→60 days and the second fitting got cut — how do we recover?",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e110",
@@ -4235,6 +4914,15 @@
     {
       "type": "im_message",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "试菜席上冒出来一条「婚庆一条龙」催定金外链，四金一万二还要单独授权——先别乱点。",
+      "text_en": "A 'one-stop wedding' deposit lure showed up at tasting; jewelry ¥12k still needs a separate auth — don't click anything.",
+      "holdMs": 780
+    },
+    {
+      "type": "im_message",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "试菜你们继续聊；骗局已拦下。四金若要付，请单独回我一句授权。",
@@ -4406,6 +5094,26 @@
       "text_zh": "婚前 14 天：天气预报恶化，草坪仪式风险上升；室内备选时段还在翻台。",
       "text_en": "T-14: forecast worsens for the lawn; indoor backup still turning over at that hour.",
       "holdMs": 1188,
+      "benchmark_refs": {
+        "events": [
+          "e116",
+          "e117",
+          "e118"
+        ],
+        "mutations": [
+          "m28"
+        ]
+      }
+    },
+    {
+      "type": "im_message",
+      "act": "act_merge",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "婚前两周天气预报变差，草坪风险大，室内备选还在翻台——预案怎么定？",
+      "text_en": "Two weeks out the forecast worsens; lawn risk is up and indoor backup is still turning — what's the plan?",
+      "holdMs": 1554,
       "benchmark_refs": {
         "events": [
           "e116",
@@ -4743,6 +5451,15 @@
     {
       "type": "im_message",
       "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "天气、备用条款、机位、车队、司仪、后厨都对齐了吗？只需我点头的项列出来。",
+      "text_en": "Are weather, backup clauses, camera, fleet, MC, and kitchen aligned? List only what needs my go-ahead.",
+      "holdMs": 780
+    },
+    {
+      "type": "im_message",
+      "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
       "text_zh": "请点头两处：1) 启用室内备选条款 2) 开席 12:20。其余我已写进当日 runbook；收官还要对账。",
@@ -4767,6 +5484,24 @@
       "type": "switch_bench",
       "bench": "runbook",
       "holdMs": 160
+    },
+    {
+      "type": "im_message",
+      "act": "act_merge",
+      "thread": "lin_qiao",
+      "from": "lin_qiao",
+      "kind": "text",
+      "text_zh": "热闹办完了，交接包——最终账本、履约记录、差点出事复盘、可复用流程——整理好给我。",
+      "text_en": "After the day, hand me the closeout pack: final ledger, vendor performance, near-miss review, reusable SOP.",
+      "holdMs": 1554,
+      "benchmark_refs": {
+        "events": [
+          "e119",
+          "e120",
+          "e121"
+        ],
+        "mutations": []
+      }
     },
     {
       "type": "im_message",

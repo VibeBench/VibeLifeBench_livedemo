@@ -8,8 +8,8 @@ import {
   getPlaybackSpeed,
   playbackMs,
   chatPlaybackMs,
-} from "../playback.js?v=20260812-user-avatar";
-import { getLocale, L } from "../i18n.js?v=20260812-user-avatar";
+} from "../playback.js?v=20260812-user-queries";
+import { getLocale, L } from "../i18n.js?v=20260812-user-queries";
 
 const DEFAULT_INTERNAL_MS = {
   stage: 100,
@@ -273,11 +273,7 @@ export class WeddingScriptPlayer {
 
     if (type === "auth_record") {
       c.recordAuthorization?.(step);
-      c.stream?.pushTimelineEvent?.({
-        kind: "auth",
-        text_zh: step.text_zh || pickStepText(step),
-        text_en: step.text_en,
-      });
+      // Authorization already appears as the user message; skip omniscient "授权" labels in IM.
       await sleepPlayback(this._internalMs("auth_record"));
       return;
     }

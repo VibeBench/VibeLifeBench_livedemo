@@ -3,8 +3,8 @@
  * No rich cards, sense-think-act rails, or dual-track chrome.
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-user-avatar";
-import { isReplayMode } from "../playback.js?v=20260812-user-avatar";
+import { L, getLocale } from "../i18n.js?v=20260812-user-queries";
+import { isReplayMode } from "../playback.js?v=20260812-user-queries";
 
 export const AUTH_PAYMENT_THRESHOLD = 5000;
 
@@ -305,7 +305,11 @@ export class WeddingStream {
   }
 
   pushTimelineEvent({ kind = "world", text_zh, text_en, text, id, title_zh, title_en } = {}) {
-    // Difficulty / conflict copy stays out of IM — use title+body only for operational notices.
+    // Stage / world / notify / discovery are narrator labels the model cannot "see" as chat.
+    // Keep them out of couple IM; callers should use user messages, tips, or tool surfaces instead.
+    const blocked = new Set(["stage", "world", "notify", "notification", "discovery", "mutation", "auth"]);
+    if (blocked.has(String(kind || "world"))) return null;
+
     const bodyZh = text_zh || text || "";
     const bodyEn = text_en || text || "";
     let zh = bodyZh;
@@ -329,9 +333,9 @@ export class WeddingStream {
     return this.pushMessage({
       thread: MAIN_THREAD,
       from: "agent",
-      kind: "discovery",
-      text_zh: text_zh || "骗局已拦截 · 试菜席间催款外链未付款",
-      text_en: text_en || "Scam blocked · tasting-table payment lure not paid",
+      kind: "text",
+      text_zh: text_zh || "骗局已拦截：试菜席间催款外链我没有点、也没有付。",
+      text_en: text_en || "Scam blocked: I did not open or pay the tasting-table lure link.",
     });
   }
 
