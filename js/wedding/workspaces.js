@@ -3,8 +3,8 @@
  * Aligns with ecom Team Inbox pattern (one big window, multi-contact).
  */
 
-import { L, getLocale } from "../i18n.js?v=20260812-tip-no-view";
-import { sleepPlayback } from "../playback.js?v=20260812-tip-no-view";
+import { L, getLocale } from "../i18n.js?v=20260812-switch-smooth";
+import { sleepPlayback } from "../playback.js?v=20260812-switch-smooth";
 
 export const WORKSPACE_IDS = [
   "im",
@@ -223,6 +223,17 @@ export class WeddingWorkspaces {
     const changed = next !== this.active;
     this.active = next;
     this._syncTabs();
+    // Coalesce rapid auto-switches during replay so the panel doesn't thrash.
+    if (changed && !user) {
+      this._pendingSwitch = next;
+      window.clearTimeout(this._switchCoalesceTimer);
+      this._switchCoalesceTimer = window.setTimeout(() => {
+        const target = this._pendingSwitch;
+        this._pendingSwitch = null;
+        if (target && this.active === target) this.render({ softSwitch: true });
+      }, 48);
+      return;
+    }
     this.render({ softSwitch: changed });
   }
 
@@ -265,12 +276,12 @@ export class WeddingWorkspaces {
     const html = (renderers[this.active] || (() => this._renderEmpty()))();
 
     const stage = this.stageEl;
-    if (opts.softSwitch) {
-      stage.classList.remove("is-switching");
-      void stage.offsetWidth;
+    const lockH = opts.softSwitch ? Math.max(stage.clientHeight, 280) : 0;
+    if (lockH) {
+      stage.style.minHeight = `${lockH}px`;
       stage.classList.add("is-switching");
-      window.clearTimeout(this._switchAnimTimer);
-      this._switchAnimTimer = window.setTimeout(() => stage.classList.remove("is-switching"), 360);
+    } else {
+      stage.classList.remove("is-switching");
     }
 
     this.stageEl.innerHTML = `<div class="wedding-workspace-panel">${html}</div>`;
@@ -282,10 +293,19 @@ export class WeddingWorkspaces {
       const threadName = thread?.[localeKey] || thread?.name_zh || thread?.name_en || L("协作消息", "Messages");
       this.setTitle(L(`协作消息 · ${threadName}`, `Messages · ${threadName}`));
       this._renderedCommThread = thread?.id || null;
-      this._bindCommsActions({ scroll: true, snap: true });
+      // Soft glue-to-bottom on switch — hard snap reads as a jump.
+      this._bindCommsActions({ scroll: true, snap: false });
     }
     if (this.active === "mail" || this.active === "inbox") this._bindMailActions();
     if (this.active === "sms") this._bindSmsActions();
+
+    if (lockH) {
+      window.clearTimeout(this._switchAnimTimer);
+      this._switchAnimTimer = window.setTimeout(() => {
+        stage.classList.remove("is-switching");
+        stage.style.minHeight = "";
+      }, 220);
+    }
   }
 
   setReplayPinned(active = false) {

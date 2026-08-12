@@ -8,8 +8,8 @@ import {
   getPlaybackSpeed,
   playbackMs,
   chatPlaybackMs,
-} from "../playback.js?v=20260812-tip-no-view";
-import { getLocale, L } from "../i18n.js?v=20260812-tip-no-view";
+} from "../playback.js?v=20260812-switch-smooth";
+import { getLocale, L } from "../i18n.js?v=20260812-switch-smooth";
 
 const DEFAULT_INTERNAL_MS = {
   stage: 100,

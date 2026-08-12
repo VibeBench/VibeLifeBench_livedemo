@@ -18386,15 +18386,21 @@ img.wedding-message-avatar,
   min-height: 0;
   overflow: auto;
   background: linear-gradient(180deg, #f7fbfa 0%, #fff 48px);
+  transition: min-height 0.18s ease;
+}
+
+.wedding-play-stage.is-switching {
+  overflow: hidden;
 }
 
 .wedding-play-stage.is-switching .wedding-workspace-panel {
-  animation: weddingSurfaceSwitch 0.34s cubic-bezier(0.22, 0.8, 0.28, 1);
+  animation: weddingSurfaceSwitch 0.2s ease-out;
+  will-change: opacity;
 }
 
 @keyframes weddingSurfaceSwitch {
-  from { opacity: 0.55; transform: translateY(5px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0.92; }
+  to { opacity: 1; }
 }
 
 .wedding-play-stage .wedding-workspace-panel {
