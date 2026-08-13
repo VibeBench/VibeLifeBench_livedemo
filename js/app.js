@@ -9,7 +9,7 @@ import {
   detectProvider,
 } from "./agent.js?v=20260808-travel-persona";
 import { Trajectory, isValidRecording } from "./trajectory.js?v=20260807-loop21";
-import { UI } from "./ui.js?v=20260812-venue-fanout";
+import { UI } from "./ui.js?v=20260813-travel-only";
 import {
   isOceanFlightCrossing,
   isDomesticTransfer,
@@ -18,8 +18,8 @@ import {
   mapZoomIn,
   mapZoomOut,
   clearMapOverlays,
-} from "./map.js?v=20260812-venue-fanout";
-import { loadPrecomputedRoutes } from "./routing.js?v=20260812-venue-fanout";
+} from "./map.js?v=20260813-travel-only";
+import { loadPrecomputedRoutes } from "./routing.js?v=20260813-travel-only";
 import {
   getPlaybackSpeed,
   setPlaybackSpeed,
@@ -27,7 +27,7 @@ import {
   sleepPlayback,
   playbackSpeedLabel,
   setReplayMode,
-} from "./playback.js?v=20260812-venue-fanout";
+} from "./playback.js?v=20260813-travel-only";
 import {
   loadI18nPacks,
   initLocaleFromStorage,
@@ -41,10 +41,10 @@ import {
   workspaceForLocale,
   onLocaleChange,
   applyDomI18n,
-} from "./i18n.js?v=20260812-venue-fanout";
-import { EcomCockpit } from "./ecom/cockpit.js?v=20260812-venue-fanout";
-import { WeddingCockpit } from "./wedding/cockpit.js?v=20260812-venue-fanout";
-import { createScriptedScenarioRegistry } from "./scenarios.js?v=20260812-venue-fanout";
+} from "./i18n.js?v=20260813-travel-only";
+import { EcomCockpit } from "./ecom/cockpit.js?v=20260813-travel-only";
+import { WeddingCockpit } from "./wedding/cockpit.js?v=20260813-travel-only";
+import { createScriptedScenarioRegistry } from "./scenarios.js?v=20260813-travel-only";
 
 /** OpenAI-compatible provider presets for the demo console. */
 const PROVIDERS = {
@@ -312,16 +312,8 @@ async function startScriptedReplay(id = currentScenario) {
 }
 
 function readScenarioFromUrl() {
-  try {
-    const q = new URLSearchParams(window.location.search);
-    const s = (q.get("scenario") || q.get("case") || "").toLowerCase();
-    if (s === "ecom" || s === "ecommerce" || s === "coffee" || s === "drip") return "ecom";
-    if (s === "wedding" || s === "wedding_fixed_date_167d_v1" || s === "marriage") return "wedding";
-    if (s === "travel" || s === "nz") return "travel";
-  } catch {
-    /* ignore */
-  }
-  return "wedding";
+  // Public site currently ships travel only; ignore ecom/wedding deep-links.
+  return "travel";
 }
 
 async function main() {
@@ -338,9 +330,7 @@ async function main() {
   syncReplayButton();
   syncScenarioChrome();
   onLocaleChange(() => rerenderForLocale());
-  // Prefetch deterministic cockpit packs so scenario switches stay instant.
-  scriptedScenarios.ensure("ecom").catch((err) => console.warn("ecom prefetch", err));
-  scriptedScenarios.ensure("wedding").catch((err) => console.warn("wedding prefetch", err));
+  // Travel-only public surface — skip ecom/wedding prefetch for now.
   const bootScenario = readScenarioFromUrl();
   try {
     caseData = await loadDefaultCase("./data");
@@ -349,17 +339,7 @@ async function main() {
     showEntryGuide();
     syncReplayButton();
     syncScenarioChrome();
-    if (scriptedScenarios.has(bootScenario)) {
-      await setScenario(bootScenario);
-      ui.toast(
-        bootScenario === "wedding"
-          ? i18nL("本地调试 · 婚礼筹备场景", "Local debug · wedding-planning scenario")
-          : i18nL("本地调试 · 挂耳电商场景", "Local debug · drip-commerce scenario")
-      );
-    } else {
-      ui.toast(i18nL("已加载 newzealand_drive_30d_v3", "Loaded newzealand_drive_30d_v3"));
-      if (bootScenario !== "travel") maybeAutoOpenConsole();
-    }
+    ui.toast(i18nL("已加载 newzealand_drive_30d_v3", "Loaded newzealand_drive_30d_v3"));
   } catch (e) {
     console.error(e);
     ui.toast(i18nL("默认数据加载失败：", "Failed to load default data: ") + e.message);
