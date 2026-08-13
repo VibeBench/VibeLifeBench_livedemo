@@ -736,8 +736,8 @@
       "thread": "lin_qiao",
       "from": "lin_qiao",
       "kind": "text",
-      "text_zh": "各家会话里的数先记着，下一步帮我并成同一张账吧。",
-      "text_en": "Park the vendor numbers in each thread for now, then merge them into one ledger.",
+      "text_zh": "各家聊过的报价你先记着，下一步帮我合成一本账吧。",
+      "text_en": "Keep the quotes from each vendor for now, then help me merge them into one ledger.",
       "holdMs": 1554,
       "benchmark_refs": {
         "events": [
@@ -755,8 +755,8 @@
       "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
-      "text_zh": "散落报价已经并进同一张账：每一笔我都标了性质（定金 / 不可退 / 已应），按五轨归位，并留出应急预备金。任何超限项我只摊开选项，不会自行拍板。",
-      "text_en": "Scattered quotes are merged into one ledger: each line tagged (deposit / nonrefundable / pledged), slotted into five tracks, with reserve kept. Over-cap items get options only — I don’t decide for you.",
+      "text_zh": "报价我已经收进同一本账了。每一笔都标清楚：是定金、付了退不了，还是口头先应下的；场地、宾客、摄影、婚纱、仪式这几块分开记，并留了一笔应急钱。哪笔加起来会超预算，我只把选项摆给你，不替你决定。",
+      "text_en": "I’ve pulled the quotes into one ledger. Each line is tagged — deposit, nonrefundable, or verbally pledged — split across venue, guests, photo, gown and ceremony, with some emergency money set aside. If anything would blow the budget, I’ll show you the options and won’t decide for you.",
       "holdMs": 1600,
       "benchmark_refs": {
         "events": [
@@ -850,8 +850,8 @@
       "thread": "lin_qiao",
       "from": "lin_qiao",
       "kind": "text",
-      "text_zh": "每一笔单独看都合理，加起来却超 25 万，五轨又都钉着 10-03——怎么排？",
-      "text_en": "Each line looks fair but together they won't fit ¥250k, and all five tracks hit Oct 3 — how do we sequence?",
+      "text_zh": "每一笔单独看都合理，加起来却超 25 万，事儿又都得赶在 10-03 前——怎么排？",
+      "text_en": "Each line looks fine alone, but together we go over ¥250k, and everything still has to land before 10-03 — how should we sequence this?",
       "holdMs": 1554,
       "benchmark_refs": {
         "events": [
@@ -869,8 +869,8 @@
       "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
-      "text_zh": "我建好了依赖图，标出 7 个不可退锁点，全部倒排到 10-03。接下来会并行推进场地/摄影/婚纱等会话，但每次锁金前都会先把连锁损失算给你看。",
-      "text_en": "Dependency graph is up with 7 nonrefundable locks, all back-scheduled to Oct 3. I’ll parallelize venue/photo/gown threads, but every lock will show cascade loss before money moves.",
+      "text_zh": "我把关键节点排好了：有 7 笔付了就退不回来的定金，都倒推到 10-03。场地、摄影、婚纱我会一起往前推，但每次要付钱之前，都会先把会影响后面的损失算给你看。",
+      "text_en": "I’ve lined up the critical dates: seven deposits that can’t be refunded once paid, all working back from 10-03. I’ll push venue, photo and gown in parallel, but before each payment I’ll show you what it squeezes later.",
       "holdMs": 1600,
       "benchmark_refs": {
         "events": [
@@ -881,8 +881,8 @@
         ],
         "mutations": []
       },
-      "thinking_zh": "用户问怎么排。需要 critical path + 锁点，而不是空口并行。",
-      "thinking_en": "User asked how to sequence. Need critical path + locks, not empty parallelism."
+      "thinking_zh": "用户问怎么排。先把付了退不了的节点和截止日摊开，别空口说并行。",
+      "thinking_en": "User asks how to sequence. Surface nonrefundable nodes and deadlines before promising parallel work."
     },
     {
       "type": "tool_call",
@@ -902,8 +902,8 @@
         ],
         "mutations": []
       },
-      "thinking_zh": "用户问怎么排：先钉七个不可退锁点到 10-03。",
-      "thinking_en": "User asked how to sequence — pin seven nonrefundable locks to Oct 3."
+      "thinking_zh": "用户问怎么排：先把七笔不可退定金倒推到 10-03。",
+      "thinking_en": "User asks how to sequence: back-schedule the seven nonrefundable deposits to 10-03."
     },
     {
       "type": "deliverable",
