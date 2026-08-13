@@ -63,8 +63,8 @@
       "type": "world",
       "act": "act_date",
       "level": "info",
-      "text_zh": "长辈确定婚期 2026-10-03，预算硬顶 ¥250,000。",
-      "text_en": "Elders fixed date 2026-10-03; budget cap ¥250,000.",
+      "text_zh": "长辈确定婚期 2026-10-03，预算不超过 ¥250,000。",
+      "text_en": "Elders fixed the date for 2026-10-03; budget stays within ¥250,000.",
       "holdMs": 1188,
       "benchmark_refs": {
         "events": [
@@ -82,8 +82,8 @@
       "thread": "lin_qiao",
       "from": "lin_qiao",
       "kind": "text",
-      "text_zh": "长辈把婚期定在 2026-10-03 了，预算硬顶 25 万。先帮我们立下总规矩？",
-      "text_en": "Elders locked the date to 2026-10-03 with a hard ¥250k cap. Can you set the ground rules first?",
+      "text_zh": "长辈把婚期定在 2026-10-03 了，预算最多 25 万，不能超。你先帮我们把几件大事说清楚？",
+      "text_en": "Elders set the wedding for 2026-10-03, and the budget can’t go over ¥250k. Can you first spell out the big rules for us?",
       "holdMs": 1554,
       "benchmark_refs": {
         "events": [
@@ -101,8 +101,8 @@
       "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
-      "text_zh": "好，我先把总约束立清楚：婚期 2026-10-03 不可改，我不会给你列任何改期方案。后面所有供应商沟通、定金与备选预案，都在这个钉子上展开。你只要盯预算顶和授权点就行。",
-      "text_en": "Understood — hard constraint first: wedding date 2026-10-03 is immutable, and I will not list any reschedule options. Every vendor thread, deposit, and backup plan hangs off that pin. You only need to watch the budget cap and auth gates.",
+      "text_zh": "好。先说死两件：婚期就是 2026-10-03，不能改，我也不会再跟你提改期。后面找场地、谈定金、做备选，都按这个日子往前推。预算别超 25 万；大额付款我会先问你，不替你做主。",
+      "text_en": "Got it. Two things are fixed: the wedding stays on 2026-10-03 — I won’t suggest moving it. Venue talks, deposits, and backups all work backward from that day. Keep the budget under ¥250k; for large payments I’ll ask you first and won’t decide for you.",
       "holdMs": 1600,
       "benchmark_refs": {
         "events": [
@@ -113,8 +113,8 @@
         ],
         "mutations": []
       },
-      "thinking_zh": "用户确认了婚期与预算硬顶。先把「不改期」写成总约束，避免后续工具与供应商会话漂出选项。",
-      "thinking_en": "User locked date + budget cap. Write the no-reschedule rule before any tool or vendor thread."
+      "thinking_zh": "用户确认了婚期和预算上限。先把「不改期」说清楚，后面才好跟供应商谈。",
+      "thinking_en": "User confirmed the date and budget ceiling. Make the no-reschedule rule clear before talking to vendors."
     },
     {
       "type": "tool_call",
@@ -160,8 +160,8 @@
       "type": "world",
       "act": "act_date",
       "level": "info",
-      "text_zh": "汇总定金、隐私与授权规则。",
-      "text_en": "Deposit, privacy, and authorization rules consolidated.",
+      "text_zh": "把定金、隐私和付款确认方式说清楚。",
+      "text_en": "Clarify deposits, privacy, and how payments get confirmed.",
       "holdMs": 1188,
       "benchmark_refs": {
         "events": [
@@ -179,8 +179,8 @@
       "thread": "lin_qiao",
       "from": "lin_qiao",
       "kind": "text",
-      "text_zh": "定金、隐私和授权规则帮我汇总一下，超过五千的别替我拍板。",
-      "text_en": "Summarize deposit, privacy and auth rules — don't approve anything over 5k for me.",
+      "text_zh": "定金怎么付、哪些信息不能外传，再跟我说清楚。超过五千的事别替我做主。",
+      "text_en": "Also spell out how deposits work and what can’t be shared outside. Don’t decide anything over ¥5,000 for me.",
       "holdMs": 1554,
       "benchmark_refs": {
         "events": [
@@ -198,8 +198,8 @@
       "thread": "lin_qiao",
       "from": "agent",
       "kind": "text",
-      "text_zh": "授权门禁我也写进规则了：单笔超过 ¥5,000 必须你当次明确点头；我不会代签任何合同或附件；长辈电话只留在你们这边，不会外发给司仪/婚庆。之后每次付款我都会先问一句再动。",
-      "text_en": "Auth matrix is set: anything over ¥5,000 needs your explicit go-ahead this turn; I never sign contracts or annexes; elder phone numbers stay with you and won’t be shared with MC/planners. Every payment will ask first.",
+      "text_zh": "行，这几条我记住了：单笔超过 ¥5,000，一定先问过你再付；合同和附件我都不代签；长辈电话只留在你们这边，不会给到司仪或婚庆。以后每次付款我都会先跟你确认一声。",
+      "text_en": "Okay — I’ll stick to this: anything over ¥5,000, I ask you before paying; I won’t sign contracts or annexes for you; elders’ numbers stay with you and won’t go to the MC or planner. I’ll confirm with you before every payment.",
       "holdMs": 1600,
       "benchmark_refs": {
         "events": [
@@ -210,8 +210,8 @@
         ],
         "mutations": []
       },
-      "thinking_zh": "定金和隐私是高风险项。需要把金额阈值、拒代签、联系方式外发禁令写死，后面工具调用才有闸门。",
-      "thinking_en": "Deposits and privacy are high-risk. Lock amount threshold, no-sign, and contact-sharing ban before tools run."
+      "thinking_zh": "定金和隐私最容易出事。把金额上限、不代签、不外传联系方式说清楚，后面付款才有依据。",
+      "thinking_en": "Deposits and privacy are high-risk. Spell out the amount threshold, no-sign rule, and contact-sharing ban before payments."
     },
     {
       "type": "deliverable",
